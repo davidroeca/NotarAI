@@ -1,0 +1,73 @@
+schema_version: "0.3"
+
+intent: >
+  NotarAI is a continuous intent reconciliation platform. It represents a shift
+  in how software is built in the LLM era: from code-as-truth to
+  spec-as-living-witness. Every software project contains three bodies of
+  artifact — intent (specs), code, and docs — that inevitably drift apart. NotarAI
+  treats this three-body drift problem as the central engineering challenge of the
+  LLM era and provides the tooling to detect, propose, and approve reconciliation
+  across all three. The spec is always the tiebreaker.
+
+behaviors:
+  - name: continuous_reconciliation
+    given: "any change to code, spec, or docs in a governed repository"
+    then: "the engine detects drift across all three artifact bodies and proposes targeted updates to bring them into alignment"
+
+  - name: bidirectional_sync
+    given: "a human or LLM edits any artifact — spec, code, or doc"
+    then: "the engine determines which other artifacts are now out of sync and proposes specific, minimal updates to each"
+
+  - name: propose_and_approve
+    given: "the engine detects drift or generates a reconciliation proposal"
+    then: "the proposal is surfaced to the human for review and approval; nothing is auto-applied"
+
+  - name: coverage_model
+    given: "a file exists in the repository"
+    then: "it is classified as Tier 1 (fully specced), Tier 2 (registered), or Tier 3 (excluded); any file not in one of these tiers is flagged as an unspecced artifact lint warning"
+
+  - name: spec_composition
+    given: "a system contains subsystems or cross-cutting concerns"
+    then: "specs are composed via $ref for subsystem hierarchy and applies for cross-cutting invariants, allowing each spec to govern its own scope without duplication"
+
+constraints:
+  - "The human must approve all reconciliation proposals before any artifact is modified"
+  - "The spec is always the canonical tiebreaker when code and spec disagree"
+  - "Specs are version-controlled and diffable — every change is traceable"
+  - "Coverage policy defaults to warn; unspecced files are flagged, not blocked, unless policy is set to strict"
+
+invariants:
+  - "The engine must never silently auto-modify code, specs, or docs without human approval"
+  - "A file matching an exclude glob must never trigger an unspecced file warning"
+  - "Spec composition must never create circular $ref chains"
+
+subsystems:
+  - $ref: "./cli.spec.yaml"
+
+exclude:
+  - "img/**"
+
+artifacts:
+  docs:
+    - path: "README.md"
+      role: "Project-level overview covering the NotarAI platform, philosophy, and CLI usage"
+    - path: "docs/motivation.md"
+      role: "Narrative motivation for the NotarAI approach and the three-body drift problem"
+    - path: "docs/motivation-system-diagrams.md"
+      role: "Design diagrams illustrating the problem, solution, and reconciliation lifecycle"
+    - path: "docs/comparison-to-sdd.md"
+      role: "Conceptual comparison between NotarAI and Spec-Driven Development (SDD) tools, positioning NotarAI as spec-anchored with active reconciliation"
+
+decisions:
+  - date: "2026-02-20"
+    choice: "Propose-and-approve as the only reconciliation mode"
+    rationale: "Auto-sync erodes trust in the spec as source of truth; humans must remain in the loop for all artifact changes"
+  - date: "2026-02-20"
+    choice: "Spec is the tiebreaker when code and spec disagree"
+    rationale: "Elevates intent above implementation drift; forces explicit decisions when code diverges from spec"
+  - date: "2026-02-20"
+    choice: "Three-tier coverage model (full / registered / excluded)"
+    rationale: "Avoids the binary owned/unowned problem; registered tier lets utility files be visible without full behavioral specs; excluded tier prevents binary assets and generated files from polluting the coverage report"
+  - date: "2026-02-20"
+    choice: "System spec owns all concept-level docs; subsystem specs own only their code and config"
+    rationale: "Avoids dual ownership of documentation; system spec is the natural home for cross-cutting narrative artifacts"

@@ -64,13 +64,6 @@ artifacts:
       role: "Command implementations (validate, init, hook-validate)"
     - path: "src/lib/*.ts"
       role: "Core library (schema loading, YAML parsing, Ajv validation)"
-  docs:
-    - path: "README.md"
-      role: "Project documentation"
-    - path: "docs/motivation.md"
-      role: "Narrative motivation for the NotarAI approach"
-    - path: "docs/motivation-system-diagrams.md"
-      role: "Initial motivation design diagrams illustrating the problem, solution, and reconciliation lifecycle"
   config:
     - path: "notarai.spec.json"
       role: "JSON Schema that spec files are validated against"
