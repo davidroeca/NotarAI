@@ -1,5 +1,7 @@
 # NotarAI
 
+<img src="img/NotarAI.png" alt="NotarAI logo" width="300" height="300">
+
 A structured spec format and reconciliation engine that keeps intent, code, and documentation in sync using LLMs.
 
 ## The Problem
