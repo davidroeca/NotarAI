@@ -1,0 +1,78 @@
+schema_version: "0.3"
+
+intent: >
+  A CLI tool that validates NotarAI spec files against the JSON Schema
+  and integrates with Claude Code via hooks so specs are automatically
+  validated when written or edited. Installable via npm, configured
+  with a single `notarai init` command.
+
+behaviors:
+  - name: validate_single_file
+    given: "a path to a .spec.yaml file"
+    then: "validates it against the schema, prints PASS or FAIL with errors, exits 0 or 1"
+
+  - name: validate_directory
+    given: "a path to a directory (or no args, defaulting to .notarai/)"
+    then: "recursively finds all .spec.yaml files, validates each, exits 1 if any fail"
+
+  - name: hook_validate_spec_file
+    given: "PostToolUse JSON on stdin with a file_path matching .notarai/**/*.spec.yaml"
+    then: "reads the file from disk, validates it, exits 1 with errors on stderr if invalid"
+
+  - name: hook_ignore_non_spec
+    given: "PostToolUse JSON on stdin with a file_path that is not a spec file"
+    then: "exits 0 silently without validation"
+
+  - name: hook_graceful_on_bad_input
+    given: "invalid JSON on stdin or a missing file"
+    then: "exits 0 silently without error"
+
+  - name: init_fresh
+    given: "no existing .claude/settings.json"
+    then: "creates .claude/settings.json with the PostToolUse validation hook and copies notarai-reconcile.md to .claude/commands/"
+
+  - name: init_idempotent
+    given: "notarai init has already been run"
+    then: "detects existing hook and command, reports already configured, makes no changes"
+
+constraints:
+  - "Exit codes: 0 for success/no-op, 1 for validation failure or errors"
+  - "No CLI framework dependency — uses raw process.argv for the 3 commands"
+  - "Schema is loaded once at module init and compiled via Ajv"
+
+invariants:
+  - "A valid spec file must never be reported as FAIL"
+  - "An invalid spec file must never be reported as PASS"
+  - "The hook must never block non-spec file writes (must exit 0)"
+
+decisions:
+  - date: "2026-02-20"
+    choice: "Raw process.argv over a CLI framework (e.g. commander, yargs)"
+    rationale: "Only 3 commands, not worth the dependency"
+  - date: "2026-02-20"
+    choice: "Node16 module/moduleResolution in tsconfig"
+    rationale: "CLI runs directly on Node.js without a bundler, needs correct ESM resolution"
+  - date: "2026-02-20"
+    choice: "Reconcile command named notarai-reconcile.md"
+    rationale: "Avoids colliding with a user's own /reconcile command"
+
+artifacts:
+  code:
+    - path: "src/bin.ts"
+      role: "CLI entry point and command routing"
+    - path: "src/commands/*.ts"
+      role: "Command implementations (validate, init, hook-validate)"
+    - path: "src/lib/*.ts"
+      role: "Core library (schema loading, YAML parsing, Ajv validation)"
+  docs:
+    - path: "README.md"
+      role: "Project documentation"
+    - path: "docs/motivation.md"
+      role: "Narrative motivation for the NotarAI approach"
+    - path: "docs/motivation-system-diagrams.md"
+      role: "Initial motivation design diagrams illustrating the problem, solution, and reconciliation lifecycle"
+  config:
+    - path: "notarai.spec.json"
+      role: "JSON Schema that spec files are validated against"
+    - path: "commands/notarai-reconcile.md"
+      role: "Bundled Claude Code slash command copied by init"

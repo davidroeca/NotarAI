@@ -1,0 +1,36 @@
+{
+  "name": "notarai",
+  "version": "0.1.0",
+  "description": "CLI validator for NotarAI spec files",
+  "type": "module",
+  "bin": {
+    "notarai": "dist/bin.js"
+  },
+  "files": [
+    "dist/",
+    "notarai.spec.json",
+    "commands/"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "notarai",
+    "spec",
+    "validation",
+    "schema"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.3.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  }
+}
