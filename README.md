@@ -1,8 +1,12 @@
 # NotarAI
 
+<div align="center">
+
 <img src="img/NotarAI.png" alt="NotarAI logo" width="300" height="300">
 
 _Intent captured. Drift witnessed._
+
+</div>
 
 NotarAI is a continuous intent reconciliation tool that keeps your specs, code, and documentation in sync as all three evolve. It uses LLMs as a bidirectional reconciliation engine, not just to generate code from specs, but to detect drift, surface conflicts, and propose updates across your entire artifact chain.
 
