@@ -12,7 +12,7 @@ All diagrams from the design process, updated to reflect the NotarAI name and `.
 flowchart LR
     Dev["Developer<br/>(intent in head)"]
     Code["Source Code<br/>**authoritative spec**"]
-    Docs["Docs<br/>_second-class, often stale_"]
+    Docs["Docs<br/>second-class, often stale"]
 
     Dev -->|writes| Code
     Code -.->|describes| Docs
@@ -26,7 +26,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Intent["User Intent<br/>_natural language prompt_"]
+    Intent["User Intent<br/>natural language prompt"]
     LLM["LLM"]
     Code["Source Code"]
     Docs["Documentation"]
@@ -54,8 +54,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Intent["User Intent<br/>_natural language_"]
-    Spec["**NotarAI Spec**<br/>_structured intent representation_<br/>canonical source of truth"]
+    Intent["User Intent<br/>natural language"]
+    Spec["**NotarAI Spec**<br/>structured intent representation<br/>canonical source of truth"]
     LLM["LLM (sync engine)"]
     Code["Source Code"]
     Docs["Documentation"]
@@ -146,10 +146,10 @@ sync_policy:
 
 ```mermaid
 flowchart LR
-    A1["Human edits code<br/>_adds OAuth endpoint_"]
-    A2["LLM detects drift<br/>_code ≠ spec behaviors_"]
-    A3["LLM proposes spec update<br/>_+ add behavior: oauth_login_<br/>_+ update docs/auth.md_"]
-    A4["Human approves<br/>_or adjusts & approves_"]
+    A1["Human edits code<br/>adds OAuth endpoint"]
+    A2["LLM detects drift<br/>code ≠ spec behaviors"]
+    A3["LLM proposes spec update<br/>+ add behavior: oauth_login<br/>+ update docs/auth.md"]
+    A4["Human approves<br/>or adjusts & approves"]
 
     A1 -->|trigger| A2
     A2 -->|reconcile| A3
@@ -165,10 +165,10 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    B1["Human edits spec<br/>_changes session → 60 min_"]
+    B1["Human edits spec<br/>changes session → 60 min"]
     B2["LLM updates code to match"]
     B3["LLM updates docs to match"]
-    B4["Human reviews<br/>_code + docs diff_<br/>_as a single PR_"]
+    B4["Human reviews<br/>code + docs diff<br/>as a single PR"]
 
     B1 -->|direct| B2
     B1 -->|direct| B3
@@ -185,10 +185,10 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    C1["Conflict detected<br/>_code says X, spec says Y_<br/>_docs say Z_"]
-    C2["LLM presents options<br/>_spec says X, but code_<br/>_does Y — which is right?_"]
-    C3["Human decides intent<br/>_LLM propagates decision_<br/>_across spec + code + docs_"]
-    C4["All three aligned<br/>_conflict resolved_"]
+    C1["Conflict detected<br/>code says X, spec says Y<br/>docs say Z"]
+    C2["LLM presents options<br/>spec says X, but code<br/>does Y — which is right?"]
+    C3["Human decides intent<br/>LLM propagates decision<br/>across spec + code + docs"]
+    C4["All three aligned<br/>conflict resolved"]
 
     C1 -->|detect| C2
     C2 -->|reconcile| C3
@@ -254,11 +254,11 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    S1["Dev + LLM<br/>write code freely<br/>_no spec friction_"]
+    S1["Dev + LLM<br/>write code freely<br/>no spec friction"]
     S2["git push<br/>or open PR"]
-    S3["CI hook: LLM reviews<br/>_diff ∩ affected specs_<br/>_→ proposes spec updates_<br/>_→ proposes doc updates_"]
-    S4["Adds to PR<br/>_spec diff + docs diff_<br/>_alongside code diff_"]
-    S5["Single review<br/>_code + spec + docs_<br/>_all land together or not_"]
+    S3["CI hook: LLM reviews<br/>diff ∩ affected specs<br/>→ proposes spec updates<br/>→ proposes doc updates"]
+    S4["Adds to PR<br/>spec diff + docs diff<br/>alongside code diff"]
+    S5["Single review<br/>code + spec + docs<br/>all land together or not"]
 
     S1 --> S2 --> S3 --> S4 --> S5
 
@@ -300,14 +300,14 @@ project/
 
 ```mermaid
 flowchart TD
-    System["**system.spec.yaml**<br/>_top-level intent + invariants_"]
+    System["**system.spec.yaml**<br/>top-level intent + invariants"]
 
     Auth[".notarai/auth.spec.yaml"]
     Billing[".notarai/billing.spec.yaml"]
     API[".notarai/api.spec.yaml"]
 
-    Security["_shared/security.spec.yaml<br/>_applies to: all subsystems_"]
-    Logging["_shared/logging.spec.yaml<br/>_applies to: all subsystems_"]
+    Security["_shared/security.spec.yaml<br/>applies to: all subsystems"]
+    Logging["_shared/logging.spec.yaml<br/>applies to: all subsystems"]
 
     System -->|"$ref"| Auth
     System -->|"$ref"| Billing
@@ -406,11 +406,11 @@ Anything not covered = **unspecced** (a lint warning, not a block).
 
 ```mermaid
 flowchart LR
-    S1["1. Ingest<br/>_code + docs +_<br/>_commit history +_<br/>_README / ADRs_"]
-    S2["2. LLM interviews<br/>_What's the goal?_<br/>_Any undocumented rules?_"]
-    S3["3. Draft spec<br/>_required fields only_<br/>_intent + behaviors +_<br/>_artifact mappings_"]
-    S4["4. Human review<br/>_correct, enrich,_<br/>_add constraints /_<br/>_open questions_"]
-    S5["5. Activate<br/>_sync engine_<br/>_watches for drift_<br/>_from this point on_"]
+    S1["1. Ingest<br/>code + docs +<br/>commit history +<br/>README / ADRs"]
+    S2["2. LLM interviews<br/>What's the goal?<br/>Any undocumented rules?"]
+    S3["3. Draft spec<br/>required fields only<br/>intent + behaviors +<br/>artifact mappings"]
+    S4["4. Human review<br/>correct, enrich,<br/>add constraints /<br/>open questions"]
+    S5["5. Activate<br/>sync engine<br/>watches for drift<br/>from this point on"]
 
     S1 --> S2 --> S3 --> S4 --> S5
 
