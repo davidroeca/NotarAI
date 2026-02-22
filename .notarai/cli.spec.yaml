@@ -45,8 +45,9 @@ behaviors:
 
 constraints:
   - "Exit codes: 0 for success/no-op, 1 for validation failure or errors"
-  - "No CLI framework dependency — uses raw process.argv for the 3 commands"
+  - "No CLI framework dependency — uses raw process.argv for all commands"
   - "Schema is loaded once at module init and compiled via Ajv"
+  - "The USAGE help text in src/bin.ts must accurately describe every available command and its current behavior"
 
 invariants:
   - "A valid spec file must never be reported as FAIL"
