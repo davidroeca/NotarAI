@@ -87,7 +87,7 @@ flowchart TD
 
 ```yaml
 # .notarai/auth.spec.yaml
-schema_version: "0.3"
+schema_version: "0.4"
 
 intent: |
   Users can sign up, log in, and

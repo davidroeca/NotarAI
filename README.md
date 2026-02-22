@@ -173,11 +173,17 @@ Use the `/notarai-bootstrap` slash command to bootstrap `.notarai/` specs for an
 
 ## Status
 
-This project is in early development. The spec schema (`notarai.spec.json`) and CLI validator are implemented. Future goals include:
+This project is in early development. What's implemented:
+
+- Spec schema v0.4 (`notarai.spec.json`) with validation CLI
+- `/notarai-reconcile` slash command for drift detection
+- `/notarai-bootstrap` slash command for bootstrapping specs from an existing codebase via developer interview
+
+Future goals include:
 
 - Supporting other models and agentic ecosystems beyond Claude Code
 - Minimizing token usage in spec-aware workflows
-- Bootstrap slash command (`/notarai-bootstrap`) is implemented; future work includes richer invariant elicitation and multi-repo support
+- Richer invariant elicitation and multi-repo support in the bootstrap flow
 - Broader reconciliation techniques that don't balloon the context
 
 ## Inspirations

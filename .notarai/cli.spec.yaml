@@ -1,4 +1,4 @@
-schema_version: "0.3"
+schema_version: "0.4"
 
 intent: >
   A CLI tool that validates NotarAI spec files against the JSON Schema
@@ -68,7 +68,7 @@ artifacts:
       role: "Command implementations (validate, init, hook-validate)"
     - path: "src/lib/*.ts"
       role: "Core library (schema loading, YAML parsing, Ajv validation)"
-  config:
+  configs:
     - path: "notarai.spec.json"
       role: "JSON Schema that spec files are validated against"
     - path: "commands/notarai-reconcile.md"

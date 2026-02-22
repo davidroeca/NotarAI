@@ -65,10 +65,10 @@ After the human answers the interview questions:
 
 1. **Create the `.notarai/` directory** if it doesn't exist.
 
-2. **Write `system.spec.yaml`** with the following structure. Use `schema_version: "0.3"`. Populate all fields from the interview answers:
+2. **Write `system.spec.yaml`** with the following structure. Use `schema_version: "0.4"`. Populate all fields from the interview answers:
 
 ```yaml
-schema_version: "0.3"
+schema_version: "0.4"
 
 intent: >
   [one or two sentences from the human's answer to question 2]

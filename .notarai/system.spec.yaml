@@ -1,4 +1,4 @@
-schema_version: "0.3"
+schema_version: "0.4"
 
 intent: >
   NotarAI is a continuous intent reconciliation platform. It represents a shift
@@ -72,3 +72,6 @@ decisions:
   - date: "2026-02-20"
     choice: "System spec owns all concept-level docs; subsystem specs own only their code and config"
     rationale: "Avoids dual ownership of documentation; system spec is the natural home for cross-cutting narrative artifacts"
+  - date: "2026-02-21"
+    choice: "Promote notebooks, configs, and source to the spec schema (v0.4)"
+    rationale: "ML, research, and infra projects use notebooks and config files as first-class artifacts; external datasets (e.g. HuggingFace) need a source field since they can't be expressed as local glob patterns"
