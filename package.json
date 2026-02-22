@@ -9,7 +9,8 @@
   "files": [
     "dist/",
     "notarai.spec.json",
-    "commands/"
+    "commands/",
+    "templates/"
   ],
   "scripts": {
     "build": "tsc",

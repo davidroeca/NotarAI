@@ -58,6 +58,9 @@ artifacts:
       role: "Design diagrams illustrating the problem, solution, and reconciliation lifecycle"
     - path: "docs/comparison-to-sdd.md"
       role: "Conceptual comparison between NotarAI and Spec-Driven Development (SDD) tools, positioning NotarAI as spec-anchored with active reconciliation"
+  configs:
+    - path: "CLAUDE.md"
+      role: "Claude Code context file — architectural constraints, build workflow, and conventions for AI-assisted development on this project"
 
 decisions:
   - date: "2026-02-20"

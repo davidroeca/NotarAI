@@ -1,4 +1,5 @@
 import {
+  appendFileSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -77,6 +78,33 @@ export function runInit(): void {
 
   setupReconcileCommand(claudeDir)
   setupBootstrapCommand(claudeDir)
+  setupClaudeContext(process.cwd())
+}
+
+function setupClaudeContext(projectDir: string): void {
+  const __dirname = dirname(fileURLToPath(import.meta.url))
+  const templatePath = resolve(__dirname, '../../templates/claude-context.md')
+
+  if (!existsSync(templatePath)) {
+    console.error('Warning: bundled claude-context.md not found, skipping CLAUDE.md setup')
+    return
+  }
+
+  const templateContent = readFileSync(templatePath, 'utf-8')
+  const claudeMdPath = join(projectDir, 'CLAUDE.md')
+
+  if (existsSync(claudeMdPath)) {
+    const existing = readFileSync(claudeMdPath, 'utf-8')
+    if (existing.includes('## NotarAI')) {
+      console.log('NotarAI context already present in CLAUDE.md')
+      return
+    }
+    appendFileSync(claudeMdPath, '\n\n' + templateContent)
+  } else {
+    writeFileSync(claudeMdPath, templateContent)
+  }
+
+  console.log('Added NotarAI context to CLAUDE.md')
 }
 
 function setupReconcileCommand(claudeDir: string): void {

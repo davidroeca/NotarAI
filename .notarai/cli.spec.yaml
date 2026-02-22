@@ -29,15 +29,19 @@ behaviors:
 
   - name: init_fresh
     given: "no existing .claude/settings.json"
-    then: "creates .claude/settings.json with the PostToolUse validation hook and copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/"
+    then: "creates .claude/settings.json with the PostToolUse validation hook, copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/, and creates CLAUDE.md with the bundled NotarAI context section"
 
   - name: init_idempotent
-    given: "notarai init has already been run and all commands are already installed"
-    then: "detects existing hook and commands, reports already configured, makes no changes"
+    given: "notarai init has already been run, all commands are already installed, and CLAUDE.md already contains a '## NotarAI' section"
+    then: "detects existing hook, commands, and CLAUDE.md context, reports already configured, makes no changes"
 
   - name: bootstrap_command_setup
     given: "notarai init runs and .claude/commands/notarai-bootstrap.md does not exist"
     then: "copies commands/notarai-bootstrap.md to .claude/commands/notarai-bootstrap.md"
+
+  - name: claude_context_setup
+    given: "notarai init runs and the target project's CLAUDE.md does not contain a '## NotarAI' section"
+    then: "appends (or creates) CLAUDE.md with the bundled templates/claude-context.md content"
 
 constraints:
   - "Exit codes: 0 for success/no-op, 1 for validation failure or errors"
@@ -75,3 +79,5 @@ artifacts:
       role: "Bundled Claude Code slash command copied by init"
     - path: "commands/notarai-bootstrap.md"
       role: "Bundled Claude Code slash command for bootstrap interview, copied by init"
+    - path: "templates/claude-context.md"
+      role: "Bundled CLAUDE.md section template written by notarai init to target projects"
