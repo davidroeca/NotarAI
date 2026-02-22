@@ -1,6 +1,7 @@
-import { readFileSync, statSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, readdirSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { validateSpec } from '../lib/validator.js'
+import { loadSchema } from '../lib/schema.js'
 
 function findSpecFiles(dir: string): string[] {
   const results: string[] = []
@@ -16,7 +17,30 @@ function findSpecFiles(dir: string): string[] {
   return results
 }
 
+function checkSchemaFreshness(): void {
+  const localPath = join(process.cwd(), '.claude', 'notarai.spec.json')
+  if (!existsSync(localPath)) return
+
+  const bundled = loadSchema()
+  let local: Record<string, unknown>
+  try {
+    local = JSON.parse(readFileSync(localPath, 'utf-8')) as Record<
+      string,
+      unknown
+    >
+  } catch {
+    return
+  }
+
+  if (bundled['$id'] !== local['$id']) {
+    console.warn(
+      `Warning: .claude/notarai.spec.json is out of date (local: ${local['$id']}, bundled: ${bundled['$id']}). Run \`notarai init\` to update.`,
+    )
+  }
+}
+
 export function runValidate(args: string[]): void {
+  checkSchemaFreshness()
   const target = args[0] ?? '.notarai'
   const resolved = resolve(target)
 

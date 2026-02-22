@@ -32,3 +32,7 @@ Spec files in `.notarai/` are validated automatically when written or edited.
 Run `/notarai-reconcile` after significant code changes. When code and spec
 disagree, surface the conflict rather than silently resolving it — the spec is
 the tiebreaker.
+
+The full spec schema (field definitions, required fields, valid enums) is at:
+
+@.claude/notarai.spec.json

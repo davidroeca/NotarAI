@@ -72,4 +72,4 @@ List anything you're unsure about:
 - Don't hallucinate behaviors — only report what you can verify from the code.
 - For the control case (pure refactoring with no behavior change), the correct answer is "all behaviors IN SYNC" with artifact path updates only.
 - Pay special attention to **invariants** — these are the highest-priority items. A violated invariant should be called out loudly.
-- The spec schema is at `notarai.spec.json` if you need to validate your proposed changes.
+- The spec schema is at `.claude/notarai.spec.json` (project-local, kept current by `notarai init`) or `notarai.spec.json` in the NotarAI package root if you need to validate proposed changes.

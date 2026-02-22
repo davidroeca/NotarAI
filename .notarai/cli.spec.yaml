@@ -29,11 +29,15 @@ behaviors:
 
   - name: init_fresh
     given: "no existing .claude/settings.json"
-    then: "creates .claude/settings.json with the PostToolUse validation hook, copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/, and creates CLAUDE.md with the bundled NotarAI context section"
+    then: "creates .claude/settings.json with the PostToolUse validation hook, copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/, copies notarai.spec.json to .claude/notarai.spec.json, and creates CLAUDE.md with the bundled NotarAI context section (which @-imports the schema)"
+
+  - name: validate_warns_stale_schema
+    given: "notarai validate runs and .claude/notarai.spec.json exists but its $id differs from the bundled schema"
+    then: "prints a warning telling the user to run `notarai init` to update; validation continues normally"
 
   - name: init_idempotent
     given: "notarai init has already been run, all commands are already installed, and CLAUDE.md already contains a '## NotarAI' section"
-    then: "detects existing hook, commands, and CLAUDE.md context, reports already configured, makes no changes"
+    then: "detects existing hook, commands, and CLAUDE.md context, reports already configured; always refreshes .claude/notarai.spec.json (unconditional overwrite keeps schema current)"
 
   - name: bootstrap_command_setup
     given: "notarai init runs and .claude/commands/notarai-bootstrap.md does not exist"
@@ -46,7 +50,7 @@ behaviors:
 constraints:
   - "Exit codes: 0 for success/no-op, 1 for validation failure or errors"
   - "No CLI framework dependency — uses raw process.argv for all commands"
-  - "Schema is loaded once at module init and compiled via Ajv"
+  - "The AJV validator is compiled once at module init (not per call); runtime schema reads (e.g. freshness checks) are permitted"
   - "The USAGE help text in src/bin.ts must accurately describe every available command and its current behavior"
 
 invariants:

@@ -8,7 +8,7 @@ const USAGE = `Usage: notarai <command>
 
 Commands:
   validate [file|dir]   Validate spec files (default: .notarai/)
-  init                  Set up NotarAI in a project (hook, slash commands, CLAUDE.md context)
+  init                  Set up NotarAI in a project (hook, slash commands, schema, CLAUDE.md context)
   hook validate         Validate spec from Claude Code hook stdin
 
 Options:

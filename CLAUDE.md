@@ -57,7 +57,7 @@ When bumping the schema version, update ALL of these consistently:
 
 ## CLAUDE.md Generation
 
-`notarai init` also writes a `## NotarAI` section to the target project's `CLAUDE.md` (appending to an existing file, or creating it). The template lives in `templates/claude-context.md`. The operation is idempotent — if `## NotarAI` is already present, init skips it. This gives Claude Code automatic NotarAI awareness in every project that runs `notarai init`.
+`notarai init` writes a `## NotarAI` section to the target project's `CLAUDE.md` (appending to an existing file, or creating it) and copies `notarai.spec.json` to `.claude/notarai.spec.json`. The CLAUDE.md template (`templates/claude-context.md`) includes an `@.claude/notarai.spec.json` import so Claude auto-loads the schema in every conversation. The CLAUDE.md operation is idempotent — if a `## NotarAI` heading is already present (matched as a line-anchored heading, not inline text), init skips it. The schema copy always overwrites to keep it current.
 
 ## No Tests Yet
 

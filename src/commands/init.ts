@@ -78,6 +78,7 @@ export function runInit(): void {
 
   setupReconcileCommand(claudeDir)
   setupBootstrapCommand(claudeDir)
+  setupSchema(claudeDir)
   setupClaudeContext(process.cwd())
 }
 
@@ -86,7 +87,9 @@ function setupClaudeContext(projectDir: string): void {
   const templatePath = resolve(__dirname, '../../templates/claude-context.md')
 
   if (!existsSync(templatePath)) {
-    console.error('Warning: bundled claude-context.md not found, skipping CLAUDE.md setup')
+    console.error(
+      'Warning: bundled claude-context.md not found, skipping CLAUDE.md setup',
+    )
     return
   }
 
@@ -95,7 +98,7 @@ function setupClaudeContext(projectDir: string): void {
 
   if (existsSync(claudeMdPath)) {
     const existing = readFileSync(claudeMdPath, 'utf-8')
-    if (existing.includes('## NotarAI')) {
+    if (/(^|\n)## NotarAI/.test(existing)) {
       console.log('NotarAI context already present in CLAUDE.md')
       return
     }
@@ -112,7 +115,9 @@ function setupReconcileCommand(claudeDir: string): void {
   const destPath = join(commandsDir, 'notarai-reconcile.md')
 
   if (existsSync(destPath)) {
-    console.log('Reconcile command already exists at .claude/commands/notarai-reconcile.md')
+    console.log(
+      'Reconcile command already exists at .claude/commands/notarai-reconcile.md',
+    )
     return
   }
 
@@ -120,13 +125,32 @@ function setupReconcileCommand(claudeDir: string): void {
   const srcPath = resolve(__dirname, '../../commands/notarai-reconcile.md')
 
   if (!existsSync(srcPath)) {
-    console.error('Warning: bundled notarai-reconcile.md not found, skipping command setup')
+    console.error(
+      'Warning: bundled notarai-reconcile.md not found, skipping command setup',
+    )
     return
   }
 
   mkdirSync(commandsDir, { recursive: true })
   copyFileSync(srcPath, destPath)
-  console.log('Added /notarai-reconcile command to .claude/commands/notarai-reconcile.md')
+  console.log(
+    'Added /notarai-reconcile command to .claude/commands/notarai-reconcile.md',
+  )
+}
+
+function setupSchema(claudeDir: string): void {
+  const __dirname = dirname(fileURLToPath(import.meta.url))
+  const srcPath = resolve(__dirname, '../../notarai.spec.json')
+
+  if (!existsSync(srcPath)) {
+    console.error(
+      'Warning: bundled notarai.spec.json not found, skipping schema setup',
+    )
+    return
+  }
+
+  copyFileSync(srcPath, join(claudeDir, 'notarai.spec.json'))
+  console.log('Copied schema to .claude/notarai.spec.json')
 }
 
 function setupBootstrapCommand(claudeDir: string): void {
@@ -134,7 +158,9 @@ function setupBootstrapCommand(claudeDir: string): void {
   const destPath = join(commandsDir, 'notarai-bootstrap.md')
 
   if (existsSync(destPath)) {
-    console.log('Bootstrap command already exists at .claude/commands/notarai-bootstrap.md')
+    console.log(
+      'Bootstrap command already exists at .claude/commands/notarai-bootstrap.md',
+    )
     return
   }
 
@@ -142,11 +168,15 @@ function setupBootstrapCommand(claudeDir: string): void {
   const srcPath = resolve(__dirname, '../../commands/notarai-bootstrap.md')
 
   if (!existsSync(srcPath)) {
-    console.error('Warning: bundled notarai-bootstrap.md not found, skipping command setup')
+    console.error(
+      'Warning: bundled notarai-bootstrap.md not found, skipping command setup',
+    )
     return
   }
 
   mkdirSync(commandsDir, { recursive: true })
   copyFileSync(srcPath, destPath)
-  console.log('Added /notarai-bootstrap command to .claude/commands/notarai-bootstrap.md')
+  console.log(
+    'Added /notarai-bootstrap command to .claude/commands/notarai-bootstrap.md',
+  )
 }
