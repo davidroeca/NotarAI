@@ -137,10 +137,11 @@ npm uninstall -g notarai
 
 ### Setup
 
-Run `notarai init` in your project root. This does two things:
+Run `notarai init` in your project root. This does three things:
 
 1. Adds a PostToolUse hook to `.claude/settings.json` so spec files are automatically validated when Claude Code writes or edits them.
 2. Copies the `/notarai-reconcile` slash command to `.claude/commands/` for drift detection.
+3. Copies the `/notarai-bootstrap` slash command to `.claude/commands/` for bootstrapping specs from an existing codebase.
 
 ```sh
 notarai init
@@ -168,6 +169,7 @@ Output is `PASS <file>` or `FAIL <file>` with an indented error list. Exit code 
 After running `notarai init`, spec files are validated automatically whenever Claude Code writes or edits a file in `.notarai/`. Invalid specs block the tool use with errors on stderr. Non-spec files are ignored silently.
 
 Use the `/notarai-reconcile` slash command to detect drift between specs and code.
+Use the `/notarai-bootstrap` slash command to bootstrap `.notarai/` specs for an existing codebase via a structured developer interview.
 
 ## Status
 
@@ -175,7 +177,7 @@ This project is in early development. The spec schema (`notarai.spec.json`) and 
 
 - Supporting other models and agentic ecosystems beyond Claude Code
 - Minimizing token usage in spec-aware workflows
-- Better project bootstrapping for existing codebases
+- Bootstrap slash command (`/notarai-bootstrap`) is implemented; future work includes richer invariant elicitation and multi-repo support
 - Broader reconciliation techniques that don't balloon the context
 
 ## Inspirations

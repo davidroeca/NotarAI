@@ -46,6 +46,7 @@ subsystems:
 
 exclude:
   - "img/**"
+  - ".claude/**"
 
 artifacts:
   docs:
