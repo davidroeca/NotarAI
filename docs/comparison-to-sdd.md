@@ -6,7 +6,7 @@ Spec-driven development (SDD) has emerged as a major pattern for AI-assisted cod
 - **Spec-anchored:** Keep the spec around for ongoing maintenance, but how it stays current is left vague.
 - **Spec-as-source:** The spec *replaces* code as the primary artifact. Humans never touch code directly.
 
-Most SDD tools ([Kiro](https://kiro.dev/), [Spec Kit](https://github.com/github/spec-kit), [OpenSpec](https://github.com/Fission-AI/OpenSpec)) are spec-first in practice: they help you go from intent → plan → tasks → code, but once the code exists, the spec quietly goes stale. [Tessl](https://docs.tessl.io/) is exploring spec-as-source, where code is generated from specs and marked "DO NOT EDIT", but this sacrifices the flexibility of direct code editing.
+Most SDD tools ([Kiro](https://kiro.dev/), [Spec Kit](https://github.com/github/spec-kit), [OpenSpec](https://github.com/Fission-AI/OpenSpec)) are spec-first in practice: they help you go from intent → plan → tasks → code, but once the code exists, the spec quietly goes stale. [Superpowers](https://github.com/obra/superpowers) takes the spec-first workflow further with a structured seven-stage methodology (brainstorm → worktree → plan → implement → TDD → review → merge) and subagent-driven execution, but its plans are task-scoped artifacts that guide a single implementation pass rather than persisting as living contracts. [Tessl](https://docs.tessl.io/) is exploring spec-as-source, where code is generated from specs and marked "DO NOT EDIT", but this sacrifices the flexibility of direct code editing.
 
 **NotarAI occupies the gap that Böckeler's taxonomy identifies but no current tool fills: spec-anchored with automated maintenance.** The spec persists for the lifetime of the feature, and an LLM reconciliation engine actively keeps it aligned with code and docs as all three evolve.
 
@@ -28,6 +28,7 @@ The spec isn't just a blueprint. It's a **witness**, a living contract the LLM c
 | [**Spec Kit**](https://github.com/github/spec-kit) | Spec-first (aspires to anchored) | Spec → code | Branch / change request | Limited |
 | [**Tessl**](https://docs.tessl.io/) | Spec-as-source | Spec → code (human edits spec only) | Feature lifetime | Reverse-engineering CLI |
 | [**OpenSpec**](https://github.com/Fission-AI/OpenSpec) | Spec-first | Spec → code | Change request | Limited |
+| [**Superpowers**](https://github.com/obra/superpowers) | Spec-first (workflow methodology) | Spec → plan → subagent execution | Task / branch | Git worktree isolation |
 | [**Semcheck**](https://semcheck.ai/) | Compliance checking | Spec → code (one-way check) | Ongoing | Yes |
 | **NotarAI** | Spec-anchored + active reconciliation | Spec → code, code → spec, spec → docs, docs → spec | Feature lifetime | Bootstrap flow with LLM interview |
 
