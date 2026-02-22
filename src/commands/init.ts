@@ -76,6 +76,7 @@ export function runInit(): void {
   }
 
   setupReconcileCommand(claudeDir)
+  setupBootstrapCommand(claudeDir)
 }
 
 function setupReconcileCommand(claudeDir: string): void {
@@ -98,4 +99,26 @@ function setupReconcileCommand(claudeDir: string): void {
   mkdirSync(commandsDir, { recursive: true })
   copyFileSync(srcPath, destPath)
   console.log('Added /notarai-reconcile command to .claude/commands/notarai-reconcile.md')
+}
+
+function setupBootstrapCommand(claudeDir: string): void {
+  const commandsDir = join(claudeDir, 'commands')
+  const destPath = join(commandsDir, 'notarai-bootstrap.md')
+
+  if (existsSync(destPath)) {
+    console.log('Bootstrap command already exists at .claude/commands/notarai-bootstrap.md')
+    return
+  }
+
+  const __dirname = dirname(fileURLToPath(import.meta.url))
+  const srcPath = resolve(__dirname, '../../commands/notarai-bootstrap.md')
+
+  if (!existsSync(srcPath)) {
+    console.error('Warning: bundled notarai-bootstrap.md not found, skipping command setup')
+    return
+  }
+
+  mkdirSync(commandsDir, { recursive: true })
+  copyFileSync(srcPath, destPath)
+  console.log('Added /notarai-bootstrap command to .claude/commands/notarai-bootstrap.md')
 }

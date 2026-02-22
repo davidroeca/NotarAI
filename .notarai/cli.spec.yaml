@@ -29,11 +29,15 @@ behaviors:
 
   - name: init_fresh
     given: "no existing .claude/settings.json"
-    then: "creates .claude/settings.json with the PostToolUse validation hook and copies notarai-reconcile.md to .claude/commands/"
+    then: "creates .claude/settings.json with the PostToolUse validation hook and copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/"
 
   - name: init_idempotent
     given: "notarai init has already been run"
     then: "detects existing hook and command, reports already configured, makes no changes"
+
+  - name: bootstrap_command_setup
+    given: "notarai init runs and .claude/commands/notarai-bootstrap.md does not exist"
+    then: "copies commands/notarai-bootstrap.md to .claude/commands/notarai-bootstrap.md"
 
 constraints:
   - "Exit codes: 0 for success/no-op, 1 for validation failure or errors"
@@ -69,3 +73,5 @@ artifacts:
       role: "JSON Schema that spec files are validated against"
     - path: "commands/notarai-reconcile.md"
       role: "Bundled Claude Code slash command copied by init"
+    - path: "commands/notarai-bootstrap.md"
+      role: "Bundled Claude Code slash command for bootstrap interview, copied by init"
