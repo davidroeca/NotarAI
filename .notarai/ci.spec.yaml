@@ -1,4 +1,4 @@
-schema_version: "0.4"
+schema_version: '0.4'
 
 intent: >
   GitHub Actions workflows and Dependabot configuration for NotarAI. CI runs
@@ -8,48 +8,48 @@ intent: >
 
 behaviors:
   - name: ci_on_push_and_pr
-    given: "a push to main or a pull request targeting main"
-    then: "the CI workflow builds the project and runs Prettier format-check against Node.js 20, 22, and 24 in parallel"
+    given: 'a push to main or a pull request targeting main'
+    then: 'the CI workflow builds the project and runs Prettier format-check against Node.js 20, 22, and 24 in parallel'
 
   - name: docs_deploy_on_push
-    given: "a push to main that touches any file under docs-site/"
-    then: "the docs workflow builds the Astro site and deploys the output to GitHub Pages; only one deploy runs at a time (cancel-in-progress)"
+    given: 'a push to main that touches any file under docs-site/'
+    then: 'the docs workflow builds the Astro site and deploys the output to GitHub Pages; only one deploy runs at a time (cancel-in-progress)'
 
   - name: npm_publish_on_release
-    given: "a GitHub release is published"
-    then: "the publish workflow builds the package, renders mermaid diagrams in README as SVGs via build:readme, replaces README.md with the rendered version, then publishes to npm with provenance and public access"
+    given: 'a GitHub release is published'
+    then: 'the publish workflow builds the package, renders mermaid diagrams in README as SVGs via build:readme, replaces README.md with the rendered version, then publishes to npm with provenance and public access'
 
   - name: dependabot_updates
-    given: "a new version of a GitHub Actions action or npm dependency is available"
-    then: "Dependabot opens a PR to update the pinned version"
+    given: 'a new version of a GitHub Actions action or npm dependency is available'
+    then: 'Dependabot opens a PR to update the pinned version'
 
 constraints:
-  - "npm publish uses --provenance for supply chain transparency"
-  - "The publish workflow runs npm run build before publish, matching the prepublishOnly hook in package.json — both must stay in sync"
-  - "Docs deployment targets the github-pages environment and requires pages write + id-token write permissions"
-  - "CI must pass on all three LTS Node versions (20, 22, 24) before merge"
+  - 'npm publish uses --provenance for supply chain transparency'
+  - 'The publish workflow runs npm run build before publish, matching the prepublishOnly hook in package.json — both must stay in sync'
+  - 'Docs deployment targets the github-pages environment and requires pages write + id-token write permissions'
+  - 'CI must pass on all three LTS Node versions (20, 22, 24) before merge'
 
 invariants:
-  - "The npm package must never be published without a successful build (enforced by both prepublishOnly and the explicit build step in publish.yml)"
+  - 'The npm package must never be published without a successful build (enforced by both prepublishOnly and the explicit build step in publish.yml)'
 
 artifacts:
   configs:
-    - path: ".github/workflows/ci.yml"
-      role: "CI workflow — build + Prettier check on push and PR"
-    - path: ".github/workflows/docs.yml"
-      role: "Docs deploy workflow — Astro build + GitHub Pages deploy on docs-site changes"
-    - path: ".github/workflows/publish.yml"
-      role: "npm publish workflow — build, render README, publish on GitHub release"
-    - path: ".github/dependabot.yml"
-      role: "Dependabot config for keeping GitHub Actions and npm dependency versions current"
+    - path: '.github/workflows/ci.yml'
+      role: 'CI workflow — build + Prettier check on push and PR'
+    - path: '.github/workflows/docs.yml'
+      role: 'Docs deploy workflow — Astro build + GitHub Pages deploy on docs-site changes'
+    - path: '.github/workflows/publish.yml'
+      role: 'npm publish workflow — build, render README, publish on GitHub release'
+    - path: '.github/dependabot.yml'
+      role: 'Dependabot config for keeping GitHub Actions and npm dependency versions current'
 
 decisions:
-  - date: "2026-02-22"
-    choice: "npm provenance on publish (--provenance flag)"
-    rationale: "Ties the published package to the specific GitHub Actions run and source commit, improving supply chain security at no cost"
-  - date: "2026-02-22"
-    choice: "Render mermaid diagrams before npm publish"
+  - date: '2026-02-22'
+    choice: 'npm provenance on publish (--provenance flag)'
+    rationale: 'Ties the published package to the specific GitHub Actions run and source commit, improving supply chain security at no cost'
+  - date: '2026-02-22'
+    choice: 'Render mermaid diagrams before npm publish'
     rationale: "GitHub renders mermaid natively but npm's README renderer does not; build:readme converts mermaid blocks to inline SVGs so the npm package page shows diagrams correctly"
-  - date: "2026-02-22"
-    choice: "Docs deploy triggers only on docs-site/** path filter"
-    rationale: "Avoids a full docs rebuild and deploy on every code commit; background concept docs changes (motivation, design-diagrams, etc.) also live under docs-site/ so they are automatically included"
+  - date: '2026-02-22'
+    choice: 'Docs deploy triggers only on docs-site/** path filter'
+    rationale: 'Avoids a full docs rebuild and deploy on every code commit; background concept docs changes (motivation, design-diagrams, etc.) also live under docs-site/ so they are automatically included'

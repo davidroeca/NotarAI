@@ -43,17 +43,17 @@ Introduce the questions with: "Here's what I found. Please answer these question
 
 1. **Domain**: I detected this as a [software/other] project. Is that right, or is this better described as something else — a presentation, report, course, design artifact, or marketing project?
 
-2. **Intent**: Based on my reading, I believe the intent is: *[your one-sentence synthesis]*. Confirm, correct, or restate in your own words.
+2. **Intent**: Based on my reading, I believe the intent is: _[your one-sentence synthesis]_. Confirm, correct, or restate in your own words.
 
 3. **Behaviors**: I identified these candidate behaviors (observable outcomes from a user/consumer perspective):
-   *[your bulleted list]*
+   _[your bulleted list]_
    What's missing, wrong, or should be reframed?
 
 4. **Constraints**: Are there rules this project must always follow? These vary by domain — for a library it might be API stability guarantees; for a CLI it might be exit code contracts; for a course it might be lesson ordering rules.
 
 5. **Invariants**: Are there conditions that must NEVER be true, regardless of any other change? (e.g., a library must never mutate caller state; a CLI must never write to stdout on success when `--quiet` is set)
 
-6. **Subsystem decomposition**: I identified these candidate subsystems: *[your list]*. Should I create separate subspecs for any of these? Or treat the whole project as a single spec?
+6. **Subsystem decomposition**: I identified these candidate subsystems: _[your list]_. Should I create separate subspecs for any of these? Or treat the whole project as a single spec?
 
 7. **Exclusions**: What should be out of scope for spec coverage? (Examples: generated files, vendor dependencies, build output, third-party assets.)
 
@@ -68,43 +68,43 @@ After the human answers the interview questions:
 2. **Write `system.spec.yaml`** with the following structure. Use `schema_version: "0.4"`. Populate all fields from the interview answers:
 
 ```yaml
-schema_version: "0.4"
+schema_version: '0.4'
 
 intent: >
   [one or two sentences from the human's answer to question 2]
 
 behaviors:
   - name: [snake_case_name]
-    given: "[precondition]"
-    then: "[observable outcome]"
+    given: '[precondition]'
+    then: '[observable outcome]'
   # one entry per confirmed behavior
 
 constraints:
-  - "[constraint statement]"
+  - '[constraint statement]'
   # one entry per constraint from question 4
 
 invariants:
-  - "[invariant statement — a condition that must NEVER be true]"
+  - '[invariant statement — a condition that must NEVER be true]'
   # one entry per invariant from question 5
 
-subsystems:          # omit this section if no subsystems were chosen
-  - $ref: "./[subspec-name].spec.yaml"
+subsystems: # omit this section if no subsystems were chosen
+  - $ref: './[subspec-name].spec.yaml'
 
-exclude:             # omit if no exclusions
-  - "[glob pattern]"
+exclude: # omit if no exclusions
+  - '[glob pattern]'
 
 artifacts:
   code:
-    - path: "[path or glob]"
-      role: "[what this file/group does]"
-  docs:              # omit if no docs exist
-    - path: "[path]"
-      role: "[what this document covers]"
+    - path: '[path or glob]'
+      role: '[what this file/group does]'
+  docs: # omit if no docs exist
+    - path: '[path]'
+      role: '[what this document covers]'
 
-decisions:           # omit if no notable decisions emerged
+decisions: # omit if no notable decisions emerged
   - date: "[today's date]"
-    choice: "[decision made]"
-    rationale: "[why]"
+    choice: '[decision made]'
+    rationale: '[why]'
 ```
 
 3. **Write subspecs** for any subsystems the human confirmed. Each subspec is a separate `.notarai/[name].spec.yaml` using the same schema but scoped to that module. Include it in the system spec via `subsystems.$ref`.

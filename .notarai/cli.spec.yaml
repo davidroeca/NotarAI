@@ -1,4 +1,4 @@
-schema_version: "0.4"
+schema_version: '0.4'
 
 intent: >
   A CLI tool that validates NotarAI spec files against the JSON Schema
@@ -8,83 +8,83 @@ intent: >
 
 behaviors:
   - name: validate_single_file
-    given: "a path to a .spec.yaml file"
-    then: "validates it against the schema, prints PASS or FAIL with errors, exits 0 or 1"
+    given: 'a path to a .spec.yaml file'
+    then: 'validates it against the schema, prints PASS or FAIL with errors, exits 0 or 1'
 
   - name: validate_directory
-    given: "a path to a directory (or no args, defaulting to .notarai/)"
-    then: "recursively finds all .spec.yaml files, validates each, exits 1 if any fail"
+    given: 'a path to a directory (or no args, defaulting to .notarai/)'
+    then: 'recursively finds all .spec.yaml files, validates each, exits 1 if any fail'
 
   - name: hook_validate_spec_file
-    given: "PostToolUse JSON on stdin with a file_path matching .notarai/**/*.spec.yaml"
-    then: "reads the file from disk, validates it, exits 1 with errors on stderr if invalid"
+    given: 'PostToolUse JSON on stdin with a file_path matching .notarai/**/*.spec.yaml'
+    then: 'reads the file from disk, validates it, exits 1 with errors on stderr if invalid'
 
   - name: hook_ignore_non_spec
-    given: "PostToolUse JSON on stdin with a file_path that is not a spec file"
-    then: "exits 0 silently without validation"
+    given: 'PostToolUse JSON on stdin with a file_path that is not a spec file'
+    then: 'exits 0 silently without validation'
 
   - name: hook_graceful_on_bad_input
-    given: "invalid JSON on stdin or a missing file"
-    then: "exits 0 silently without error"
+    given: 'invalid JSON on stdin or a missing file'
+    then: 'exits 0 silently without error'
 
   - name: init_fresh
-    given: "no existing .claude/settings.json"
-    then: "creates .claude/settings.json with the PostToolUse validation hook, copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/, copies notarai.spec.json to .claude/notarai.spec.json, and creates CLAUDE.md with the bundled NotarAI context section (which @-imports the schema)"
+    given: 'no existing .claude/settings.json'
+    then: 'creates .claude/settings.json with the PostToolUse validation hook, copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/, copies notarai.spec.json to .claude/notarai.spec.json, and creates CLAUDE.md with the bundled NotarAI context section (which @-imports the schema)'
 
   - name: validate_warns_stale_schema
-    given: "notarai validate runs and .claude/notarai.spec.json exists but its $id differs from the bundled schema"
-    then: "prints a warning telling the user to run `notarai init` to update; validation continues normally"
+    given: 'notarai validate runs and .claude/notarai.spec.json exists but its $id differs from the bundled schema'
+    then: 'prints a warning telling the user to run `notarai init` to update; validation continues normally'
 
   - name: init_idempotent
     given: "notarai init has already been run, all commands are already installed, and CLAUDE.md already contains a '## NotarAI' section"
-    then: "detects existing hook, commands, and CLAUDE.md context, reports already configured; always refreshes .claude/notarai.spec.json (unconditional overwrite keeps schema current)"
+    then: 'detects existing hook, commands, and CLAUDE.md context, reports already configured; always refreshes .claude/notarai.spec.json (unconditional overwrite keeps schema current)'
 
   - name: bootstrap_command_setup
-    given: "notarai init runs and .claude/commands/notarai-bootstrap.md does not exist"
-    then: "copies commands/notarai-bootstrap.md to .claude/commands/notarai-bootstrap.md"
+    given: 'notarai init runs and .claude/commands/notarai-bootstrap.md does not exist'
+    then: 'copies commands/notarai-bootstrap.md to .claude/commands/notarai-bootstrap.md'
 
   - name: claude_context_setup
     given: "notarai init runs and the target project's CLAUDE.md does not contain a '## NotarAI' section"
-    then: "appends (or creates) CLAUDE.md with the bundled templates/claude-context.md content"
+    then: 'appends (or creates) CLAUDE.md with the bundled templates/claude-context.md content'
 
 constraints:
-  - "Exit codes: 0 for success/no-op, 1 for validation failure or errors"
-  - "No CLI framework dependency — uses raw process.argv for all commands"
-  - "The AJV validator is compiled once at module init (not per call); runtime schema reads (e.g. freshness checks) are permitted"
-  - "The USAGE help text in src/bin.ts must accurately describe every available command and its current behavior"
+  - 'Exit codes: 0 for success/no-op, 1 for validation failure or errors'
+  - 'No CLI framework dependency — uses raw process.argv for all commands'
+  - 'The AJV validator is compiled once at module init (not per call); runtime schema reads (e.g. freshness checks) are permitted'
+  - 'The USAGE help text in src/bin.ts must accurately describe every available command and its current behavior'
 
 invariants:
-  - "A valid spec file must never be reported as FAIL"
-  - "An invalid spec file must never be reported as PASS"
-  - "The hook must never block non-spec file writes (must exit 0)"
+  - 'A valid spec file must never be reported as FAIL'
+  - 'An invalid spec file must never be reported as PASS'
+  - 'The hook must never block non-spec file writes (must exit 0)'
 
 decisions:
-  - date: "2026-02-20"
-    choice: "Raw process.argv over a CLI framework (e.g. commander, yargs)"
-    rationale: "Only 3 commands, not worth the dependency"
-  - date: "2026-02-20"
-    choice: "nodenext module/moduleResolution in tsconfig targeting ES2023 (Node 20+ baseline)"
-    rationale: "CLI runs directly on Node.js without a bundler, needs correct ESM resolution; Node 18 is EOL so Node 20 is the minimum"
-  - date: "2026-02-20"
-    choice: "Reconcile command named notarai-reconcile.md"
+  - date: '2026-02-20'
+    choice: 'Raw process.argv over a CLI framework (e.g. commander, yargs)'
+    rationale: 'Only 3 commands, not worth the dependency'
+  - date: '2026-02-20'
+    choice: 'nodenext module/moduleResolution in tsconfig targeting ES2023 (Node 20+ baseline)'
+    rationale: 'CLI runs directly on Node.js without a bundler, needs correct ESM resolution; Node 18 is EOL so Node 20 is the minimum'
+  - date: '2026-02-20'
+    choice: 'Reconcile command named notarai-reconcile.md'
     rationale: "Avoids colliding with a user's own /reconcile command"
 
 artifacts:
   code:
-    - path: "src/bin.ts"
-      role: "CLI entry point and command routing"
-    - path: "src/commands/*.ts"
-      role: "Command implementations (validate, init, hook-validate)"
-    - path: "src/lib/*.ts"
-      role: "Core library (schema loading, YAML parsing, Ajv validation)"
+    - path: 'src/bin.ts'
+      role: 'CLI entry point and command routing'
+    - path: 'src/commands/*.ts'
+      role: 'Command implementations (validate, init, hook-validate)'
+    - path: 'src/lib/*.ts'
+      role: 'Core library (schema loading, YAML parsing, Ajv validation)'
   configs:
-    - path: "tsconfig.json"
-      role: "TypeScript compiler config — nodenext module/moduleResolution, ES2023 target, strict mode"
-    - path: "notarai.spec.json"
-      role: "JSON Schema that spec files are validated against"
-    - path: "commands/notarai-reconcile.md"
-      role: "Bundled Claude Code slash command copied by init"
-    - path: "commands/notarai-bootstrap.md"
-      role: "Bundled Claude Code slash command for bootstrap interview, copied by init"
-    - path: "templates/claude-context.md"
-      role: "Bundled CLAUDE.md section template written by notarai init to target projects"
+    - path: 'tsconfig.json'
+      role: 'TypeScript compiler config — nodenext module/moduleResolution, ES2023 target, strict mode'
+    - path: 'notarai.spec.json'
+      role: 'JSON Schema that spec files are validated against'
+    - path: 'commands/notarai-reconcile.md'
+      role: 'Bundled Claude Code slash command copied by init'
+    - path: 'commands/notarai-bootstrap.md'
+      role: 'Bundled Claude Code slash command for bootstrap interview, copied by init'
+    - path: 'templates/claude-context.md'
+      role: 'Bundled CLAUDE.md section template written by notarai init to target projects'

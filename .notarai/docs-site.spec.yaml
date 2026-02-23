@@ -1,4 +1,4 @@
-schema_version: "0.4"
+schema_version: '0.4'
 
 intent: >
   An Astro/Starlight documentation site published to GitHub Pages at
@@ -9,54 +9,54 @@ intent: >
 
 behaviors:
   - name: static_build
-    given: "npm run build --workspace=docs-site"
-    then: "Astro compiles all content pages to static HTML in docs-site/dist/"
+    given: 'npm run build --workspace=docs-site'
+    then: 'Astro compiles all content pages to static HTML in docs-site/dist/'
 
   - name: sidebar_navigation
-    given: "a visitor opens the docs site"
-    then: "the sidebar presents Getting Started, Guides, and Background sections in that order, with pages nested under each"
+    given: 'a visitor opens the docs site'
+    then: 'the sidebar presents Getting Started, Guides, and Background sections in that order, with pages nested under each'
 
   - name: base_path
-    given: "the site is deployed to GitHub Pages under a project sub-path"
-    then: "all internal links and assets use the /NotarAI base path defined in astro.config.mjs"
+    given: 'the site is deployed to GitHub Pages under a project sub-path'
+    then: 'all internal links and assets use the /NotarAI base path defined in astro.config.mjs'
 
 constraints:
-  - "Every new content page must be registered in the sidebar array in astro.config.mjs"
-  - "The Astro base path must match the GitHub Pages deployment URL (/NotarAI)"
-  - "Background concept pages (background/**) are edited for content by the system spec; docs-site only controls their presentation"
+  - 'Every new content page must be registered in the sidebar array in astro.config.mjs'
+  - 'The Astro base path must match the GitHub Pages deployment URL (/NotarAI)'
+  - 'Background concept pages (background/**) are edited for content by the system spec; docs-site only controls their presentation'
 
 artifacts:
   configs:
-    - path: "docs-site/.gitignore"
-      role: "Gitignore for the docs-site workspace — excludes dist/, node_modules/, and Astro generated files"
-    - path: "docs-site/astro.config.mjs"
-      role: "Astro + Starlight site configuration — base path, sidebar structure, social links"
-    - path: "docs-site/package.json"
-      role: "docs-site workspace package — Astro and Starlight dependencies"
-    - path: "docs-site/tsconfig.json"
-      role: "TypeScript config for the docs-site workspace"
-    - path: "docs-site/src/content.config.ts"
-      role: "Astro content collection schema for docs pages"
-    - path: "docs-site/public/favicon.svg"
-      role: "Site favicon"
-    - path: "docs-site/src/assets/**"
-      role: "Static image assets (logo, etc.)"
+    - path: 'docs-site/.gitignore'
+      role: 'Gitignore for the docs-site workspace — excludes dist/, node_modules/, and Astro generated files'
+    - path: 'docs-site/astro.config.mjs'
+      role: 'Astro + Starlight site configuration — base path, sidebar structure, social links'
+    - path: 'docs-site/package.json'
+      role: 'docs-site workspace package — Astro and Starlight dependencies'
+    - path: 'docs-site/tsconfig.json'
+      role: 'TypeScript config for the docs-site workspace'
+    - path: 'docs-site/src/content.config.ts'
+      role: 'Astro content collection schema for docs pages'
+    - path: 'docs-site/public/favicon.svg'
+      role: 'Site favicon'
+    - path: 'docs-site/src/assets/**'
+      role: 'Static image assets (logo, etc.)'
   docs:
-    - path: "docs-site/src/content/docs/index.mdx"
-      role: "Docs site landing page — hero, tagline, and feature card grid"
-    - path: "docs-site/src/content/docs/getting-started/installation.md"
-      role: "CLI installation instructions (npm, npx, from source)"
-    - path: "docs-site/src/content/docs/getting-started/quick-start.md"
-      role: "End-to-end quick-start: init, create first spec, validate, bootstrap, reconcile"
-    - path: "docs-site/src/content/docs/guides/spec-format.md"
-      role: "Complete spec YAML format reference — all fields, types, and examples"
-    - path: "docs-site/src/content/docs/guides/reconciliation.md"
-      role: "Guide to the reconciliation engine — how drift is detected, sync policies, automatic validation"
+    - path: 'docs-site/src/content/docs/index.mdx'
+      role: 'Docs site landing page — hero, tagline, and feature card grid'
+    - path: 'docs-site/src/content/docs/getting-started/installation.md'
+      role: 'CLI installation instructions (npm, npx, from source)'
+    - path: 'docs-site/src/content/docs/getting-started/quick-start.md'
+      role: 'End-to-end quick-start: init, create first spec, validate, bootstrap, reconcile'
+    - path: 'docs-site/src/content/docs/guides/spec-format.md'
+      role: 'Complete spec YAML format reference — all fields, types, and examples'
+    - path: 'docs-site/src/content/docs/guides/reconciliation.md'
+      role: 'Guide to the reconciliation engine — how drift is detected, sync policies, automatic validation'
 
 decisions:
-  - date: "2026-02-22"
-    choice: "Astro + Starlight for the documentation site"
-    rationale: "Starlight provides built-in sidebar navigation, search, and MDX support with minimal configuration; GitHub Pages deployment requires only a static build output"
-  - date: "2026-02-22"
-    choice: "Background concept pages remain in the system spec; docs-site spec owns guide/getting-started content"
+  - date: '2026-02-22'
+    choice: 'Astro + Starlight for the documentation site'
+    rationale: 'Starlight provides built-in sidebar navigation, search, and MDX support with minimal configuration; GitHub Pages deployment requires only a static build output'
+  - date: '2026-02-22'
+    choice: 'Background concept pages remain in the system spec; docs-site spec owns guide/getting-started content'
     rationale: "Concept-level docs (motivation, design diagrams, SDD comparison) express system-level intent and are governed by the system spec per the 'system spec owns concept docs' decision. User-facing guide content is tightly coupled to CLI behavior and changes with the docs-site."

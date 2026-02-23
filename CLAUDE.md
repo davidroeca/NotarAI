@@ -43,6 +43,7 @@ dist/                     # build output (gitignored)
 ## Schema Version
 
 When bumping the schema version, update ALL of these consistently:
+
 1. `notarai.spec.json` — `$id` URL and `schema_version` enum
 2. All specs in `.notarai/` — `schema_version` field
 3. `commands/notarai-bootstrap.md` + `.claude/commands/notarai-bootstrap.md` — template `schema_version`
@@ -52,6 +53,7 @@ When bumping the schema version, update ALL of these consistently:
 ## Slash Commands
 
 `commands/` holds the **source of truth** for slash command prompts. `notarai init` copies them to the target project's `.claude/commands/`. When editing a command prompt, update **both** copies:
+
 - `commands/<name>.md` (source)
 - `.claude/commands/<name>.md` (local installed copy)
 
