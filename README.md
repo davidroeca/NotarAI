@@ -6,6 +6,10 @@
 
 _Intent captured. Drift witnessed._
 
+[![npm version](https://img.shields.io/npm/v/notarai)](https://www.npmjs.com/package/notarai)
+[![CI](https://github.com/davidroeca/NotarAI/actions/workflows/ci.yml/badge.svg)](https://github.com/davidroeca/NotarAI/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 </div>
 
 NotarAI is a continuous intent reconciliation tool that keeps your specs, code, and documentation in sync as all three evolve. It uses LLMs as a bidirectional reconciliation engine, not just to generate code from specs, but to detect drift, surface conflicts, and propose updates across your entire artifact chain.
@@ -42,7 +46,7 @@ The spec is version-controlled, diffable, and composable. It serves the same rol
 
 ## Comparison to Spec-Driven Development (SDD)
 
-Compare similarities and differences with SDD [here](./docs/comparison-to-sdd.md).
+Compare similarities and differences with SDD [here](https://davidroeca.github.io/NotarAI/background/comparison-to-sdd/).
 
 ### Complementary, not competing
 
@@ -115,25 +119,34 @@ The `notarai` CLI validates spec files against the JSON Schema and integrates wi
 
 ### Installation
 
-> [!NOTE]  
+> [!NOTE]
 > This tool is in early development and still needs to be pressure tested with larger repos.
 
 ```sh
-# In the future:
-# npm install -g notarai
+npm install -g notarai
+```
 
-# Right now:
+Or use directly via npx:
+
+```sh
+npx notarai validate
+```
+
+<details>
+<summary>Install from source</summary>
+
+```sh
 git clone https://github.com/davidroeca/NotarAI
 cd NotarAI
 npm ci
 npm run build
 npm link
 
-# The above installs notarai globally - you can now run `npx notarai` or `notarai`
-
 # To uninstall
 npm uninstall -g notarai
 ```
+
+</details>
 
 ### Setup
 
@@ -194,7 +207,7 @@ NotarAI doesn't come from nowhere. It synthesizes ideas from several established
 - **[Terraform](https://www.terraform.io/) and Infrastructure-as-Code:** The reconciliation model (declare desired state, detect drift from actual state, propose a plan to converge) is borrowed from IaC tools like Terraform, [Pulumi](https://www.pulumi.com/), and [CloudFormation](https://aws.amazon.com/cloudformation/). NotarAI's spec is a state file for intent, not infrastructure.
 - **[JSON Schema](https://json-schema.org/) / [OpenAPI](https://www.openapis.org/):** The `$ref` composition model and the use of a JSON Schema to govern spec validity come directly from these standards.
 - **[Design by Contract](https://en.wikipedia.org/wiki/Design_by_contract) (Eiffel):** The distinction between `constraints` (what the system enforces) and `invariants` (what must never be violated) echoes Eiffel's preconditions, postconditions, and class invariants.
-- **[Architecture Decision Records](https://adr.github.io/):** The `decisions` field in the spec is a lightweight ADR log, capturing the *why* alongside the *what*.
+- **[Architecture Decision Records](https://adr.github.io/):** The `decisions` field in the spec is a lightweight ADR log, capturing the _why_ alongside the _what_.
 
 ## License
 

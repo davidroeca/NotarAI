@@ -36,7 +36,7 @@ dist/                     # build output (gitignored)
 ## Key Architectural Constraints
 
 - **No CLI framework** — `bin.ts` uses raw `process.argv`. Keep it that way.
-- **No bundler** — TypeScript compiles directly to `dist/` and runs on Node.js. `module: "Node16"` in tsconfig requires `.js` extensions on all local imports (even for `.ts` source files).
+- **No bundler** — TypeScript compiles directly to `dist/` and runs on Node.js. `module: "nodenext"` in tsconfig requires `.js` extensions on all local imports (even for `.ts` source files).
 - **AJV ESM interop** — AJV ships as CJS. The double-cast at `validator.ts:11` (`new (Ajv as unknown as typeof Ajv.default)`) is intentional; don't simplify it.
 - **Schema loaded once** — `schema.ts` loads and `validator.ts` compiles the AJV validator at module init. This is a constraint in the spec; don't move it to per-call.
 
@@ -46,7 +46,7 @@ When bumping the schema version, update ALL of these consistently:
 1. `notarai.spec.json` — `$id` URL and `schema_version` enum
 2. All specs in `.notarai/` — `schema_version` field
 3. `commands/notarai-bootstrap.md` + `.claude/commands/notarai-bootstrap.md` — template `schema_version`
-4. Any example snippets in `docs/` that show `schema_version`
+4. Any example snippets in `docs-site/` that show `schema_version`
 5. Add a `decisions` entry to the system spec recording the rationale
 
 ## Slash Commands

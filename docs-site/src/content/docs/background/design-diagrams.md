@@ -1,6 +1,9 @@
-# NotarAI — Design Diagrams
+---
+title: Design Diagrams
+description: Visual diagrams illustrating NotarAI's architecture and workflows.
+---
 
-All diagrams from the design process, updated to reflect the NotarAI name and `.notarai/` directory convention.
+All diagrams from the design process, illustrating the NotarAI name and `.notarai/` directory convention.
 
 ---
 
@@ -87,7 +90,7 @@ flowchart TD
 
 ```yaml
 # .notarai/auth.spec.yaml
-schema_version: "0.4"
+schema_version: '0.4'
 
 intent: |
   Users can sign up, log in, and
@@ -95,18 +98,18 @@ intent: |
   after 30 min of inactivity.
 
 behaviors:
-  - name: "signup"
-    given: "valid email + password"
-    then: "account created, welcome email sent"
-  - name: "session_timeout"
-    given: "30 min inactivity"
-    then: "session invalidated"
+  - name: 'signup'
+    given: 'valid email + password'
+    then: 'account created, welcome email sent'
+  - name: 'session_timeout'
+    given: '30 min inactivity'
+    then: 'session invalidated'
 
 artifacts:
   code:
-    - path: "src/auth/**"
+    - path: 'src/auth/**'
   docs:
-    - path: "docs/auth.md"
+    - path: 'docs/auth.md'
 ```
 
 ### 3b. Optional Extensions
@@ -115,25 +118,25 @@ artifacts:
 # Power users add precision as needed
 
 constraints:
-  - "passwords >= 12 chars"
-  - "rate limit: 5 login attempts / min"
+  - 'passwords >= 12 chars'
+  - 'rate limit: 5 login attempts / min'
 
 invariants:
-  - "no plaintext passwords in DB"
-  - "all endpoints require HTTPS"
+  - 'no plaintext passwords in DB'
+  - 'all endpoints require HTTPS'
 
 decisions:
-  - date: "2025-03-12"
-    choice: "JWT over session cookies"
-    rationale: "stateless scaling"
+  - date: '2025-03-12'
+    choice: 'JWT over session cookies'
+    rationale: 'stateless scaling'
 
 open_questions:
-  - "Should we support OAuth2 providers?"
-  - "MFA timeline?"
+  - 'Should we support OAuth2 providers?'
+  - 'MFA timeline?'
 
 sync_policy:
-  on_code_change: "propose_spec_update"
-  on_spec_change: "update_code_and_docs"
+  on_code_change: 'propose_spec_update'
+  on_spec_change: 'update_code_and_docs'
 ```
 
 > **Design note:** The `behaviors` field uses Given/Then language (BDD-adjacent) but stays in natural language — not formal Gherkin. Structured enough to diff and validate, informal enough that non-engineers can author it.
@@ -204,7 +207,7 @@ flowchart LR
 
 ## 5. Sync Timing Strategies
 
-**A. Spec-First ⚠ RISKY**
+**A. Spec-First**
 
 ```mermaid
 flowchart LR
@@ -218,7 +221,7 @@ flowchart LR
     style A4 fill:#1e1a1a,stroke:#665555,color:#ccc
 ```
 
-**B. Post-Push Reconciliation ✓ RECOMMENDED**
+**B. Post-Push Reconciliation (Recommended)**
 
 ```mermaid
 flowchart LR
@@ -234,7 +237,7 @@ flowchart LR
     style B5 fill:#131e18,stroke:#2a4a3a,color:#ccc
 ```
 
-**C. Ambient Awareness — BALANCED**
+**C. Ambient Awareness — Balanced**
 
 ```mermaid
 flowchart LR
@@ -422,4 +425,3 @@ flowchart LR
 ```
 
 > Bootstrap starts minimal and accrues precision over time — the spec is a living document.
-
