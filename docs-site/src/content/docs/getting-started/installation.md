@@ -33,5 +33,5 @@ npm uninstall -g notarai
 
 ## Requirements
 
-- Node.js 18 or later
+- Node.js 20 or later
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) for reconciliation features (optional for validation-only usage)

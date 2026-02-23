@@ -47,6 +47,10 @@ behaviors:
     given: "notarai init runs and the target project's CLAUDE.md does not contain a '## NotarAI' section"
     then: 'appends (or creates) CLAUDE.md with the bundled templates/claude-context.md content'
 
+  - name: init_claude_md_drift_warning
+    given: "notarai init runs and CLAUDE.md contains a '## NotarAI' section that differs from the bundled template"
+    then: 'prints a warning suggesting manual review or delete-and-reinit; does not overwrite'
+
 constraints:
   - 'Exit codes: 0 for success/no-op, 1 for validation failure or errors'
   - 'No CLI framework dependency — uses raw process.argv for all commands'
@@ -68,6 +72,9 @@ decisions:
   - date: '2026-02-20'
     choice: 'Reconcile command named notarai-reconcile.md'
     rationale: "Avoids colliding with a user's own /reconcile command"
+  - date: '2026-02-23'
+    choice: 'Vitest as test framework'
+    rationale: 'Native ESM support, fast execution, no config needed for TypeScript'
 
 artifacts:
   code:
@@ -88,3 +95,6 @@ artifacts:
       role: 'Bundled Claude Code slash command for bootstrap interview, copied by init'
     - path: 'templates/claude-context.md'
       role: 'Bundled CLAUDE.md section template written by notarai init to target projects'
+  tests:
+    - path: 'tests/**/*.test.ts'
+      role: 'Vitest test suite covering CLI routing, commands, and core library'

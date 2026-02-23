@@ -1,0 +1,315 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://notarai.dev/schema/0.4/spec.schema.json",
+  "title": "NotarAI Spec File",
+  "description": "A structured intent specification that serves as the canonical source of truth for a system, feature, or artifact. The LLM reconciliation engine uses this schema to validate specs, detect drift between spec and implementation, and propose updates.",
+  "type": "object",
+  "required": ["schema_version", "intent", "behaviors", "artifacts"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "The version of the spec schema this file conforms to. Used for forward compatibility as the schema evolves.",
+      "enum": ["0.4"]
+    },
+    "domain": {
+      "type": "string",
+      "description": "The domain this spec applies to. Determines which optional extensions are available. Defaults to 'software' if omitted.",
+      "enum": ["software", "presentation", "report", "course", "marketing"],
+      "default": "software"
+    },
+    "tier": {
+      "type": "string",
+      "description": "The coverage tier for this spec. 'full' specs have behaviors and constraints. 'registered' specs only declare intent and artifact mappings — used for utility libraries, sidecars, and config that should be visible to the system but don't need behavioral specifications.",
+      "enum": ["full", "registered"],
+      "default": "full"
+    },
+    "intent": {
+      "type": "string",
+      "description": "A natural language description of what this system, feature, or artifact is for and what it should accomplish. This is the highest-level expression of purpose. Should be understandable by a non-technical stakeholder."
+    },
+    "behaviors": {
+      "type": "array",
+      "description": "Structured descriptions of expected behaviors using Given/Then language. These are BDD-adjacent but remain in natural language — not formal Gherkin syntax. Each behavior describes a scenario the system should handle.",
+      "items": {
+        "$ref": "#/$defs/behavior"
+      },
+      "minItems": 1
+    },
+    "constraints": {
+      "type": "array",
+      "description": "Rules the system must follow. These are positive statements about boundaries and limits (e.g., 'passwords >= 12 characters', 'rate limit: 5 attempts per minute'). Unlike invariants, constraints describe what the system actively enforces.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "description": "Conditions that must NEVER be violated under any circumstances. These are stronger than constraints — they represent security, data integrity, or architectural guarantees (e.g., 'no plaintext passwords stored anywhere', 'no direct DB access across service boundaries'). The LLM should flag any code change that could violate an invariant, even indirectly.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "description": "An architectural decision log. Records significant design choices with context so future readers (human or LLM) understand why things are the way they are.",
+      "items": {
+        "$ref": "#/$defs/decision"
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "description": "Unresolved design questions or decisions that haven't been made yet. Acts as an escape valve for intent that resists formalization. The LLM should surface these when reconciliation touches related areas.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "description": "Maps this spec to the files it governs. Uses glob patterns for stability — the LLM resolves globs to actual file lists at reconciliation time. The artifact mapping tells the CI hook which specs are affected by which file changes.",
+      "properties": {
+        "code": {
+          "type": "array",
+          "description": "Source code files governed by this spec.",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          }
+        },
+        "docs": {
+          "type": "array",
+          "description": "Documentation files governed by this spec.",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          }
+        },
+        "tests": {
+          "type": "array",
+          "description": "Test files associated with this spec.",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          }
+        },
+        "slides": {
+          "type": "array",
+          "description": "Presentation files (for presentation domain specs).",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          }
+        },
+        "speaker_notes": {
+          "type": "array",
+          "description": "Speaker notes or talking points (for presentation domain specs).",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          }
+        },
+        "data": {
+          "type": "array",
+          "description": "Data source files (CSVs, databases, datasets) that feed into artifacts. Use the 'source' field on individual refs for external datasets not stored in the repo.",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          }
+        },
+        "notebooks": {
+          "type": "array",
+          "description": "Jupyter notebooks, R notebooks, or other interactive computing documents. First-class because they combine executable code, documentation, and output cells that can drift independently from source code.",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          }
+        },
+        "configs": {
+          "type": "array",
+          "description": "Configuration files, training recipes, model hyperparameter configs, infrastructure definitions (Terraform, Helm, Docker Compose), or other structured settings files that govern system behavior but are distinct from source code.",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          }
+        }
+      },
+      "additionalProperties": {
+        "type": "array",
+        "description": "Custom artifact types not covered by the standard fields. Keys should be descriptive (e.g., 'helm_charts', 'migrations').",
+        "items": {
+          "$ref": "#/$defs/artifact_ref"
+        }
+      }
+    },
+    "subsystems": {
+      "type": "array",
+      "description": "References to child specs that this spec contains. Used in top-level system specs to compose a hierarchy. Follows JSON Schema $ref conventions.",
+      "items": {
+        "$ref": "#/$defs/spec_ref"
+      }
+    },
+    "applies": {
+      "type": "array",
+      "description": "References to cross-cutting specs whose invariants and constraints apply to this spec and all its subsystems. Used for concerns like security, logging, and compliance that span multiple services.",
+      "items": {
+        "$ref": "#/$defs/spec_ref"
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "References to other specs that this spec interacts with, along with the nature of the relationship. Used by the LLM to understand ripple effects of changes.",
+      "items": {
+        "$ref": "#/$defs/dependency_ref"
+      }
+    },
+    "exclude": {
+      "type": "array",
+      "description": "Glob patterns for files explicitly excluded from spec coverage (Tier 3). Only meaningful in the top-level system spec. Files matching these patterns will not trigger 'unspecced file' warnings.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "description": "Configuration for how unspecced files are handled. Only meaningful in the top-level system spec.",
+      "properties": {
+        "policy": {
+          "type": "string",
+          "description": "'warn' emits a CI warning for unspecced files. 'strict' blocks the PR. 'off' disables coverage checking.",
+          "enum": ["warn", "strict", "off"],
+          "default": "warn"
+        },
+        "message": {
+          "type": "string",
+          "description": "Custom message shown when unspecced files are detected."
+        }
+      },
+      "additionalProperties": false
+    },
+    "sync_policy": {
+      "type": "object",
+      "description": "Configures when and how the LLM reconciles this spec with its artifacts. Allows different strategies per spec.",
+      "properties": {
+        "on_code_change": {
+          "type": "string",
+          "description": "What happens when code governed by this spec changes.",
+          "enum": ["propose_spec_update", "auto_update_spec", "notify_only"],
+          "default": "propose_spec_update"
+        },
+        "on_spec_change": {
+          "type": "string",
+          "description": "What happens when this spec is edited directly.",
+          "enum": ["update_code_and_docs", "update_docs_only", "notify_only"],
+          "default": "update_code_and_docs"
+        },
+        "on_doc_change": {
+          "type": "string",
+          "description": "What happens when documentation governed by this spec changes.",
+          "enum": ["propose_spec_update", "notify_only"],
+          "default": "propose_spec_update"
+        }
+      },
+      "additionalProperties": false
+    },
+    "notes": {
+      "type": "string",
+      "description": "Freeform notes for the LLM about implicit relationships, tribal knowledge, or context that doesn't fit elsewhere. The LLM reads these during reconciliation to make better decisions (e.g., 'If session timeout changes in auth spec, Redis TTL config may need updating')."
+    }
+  },
+  "$defs": {
+    "behavior": {
+      "type": "object",
+      "description": "A single expected behavior described in Given/Then format. Uses natural language, not formal syntax.",
+      "required": ["name", "given", "then"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A short, unique identifier for this behavior (e.g., 'signup', 'session_timeout'). Used for referencing in diffs and reconciliation output."
+        },
+        "given": {
+          "type": "string",
+          "description": "The precondition or trigger for this behavior. Describes the starting state or input (e.g., 'valid email and password', '30 minutes of inactivity')."
+        },
+        "then": {
+          "type": "string",
+          "description": "The expected outcome when the precondition is met (e.g., 'account created, welcome email sent', 'session invalidated')."
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "description": "A recorded architectural or design decision.",
+      "required": ["date", "choice"],
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "When the decision was made (ISO 8601 date).",
+          "format": "date"
+        },
+        "choice": {
+          "type": "string",
+          "description": "What was decided (e.g., 'JWT over session cookies')."
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why this choice was made (e.g., 'stateless scaling requirements')."
+        }
+      }
+    },
+    "artifact_ref": {
+      "type": "object",
+      "description": "A reference to one or more files via glob pattern, with an optional role annotation.",
+      "required": ["path"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "A glob pattern matching the files (e.g., 'src/auth/**', 'docs/auth.md'). Resolved at reconciliation time."
+        },
+        "role": {
+          "type": "string",
+          "description": "A short description of what these files do in the context of this spec (e.g., 'primary implementation', 'request auth middleware', 'source data for charts')."
+        },
+        "source": {
+          "type": "string",
+          "description": "For artifacts that are not version-controlled local files — an external URL, dataset registry path (e.g., 'hf://datasets/HuggingFaceFW/fineweb'), storage bucket path, or human-readable description of where this artifact comes from. Use when the artifact cannot be expressed as a local glob pattern."
+        }
+      }
+    },
+    "spec_ref": {
+      "type": "object",
+      "description": "A reference to another spec file, following JSON Schema $ref conventions.",
+      "required": ["$ref"],
+      "additionalProperties": false,
+      "properties": {
+        "$ref": {
+          "type": "string",
+          "description": "Relative path to the referenced spec file (e.g., './auth.spec.yaml', './_shared/security.spec.yaml')."
+        }
+      }
+    },
+    "dependency_ref": {
+      "type": "object",
+      "description": "A reference to another spec that this spec interacts with, including the nature of the relationship.",
+      "required": ["$ref", "relationship"],
+      "additionalProperties": false,
+      "properties": {
+        "$ref": {
+          "type": "string",
+          "description": "Relative path to the dependency spec file."
+        },
+        "relationship": {
+          "type": "string",
+          "description": "Natural language description of how these specs relate (e.g., 'auth exposes via API', 'billing reads user data from auth')."
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "tier": { "const": "registered" }
+    }
+  },
+  "then": {
+    "required": ["schema_version", "intent", "artifacts"],
+    "properties": {
+      "behaviors": {
+        "description": "Behaviors are optional for registered (Tier 2) specs."
+      }
+    }
+  }
+}

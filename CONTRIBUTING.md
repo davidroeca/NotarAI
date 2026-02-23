@@ -20,9 +20,10 @@ npm run build
 1. Create a branch from `main`
 2. Make your changes
 3. Run `npm run build` to verify the TypeScript compiles
-4. Run `npx prettier --check .` to verify formatting
-5. Use the `/notarai-reconcile` Claude Code command or use your favorite coding agent to follow these reconciliation instructions
-6. Open a pull request
+4. Run `npm test` to run the test suite
+5. Run `npx prettier --check .` to verify formatting
+6. Use the `/notarai-reconcile` Claude Code command or use your favorite coding agent to follow these reconciliation instructions
+7. Open a pull request
 
 ## Code Style
 

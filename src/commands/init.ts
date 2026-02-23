@@ -33,8 +33,21 @@ function hasNotaraiHook(matchers: HookMatcher[]): boolean {
   return matchers.some((m) => m.hooks?.some((h) => h.command === HOOK_COMMAND))
 }
 
-export function runInit(): void {
-  const claudeDir = join(process.cwd(), '.claude')
+/**
+ * Extract the `## NotarAI` section from a markdown string.
+ * Returns the section content (including the heading) from `## NotarAI`
+ * up to the next `## ` heading or EOF. Returns empty string if not found.
+ */
+export function extractNotarAISection(content: string): string {
+  const match = content.match(/(^|\n)(## NotarAI\n[\s\S]*?)(?=\n## |\s*$)/)
+  if (!match) return ''
+  const section = match[2]
+  return section.trimEnd() + '\n'
+}
+
+export function runInit(projectRoot?: string): void {
+  const root = projectRoot ?? process.cwd()
+  const claudeDir = join(root, '.claude')
   const settingsPath = join(claudeDir, 'settings.json')
 
   if (!existsSync(claudeDir)) {
@@ -79,7 +92,7 @@ export function runInit(): void {
   setupReconcileCommand(claudeDir)
   setupBootstrapCommand(claudeDir)
   setupSchema(claudeDir)
-  setupClaudeContext(process.cwd())
+  setupClaudeContext(root)
 }
 
 function setupClaudeContext(projectDir: string): void {
@@ -99,7 +112,16 @@ function setupClaudeContext(projectDir: string): void {
   if (existsSync(claudeMdPath)) {
     const existing = readFileSync(claudeMdPath, 'utf-8')
     if (/(^|\n)## NotarAI/.test(existing)) {
-      console.log('NotarAI context already present in CLAUDE.md')
+      const existingSection = extractNotarAISection(existing)
+      const templateSection = extractNotarAISection(templateContent)
+      if (existingSection !== templateSection) {
+        console.warn(
+          'Warning: the ## NotarAI section in CLAUDE.md has drifted from the bundled template. ' +
+            'Review manually, or delete the section and re-run `notarai init` to replace it.',
+        )
+      } else {
+        console.log('NotarAI context already present in CLAUDE.md')
+      }
       return
     }
     appendFileSync(claudeMdPath, '\n\n' + templateContent)
