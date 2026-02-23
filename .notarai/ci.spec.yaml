@@ -9,7 +9,7 @@ intent: >
 behaviors:
   - name: ci_on_push_and_pr
     given: 'a push to main or a pull request targeting main'
-    then: 'the CI workflow builds the project and runs Prettier format-check against Node.js 20, 22, and 24 in parallel'
+    then: 'the CI workflow builds the project, runs the test suite (vitest), and runs Prettier format-check against Node.js 20, 22, and 24 in parallel'
 
   - name: docs_deploy_on_push
     given: 'a push to main that touches any file under docs-site/'
@@ -35,7 +35,7 @@ invariants:
 artifacts:
   configs:
     - path: '.github/workflows/ci.yml'
-      role: 'CI workflow — build + Prettier check on push and PR'
+      role: 'CI workflow — build + test + Prettier check on push and PR'
     - path: '.github/workflows/docs.yml'
       role: 'Docs deploy workflow — Astro build + GitHub Pages deploy on docs-site changes'
     - path: '.github/workflows/publish.yml'
