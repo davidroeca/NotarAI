@@ -68,6 +68,8 @@ artifacts:
   configs:
     - path: 'package.json'
       role: 'npm package manifest — dependencies, scripts, workspace config, and publish metadata'
+    - path: 'prettier.config.mjs'
+      role: 'Prettier formatting config — applies to all source files across the workspace'
     - path: 'scripts/build-readme.sh'
       role: 'Build script that renders mermaid diagrams in README as inline SVGs for the npm package page'
     - path: 'CLAUDE.md'

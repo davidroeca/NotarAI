@@ -44,6 +44,9 @@ artifacts:
       role: 'Dependabot config for keeping GitHub Actions and npm dependency versions current'
 
 decisions:
+  - date: '2026-02-23'
+    choice: 'prettier.config.mjs instead of prettier.config.ts'
+    rationale: 'TypeScript config files for Prettier require Node.js native TypeScript stripping (--experimental-strip-types, added in Node.js 22.6+), which is unavailable on Node.js 20. The .mjs extension works across all three supported LTS versions (20, 22, 24) without additional tooling.'
   - date: '2026-02-22'
     choice: 'npm provenance on publish (--provenance flag)'
     rationale: 'Ties the published package to the specific GitHub Actions run and source commit, improving supply chain security at no cost'
