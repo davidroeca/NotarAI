@@ -45,7 +45,7 @@ artifacts:
     - path: 'docs-site/src/content/docs/index.mdx'
       role: 'Docs site landing page — hero, tagline, and feature card grid'
     - path: 'docs-site/src/content/docs/getting-started/installation.md'
-      role: 'CLI installation instructions (npm, npx, from source)'
+      role: 'CLI installation instructions (shell script, cargo install, direct download)'
     - path: 'docs-site/src/content/docs/getting-started/quick-start.md'
       role: 'End-to-end quick-start: init, create first spec, validate, bootstrap, reconcile'
     - path: 'docs-site/src/content/docs/guides/spec-format.md'

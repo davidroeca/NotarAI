@@ -6,7 +6,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx notarai hook validate"
+            "command": "notarai hook validate"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in *.rs) rustfmt \"$CLAUDE_FILE_PATH\" ;; esac"
           }
         ]
       },

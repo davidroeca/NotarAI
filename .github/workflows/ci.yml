@@ -10,22 +10,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [20, 22, 24]
-
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v6
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
+          components: rustfmt, clippy
 
-      - run: npm ci
+      - uses: Swatinem/rust-cache@v2
 
-      - run: npm run build
+      - run: cargo build
 
-      - run: npm run test:all
+      - run: cargo test
 
-      - run: npx prettier --check .
+      - run: cargo fmt --check
+
+      - run: cargo clippy -- -D warnings

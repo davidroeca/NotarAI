@@ -3,56 +3,51 @@ schema_version: '0.4'
 intent: >
   GitHub Actions workflows and Dependabot configuration for NotarAI. CI runs
   on every PR and push to main; docs are deployed to GitHub Pages on every
-  push that touches docs-site/; the npm package is published on every GitHub
-  release. Dependabot keeps GitHub Actions and npm dependency versions current.
+  push that touches docs-site/; cross-platform release binaries are built and
+  published to GitHub Releases and crates.io on every GitHub release.
+  Dependabot keeps GitHub Actions and Cargo dependency versions current.
 
 behaviors:
   - name: ci_on_push_and_pr
     given: 'a push to main or a pull request targeting main'
-    then: 'the CI workflow builds the project, runs the test suite (vitest), and runs Prettier format-check against Node.js 20, 22, and 24 in parallel'
+    then: 'the CI workflow builds the project with cargo build, runs cargo test, cargo fmt --check, and cargo clippy -- -D warnings'
 
   - name: docs_deploy_on_push
     given: 'a push to main that touches any file under docs-site/'
     then: 'the docs workflow builds the Astro site and deploys the output to GitHub Pages; only one deploy runs at a time (cancel-in-progress)'
 
-  - name: npm_publish_on_release
+  - name: release_on_tag
     given: 'a GitHub release is published'
-    then: 'the publish workflow builds the package, renders mermaid diagrams in README as SVGs via build:readme, replaces README.md with the rendered version, then publishes to npm with provenance and public access'
+    then: 'the release workflow builds cross-platform binaries via cargo-zigbuild for 7 targets (x86_64/aarch64 linux-gnu, x86_64/aarch64 linux-musl, x86_64/aarch64 macos, x86_64 windows-gnu), uploads them as release assets, and publishes the crate to crates.io'
 
   - name: dependabot_updates
-    given: 'a new version of a GitHub Actions action or npm dependency is available'
+    given: 'a new version of a GitHub Actions action, Cargo dependency, or npm dependency is available'
     then: 'Dependabot opens a PR to update the pinned version'
 
 constraints:
-  - 'npm publish uses --provenance for supply chain transparency'
-  - 'The publish workflow runs npm run build before publish, matching the prepublishOnly hook in package.json — both must stay in sync'
+  - 'Release binaries are cross-compiled on ubuntu-latest using cargo-zigbuild for all 7 targets'
+  - 'Crates.io publish uses CARGO_REGISTRY_TOKEN secret'
   - 'Docs deployment targets the github-pages environment and requires pages write + id-token write permissions'
-  - 'CI must pass on all three LTS Node versions (20, 22, 24) before merge'
+  - 'CI must pass cargo fmt, clippy, and all tests before merge'
 
 invariants:
-  - 'The npm package must never be published without a successful build (enforced by both prepublishOnly and the explicit build step in publish.yml)'
+  - 'A release binary must never be published without a successful build and test run'
 
 artifacts:
   configs:
     - path: '.github/workflows/ci.yml'
-      role: 'CI workflow — build + test + Prettier check on push and PR'
+      role: 'CI workflow — build + test + fmt + clippy on push and PR'
     - path: '.github/workflows/docs.yml'
       role: 'Docs deploy workflow — Astro build + GitHub Pages deploy on docs-site changes'
-    - path: '.github/workflows/publish.yml'
-      role: 'npm publish workflow — build, render README, publish on GitHub release'
+    - path: '.github/workflows/release.yml'
+      role: 'Release workflow — cargo-zigbuild cross-compile + GitHub Releases + crates.io publish'
     - path: '.github/dependabot.yml'
-      role: 'Dependabot config for keeping GitHub Actions and npm dependency versions current'
+      role: 'Dependabot config for keeping GitHub Actions and Cargo dependency versions current'
 
 decisions:
   - date: '2026-02-23'
-    choice: 'prettier.config.mjs instead of prettier.config.ts'
-    rationale: 'TypeScript config files for Prettier require Node.js native TypeScript stripping (--experimental-strip-types, added in Node.js 22.6+), which is unavailable on Node.js 20. The .mjs extension works across all three supported LTS versions (20, 22, 24) without additional tooling.'
-  - date: '2026-02-22'
-    choice: 'npm provenance on publish (--provenance flag)'
-    rationale: 'Ties the published package to the specific GitHub Actions run and source commit, improving supply chain security at no cost'
-  - date: '2026-02-22'
-    choice: 'Render mermaid diagrams before npm publish'
-    rationale: "GitHub renders mermaid natively but npm's README renderer does not; build:readme converts mermaid blocks to inline SVGs so the npm package page shows diagrams correctly"
-  - date: '2026-02-22'
-    choice: 'Docs deploy triggers only on docs-site/** path filter'
-    rationale: 'Avoids a full docs rebuild and deploy on every code commit; background concept docs changes (motivation, design-diagrams, etc.) also live under docs-site/ so they are automatically included'
+    choice: 'cargo-zigbuild for cross-compilation on ubuntu-latest'
+    rationale: 'All 7 targets (including macOS and Windows) build on a single ubuntu-latest runner without needing native macOS/Windows runners, reducing CI cost and complexity'
+  - date: '2026-02-23'
+    choice: 'Dual distribution: GitHub Releases + crates.io'
+    rationale: 'GitHub Releases provides direct binary downloads for users without Rust; crates.io serves Rust users who prefer cargo install'

@@ -6,7 +6,7 @@
 
 _Intent captured. Drift witnessed._
 
-[![npm version](https://img.shields.io/npm/v/notarai)](https://www.npmjs.com/package/notarai)
+[![crates.io](https://img.shields.io/crates/v/notarai)](https://crates.io/crates/notarai)
 [![CI](https://github.com/davidroeca/NotarAI/actions/workflows/ci.yml/badge.svg)](https://github.com/davidroeca/NotarAI/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
@@ -123,13 +123,11 @@ The `notarai` CLI validates spec files against the JSON Schema and integrates wi
 > This tool is in early development and still needs to be pressure tested with larger repos.
 
 ```sh
-npm install -g notarai
-```
+# Quick install (Linux / macOS)
+curl -fsSL https://raw.githubusercontent.com/davidroeca/NotarAI/main/scripts/install.sh | sh
 
-Or use directly via npx:
-
-```sh
-npx notarai validate
+# Or via cargo
+cargo install notarai
 ```
 
 <details>
@@ -138,12 +136,8 @@ npx notarai validate
 ```sh
 git clone https://github.com/davidroeca/NotarAI
 cd NotarAI
-npm ci
-npm run build
-npm link
-
-# To uninstall
-npm uninstall -g notarai
+cargo build --release
+# Binary is at target/release/notarai
 ```
 
 </details>

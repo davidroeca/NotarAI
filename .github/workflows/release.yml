@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            binary: notarai-x86_64-linux-gnu
+          - target: x86_64-unknown-linux-musl
+            binary: notarai-x86_64-linux-musl
+          - target: aarch64-unknown-linux-gnu
+            binary: notarai-aarch64-linux-gnu
+          - target: aarch64-unknown-linux-musl
+            binary: notarai-aarch64-linux-musl
+          - target: x86_64-apple-darwin
+            binary: notarai-x86_64-macos
+          - target: aarch64-apple-darwin
+            binary: notarai-aarch64-macos
+          - target: x86_64-pc-windows-gnu
+            binary: notarai-x86_64-windows.exe
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: mlugg/setup-zig@v2
+
+      - run: cargo install cargo-zigbuild
+
+      - run: cargo zigbuild --release --target ${{ matrix.target }}
+
+      - name: Rename binary
+        run: |
+          src="target/${{ matrix.target }}/release/notarai"
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            src="${src}.exe"
+          fi
+          cp "$src" "${{ matrix.binary }}"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.binary }}
+
+  publish-crate:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
