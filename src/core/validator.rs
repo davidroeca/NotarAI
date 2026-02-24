@@ -38,7 +38,7 @@ pub fn validate_spec(content: &str) -> ValidationResult {
     let errors: Vec<String> = validator()
         .iter_errors(&data)
         .map(|err| {
-            let path = err.instance_path.to_string();
+            let path = err.instance_path().to_string();
             let path = if path.is_empty() {
                 "/".to_string()
             } else {

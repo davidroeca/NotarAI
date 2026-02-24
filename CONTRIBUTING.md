@@ -33,7 +33,7 @@ the installed binary to reflect your latest local changes.
 
 ## Code Style
 
-- Rust 2021 edition
+- Rust 2024 edition
 - `cargo fmt` for Rust formatting
 - `cargo clippy` for Rust lints
 - `npx prettier --check .` for non-Rust file formatting (markdown, JSON, etc.)
