@@ -1,12 +1,14 @@
 // @ts-check
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
+import mermaid from 'astro-mermaid'
 
 // https://astro.build/config
 export default defineConfig({
   site: 'https://davidroeca.github.io',
-  base: '/NotarAI',
+  base: '/NotarAI/docs',
   integrations: [
+    mermaid({ autoTheme: true }),
     starlight({
       title: 'NotarAI',
       social: [

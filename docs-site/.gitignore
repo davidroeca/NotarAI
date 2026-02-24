@@ -1,5 +1,6 @@
 # build output
 dist/
+gh-pages/
 # generated types
 .astro/
 
