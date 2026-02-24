@@ -13,7 +13,12 @@ git clone https://github.com/davidroeca/NotarAI.git
 cd NotarAI
 cargo build
 npm ci
+cargo install --path .
 ```
+
+The last step installs the `notarai` binary to `~/.cargo/bin` so the Claude Code
+hook (`notarai hook validate`) resolves correctly. Re-run it whenever you want
+the installed binary to reflect your latest local changes.
 
 ## Making Changes
 

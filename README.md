@@ -144,11 +144,13 @@ cargo build --release
 
 ### Setup
 
-Run `notarai init` in your project root. This does three things:
+Run `notarai init` in your project root. This does five things:
 
 1. Adds a PostToolUse hook to `.claude/settings.json` so spec files are automatically validated when Claude Code writes or edits them.
 2. Copies the `/notarai-reconcile` slash command to `.claude/commands/` for drift detection.
 3. Copies the `/notarai-bootstrap` slash command to `.claude/commands/` for bootstrapping specs from an existing codebase.
+4. Copies `notarai.spec.json` to `.claude/notarai.spec.json` so Claude has the schema available in every session (always overwritten to stay current).
+5. Appends a `## NotarAI` context section to `CLAUDE.md` (or creates it) with an `@`-import of the schema and workflow instructions.
 
 ```sh
 notarai init
@@ -202,6 +204,10 @@ NotarAI doesn't come from nowhere. It synthesizes ideas from several established
 - **[JSON Schema](https://json-schema.org/) / [OpenAPI](https://www.openapis.org/):** The `$ref` composition model and the use of a JSON Schema to govern spec validity come directly from these standards.
 - **[Design by Contract](https://en.wikipedia.org/wiki/Design_by_contract) (Eiffel):** The distinction between `constraints` (what the system enforces) and `invariants` (what must never be violated) echoes Eiffel's preconditions, postconditions, and class invariants.
 - **[Architecture Decision Records](https://adr.github.io/):** The `decisions` field in the spec is a lightweight ADR log, capturing the _why_ alongside the _what_.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR workflow.
 
 ## License
 
