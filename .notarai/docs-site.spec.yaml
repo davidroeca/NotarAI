@@ -2,15 +2,18 @@ schema_version: '0.4'
 
 intent: >
   An Astro/Starlight documentation site published to GitHub Pages at
-  https://davidroeca.github.io/NotarAI. Covers installation, quick-start,
-  spec format reference, and reconciliation guides. Background/concept docs
-  (motivation, design diagrams, comparison to SDD) are governed by the system
-  spec but rendered through this site.
+  https://davidroeca.github.io/NotarAI/docs/. All documentation routes live
+  under /docs (reserving / for a future main website), the root / redirects to
+  /docs, and /schema/0.4/spec.schema.json serves the JSON Schema directly
+  (matching the $id URL). Covers installation, quick-start, spec format
+  reference, and reconciliation guides. Background/concept docs (motivation,
+  design diagrams, comparison to SDD) are governed by the system spec but
+  rendered through this site.
 
 behaviors:
   - name: static_build
     given: 'npm run build --workspace=docs-site'
-    then: 'Astro compiles all content pages to static HTML in docs-site/dist/'
+    then: 'Astro compiles all content pages to static HTML in dist/; build.sh then copies the output into gh-pages/docs/ and overlays public-root/ assets into gh-pages/, producing the artifact uploaded to GitHub Pages; dist/ is preserved for local preview'
 
   - name: sidebar_navigation
     given: 'a visitor opens the docs site'
@@ -18,17 +21,39 @@ behaviors:
 
   - name: base_path
     given: 'the site is deployed to GitHub Pages under a project sub-path'
-    then: 'all internal links and assets use the /NotarAI base path defined in astro.config.mjs'
+    then: 'all internal links and assets use the /NotarAI/docs base path defined in astro.config.mjs'
+
+  - name: root_redirect
+    given: 'a visitor navigates to the site root (/NotarAI/)'
+    then: 'they are redirected to /NotarAI/docs/ via meta-refresh and JavaScript redirect'
+
+  - name: schema_hosting
+    given: 'a client requests /NotarAI/schema/0.4/spec.schema.json'
+    then: 'the server returns the JSON Schema file matching the $id in notarai.spec.json, sourced from the repo root notarai.spec.json via symlink'
+
+  - name: post_build_composition
+    given: 'npm run build is executed in the docs-site workspace'
+    then: 'build.sh runs Astro build (output stays in dist/), copies dist/ into gh-pages/docs/, and overlays public-root/ assets into gh-pages/; dist/ is kept intact so astro preview works without rebuilding'
+
+  - name: local_preview
+    given: 'a developer runs npm run preview in the docs-site workspace after npm run build'
+    then: 'astro preview serves the Astro output from dist/ at localhost:4321/NotarAI/docs/, reflecting the full built site without the GitHub Pages post-build composition'
+
+  - name: mermaid_diagrams
+    given: 'a docs page contains a mermaid code block'
+    then: 'astro-mermaid renders the diagram client-side and switches between Mermaid dark/light themes automatically based on the Starlight site theme toggle (data-theme attribute)'
 
 constraints:
   - 'Every new content page must be registered in the sidebar array in astro.config.mjs'
-  - 'The Astro base path must match the GitHub Pages deployment URL (/NotarAI)'
+  - 'The Astro base path must match the GitHub Pages deployment URL (/NotarAI/docs)'
+  - 'The repo root notarai.spec.json is the single source of truth for the schema; the hosted copy is a symlink, never a duplicate'
+  - 'Non-docs root assets (redirect page, schema) must live in public-root/, not in Astro public/, to avoid being processed with the docs base path'
   - 'Background concept pages (background/**) are edited for content by the system spec; docs-site only controls their presentation'
 
 artifacts:
   configs:
     - path: 'docs-site/.gitignore'
-      role: 'Gitignore for the docs-site workspace — excludes dist/, node_modules/, and Astro generated files'
+      role: 'Gitignore for the docs-site workspace — excludes dist/, gh-pages/, node_modules/, and Astro generated files'
     - path: 'docs-site/astro.config.mjs'
       role: 'Astro + Starlight site configuration — base path, sidebar structure, social links'
     - path: 'docs-site/package.json'
@@ -37,15 +62,21 @@ artifacts:
       role: 'TypeScript config for the docs-site workspace'
     - path: 'docs-site/src/content.config.ts'
       role: 'Astro content collection schema for docs pages'
+    - path: 'docs-site/build.sh'
+      role: 'Post-build script — copies Astro output (dist/) into gh-pages/docs/ and overlays public-root/ assets into gh-pages/ for GitHub Pages deployment; preserves dist/ for astro preview'
     - path: 'docs-site/public/favicon.svg'
       role: 'Site favicon'
+    - path: 'docs-site/public-root/index.html'
+      role: 'Root redirect page — meta-refresh + JS redirect from / to /docs'
+    - path: 'docs-site/public-root/schema/0.4/spec.schema.json'
+      role: 'Symlink to repo root notarai.spec.json — serves schema at the $id URL path'
     - path: 'docs-site/src/assets/**'
       role: 'Static image assets (logo, etc.)'
   docs:
     - path: 'docs-site/src/content/docs/index.mdx'
       role: 'Docs site landing page — hero, tagline, and feature card grid'
     - path: 'docs-site/src/content/docs/getting-started/installation.md'
-      role: 'CLI installation instructions (npm, npx, from source)'
+      role: 'CLI installation instructions (shell script, cargo install, direct download)'
     - path: 'docs-site/src/content/docs/getting-started/quick-start.md'
       role: 'End-to-end quick-start: init, create first spec, validate, bootstrap, reconcile'
     - path: 'docs-site/src/content/docs/guides/spec-format.md'
@@ -60,3 +91,12 @@ decisions:
   - date: '2026-02-22'
     choice: 'Background concept pages remain in the system spec; docs-site spec owns guide/getting-started content'
     rationale: "Concept-level docs (motivation, design diagrams, SDD comparison) express system-level intent and are governed by the system spec per the 'system spec owns concept docs' decision. User-facing guide content is tightly coupled to CLI behavior and changes with the docs-site."
+  - date: '2026-02-24'
+    choice: 'Docs under /docs with post-build composition and /schema hosting'
+    rationale: 'Reserves the root path for a future main website; Starlight has no config option to mount at a subpath, so a post-build script moves Astro output into docs/ and overlays non-docs assets. Schema is served at the $id URL path via symlink to maintain a single source of truth.'
+  - date: '2026-02-24'
+    choice: 'gh-pages/ as the GitHub Pages build artifact, keeping dist/ for astro preview'
+    rationale: 'build.sh previously replaced dist/ with the composed output, causing astro preview to serve the public-root redirect HTML at the base path — an infinite redirect loop. Separating the GitHub Pages artifact into gh-pages/ keeps dist/ as a valid astro preview target.'
+  - date: '2026-02-24'
+    choice: 'astro-mermaid with autoTheme for client-side Mermaid rendering'
+    rationale: 'Build-time alternatives (mmdc, rehype-mermaid) produce static SVGs that cannot adapt to dark/light mode. astro-mermaid renders client-side and watches the Starlight data-theme attribute, giving correct diagram theming without maintaining two SVG variants. Tradeoff: ~800 KB gzipped runtime bundle.'

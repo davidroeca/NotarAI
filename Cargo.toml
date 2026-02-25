@@ -1,0 +1,28 @@
+[package]
+name = "notarai"
+version = "0.1.0"
+edition = "2024"
+description = "CLI validator for NotarAI spec files"
+license = "Apache-2.0"
+repository = "https://github.com/davidroeca/NotarAI"
+homepage = "https://github.com/davidroeca/NotarAI"
+keywords = ["notarai", "spec", "validation", "schema", "reconciliation"]
+categories = ["command-line-utilities", "development-tools"]
+readme = "README.md"
+
+[[bin]]
+name = "notarai"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml_ng = "0.10"
+jsonschema = "0.42"
+walkdir = "2"
+
+[dev-dependencies]
+assert_cmd = "2"
+tempfile = "3"
+predicates = "3"

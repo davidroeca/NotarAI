@@ -3,35 +3,55 @@ title: Installation
 description: How to install the NotarAI CLI.
 ---
 
-## From npm
+## Quick Install (Linux / macOS)
 
 ```sh
-npm install -g notarai
+curl -fsSL https://raw.githubusercontent.com/davidroeca/NotarAI/main/scripts/install.sh | sh
 ```
 
-Or use directly via npx:
+This detects your OS and architecture, downloads the appropriate binary from
+GitHub Releases, and installs it to `/usr/local/bin`.
+
+## From crates.io
+
+If you have Rust installed:
 
 ```sh
-npx notarai validate
+cargo install notarai
 ```
 
-## From source
+## Manual Download
+
+Download the binary for your platform from the
+[latest release](https://github.com/davidroeca/NotarAI/releases/latest):
+
+| Platform | Binary |
+|----------|--------|
+| Linux x86_64 (glibc) | `notarai-x86_64-linux-gnu` |
+| Linux x86_64 (musl) | `notarai-x86_64-linux-musl` |
+| Linux aarch64 (glibc) | `notarai-aarch64-linux-gnu` |
+| Linux aarch64 (musl) | `notarai-aarch64-linux-musl` |
+| macOS x86_64 | `notarai-x86_64-macos` |
+| macOS aarch64 (Apple Silicon) | `notarai-aarch64-macos` |
+| Windows x86_64 | `notarai-x86_64-windows.exe` |
+
+Make the binary executable and move it to a directory in your `PATH`:
+
+```sh
+chmod +x notarai-*
+sudo mv notarai-* /usr/local/bin/notarai
+```
+
+## From Source
 
 ```sh
 git clone https://github.com/davidroeca/NotarAI
 cd NotarAI
-npm ci
-npm run build
-npm link
-```
-
-To uninstall:
-
-```sh
-npm uninstall -g notarai
+cargo build --release
+# Binary is at target/release/notarai
 ```
 
 ## Requirements
 
-- Node.js 20 or later
+- No runtime dependencies — NotarAI is a single static binary
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) for reconciliation features (optional for validation-only usage)

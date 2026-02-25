@@ -6,33 +6,39 @@ Note that the project's own spec drift is self-managed, so please get acquainted
 
 ## Development Setup
 
-Install the LTS release of `nodejs`. Preferably the even-numbered LTS release. See [here](https://nodejs.org/en/about/previous-releases) for more details.
+Install [Rust](https://www.rust-lang.org/tools/install) (stable toolchain) and [Node.js](https://nodejs.org/) (for prettier and docs-site).
 
 ```sh
 git clone https://github.com/davidroeca/NotarAI.git
 cd NotarAI
+cargo build
 npm ci
-npm run build
+cargo install --path .
 ```
+
+The last step installs the `notarai` binary to `~/.cargo/bin` so the Claude Code
+hook (`notarai hook validate`) resolves correctly. Re-run it whenever you want
+the installed binary to reflect your latest local changes.
 
 ## Making Changes
 
 1. Create a branch from `main`
 2. Make your changes
-3. Run `npm run build` to verify the TypeScript compiles
-4. Run `npm test` to run the test suite
-5. Run `npx prettier --check .` to verify formatting
-6. Use the `/notarai-reconcile` Claude Code command or use your favorite coding agent to follow these reconciliation instructions
-7. Open a pull request
+3. Run `cargo build` to verify compilation
+4. Run `cargo test` to run the test suite
+5. Run `cargo fmt --check` to verify formatting
+6. Run `cargo clippy -- -D warnings` to check for lint issues
+7. Use the `/notarai-reconcile` Claude Code command or use your favorite coding agent to follow these reconciliation instructions
+8. Open a pull request
 
 ## Code Style
 
-- TypeScript with strict mode
-- 2-space indentation
-- Prettier for formatting (`npx prettier --write .`)
-- ES Modules (`import`/`export`) — no CommonJS
-- Functional style preferred over classes
-- All local imports use `.js` extensions (required by `module: "nodenext"`)
+- Rust 2024 edition
+- `cargo fmt` for Rust formatting
+- `cargo clippy` for Rust lints
+- `npx prettier --check .` for non-Rust file formatting (markdown, JSON, etc.)
+- Functional style preferred over excessive use of structs with methods
+- Core library lives in `src/core/` (not `src/lib/` due to Rust's reserved module name)
 
 ## Project Structure
 

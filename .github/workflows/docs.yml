@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'docs-site/**'
+      - 'notarai.spec.json'
   workflow_dispatch:
 
 permissions:
@@ -34,7 +35,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: docs-site/dist
+          path: docs-site/gh-pages
 
   deploy:
     needs: build

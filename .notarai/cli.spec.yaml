@@ -3,8 +3,9 @@ schema_version: '0.4'
 intent: >
   A CLI tool that validates NotarAI spec files against the JSON Schema
   and integrates with Claude Code via hooks so specs are automatically
-  validated when written or edited. Installable via npm, configured
-  with a single `notarai init` command.
+  validated when written or edited. Distributed as a single static binary
+  with no runtime dependencies, configured with a single `notarai init`
+  command.
 
 behaviors:
   - name: validate_single_file
@@ -13,7 +14,7 @@ behaviors:
 
   - name: validate_directory
     given: 'a path to a directory (or no args, defaulting to .notarai/)'
-    then: 'recursively finds all .spec.yaml files, validates each, exits 1 if any fail'
+    then: 'recursively finds all .spec.yaml files, validates each; exits 1 if any fail; exits 0 with a stderr warning if no .spec.yaml files are found'
 
   - name: hook_validate_spec_file
     given: 'PostToolUse JSON on stdin with a file_path matching .notarai/**/*.spec.yaml'
@@ -29,7 +30,7 @@ behaviors:
 
   - name: init_fresh
     given: 'no existing .claude/settings.json'
-    then: 'creates .claude/settings.json with the PostToolUse validation hook, copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/, copies notarai.spec.json to .claude/notarai.spec.json, and creates CLAUDE.md with the bundled NotarAI context section (which @-imports the schema)'
+    then: 'creates .claude/settings.json with the PostToolUse validation hook (command: notarai hook validate), copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/, copies notarai.spec.json to .claude/notarai.spec.json, and creates CLAUDE.md with the bundled NotarAI context section (which @-imports the schema)'
 
   - name: validate_warns_stale_schema
     given: 'notarai validate runs and .claude/notarai.spec.json exists but its $id differs from the bundled schema'
@@ -53,9 +54,9 @@ behaviors:
 
 constraints:
   - 'Exit codes: 0 for success/no-op, 1 for validation failure or errors'
-  - 'No CLI framework dependency — uses raw process.argv for all commands'
-  - 'The AJV validator is compiled once at module init (not per call); runtime schema reads (e.g. freshness checks) are permitted'
-  - 'The USAGE help text in src/bin.ts must accurately describe every available command and its current behavior'
+  - 'CLI uses clap 4.x derive API for argument parsing and help generation'
+  - 'The jsonschema validator is compiled once at process init via OnceLock (not per call); runtime schema reads (e.g. freshness checks) are permitted'
+  - 'All bundled assets (schema, templates, commands) are embedded at compile time via include_str!'
 
 invariants:
   - 'A valid spec file must never be reported as FAIL'
@@ -64,29 +65,32 @@ invariants:
 
 decisions:
   - date: '2026-02-20'
-    choice: 'Raw process.argv over a CLI framework (e.g. commander, yargs)'
-    rationale: 'Only 3 commands, not worth the dependency'
-  - date: '2026-02-20'
-    choice: 'nodenext module/moduleResolution in tsconfig targeting ES2023 (Node 20+ baseline)'
-    rationale: 'CLI runs directly on Node.js without a bundler, needs correct ESM resolution; Node 18 is EOL so Node 20 is the minimum'
-  - date: '2026-02-20'
     choice: 'Reconcile command named notarai-reconcile.md'
     rationale: "Avoids colliding with a user's own /reconcile command"
   - date: '2026-02-23'
-    choice: 'Vitest as test framework'
-    rationale: 'Native ESM support, fast execution, no config needed for TypeScript'
+    choice: 'Rust over Node.js/TypeScript for the CLI'
+    rationale: 'Single static binary with no runtime dependencies enables cross-platform distribution via direct download instead of requiring Node.js; project has not been released yet so this is a clean replacement'
+  - date: '2026-02-23'
+    choice: 'clap 4.x derive API for CLI parsing'
+    rationale: 'Replaces raw process.argv; clap provides structured subcommands, auto-generated help text, and typed argument parsing with minimal boilerplate'
+  - date: '2026-02-23'
+    choice: 'include_str! for bundled assets instead of runtime file reads'
+    rationale: 'Embeds schema, templates, and command files at compile time so the binary is fully self-contained with no adjacent file dependencies'
+  - date: '2026-02-23'
+    choice: 'assert_cmd + tempfile for integration tests'
+    rationale: 'assert_cmd runs the compiled binary as a subprocess matching real usage; tempfile provides isolated directories for init tests'
 
 artifacts:
   code:
-    - path: 'src/bin.ts'
-      role: 'CLI entry point and command routing'
-    - path: 'src/commands/*.ts'
-      role: 'Command implementations (validate, init, hook-validate)'
-    - path: 'src/lib/*.ts'
-      role: 'Core library (schema loading, YAML parsing, Ajv validation)'
+    - path: 'src/main.rs'
+      role: 'CLI entry point — clap definition and command dispatch'
+    - path: 'src/commands/*.rs'
+      role: 'Command implementations (validate, init, hook_validate)'
+    - path: 'src/core/*.rs'
+      role: 'Core library (schema embedding, YAML parsing, jsonschema validation)'
   configs:
-    - path: 'tsconfig.json'
-      role: 'TypeScript compiler config — nodenext module/moduleResolution, ES2023 target, strict mode'
+    - path: 'Cargo.toml'
+      role: 'Rust package manifest — dependencies, build metadata, and binary target'
     - path: 'notarai.spec.json'
       role: 'JSON Schema that spec files are validated against'
     - path: 'commands/notarai-reconcile.md'
@@ -96,5 +100,5 @@ artifacts:
     - path: 'templates/claude-context.md'
       role: 'Bundled CLAUDE.md section template written by notarai init to target projects'
   tests:
-    - path: 'tests/**/*.test.ts'
-      role: 'Vitest test suite covering CLI routing, commands, and core library'
+    - path: 'tests/**/*.rs'
+      role: 'Integration tests (assert_cmd CLI tests, tempdir-based init tests)'

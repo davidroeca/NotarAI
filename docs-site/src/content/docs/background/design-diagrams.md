@@ -19,10 +19,6 @@ flowchart LR
 
     Dev -->|writes| Code
     Code -.->|describes| Docs
-
-    style Code fill:#1a2a1a,stroke:#4a9,color:#4a9
-    style Dev fill:#1a1d27,stroke:#444,color:#ccc
-    style Docs fill:#1a1d27,stroke:#444,color:#ccc
 ```
 
 ### 1b. Current LLM Era: The Three-Body Problem
@@ -40,15 +36,6 @@ flowchart TD
     LLM -->|generates| Code
     LLM -->|generates| Docs
     Code <-..->|"⚠ drift / desync"| Docs
-
-    style Intent fill:#1a1d27,stroke:#444,color:#ccc
-    style LLM fill:#2a2040,stroke:#8b6fc0,color:#b89eed
-    style Code fill:#1a2a1a,stroke:#4a9,color:#4a9
-    style Docs fill:#1e1e2e,stroke:#5588bb,color:#5588bb
-
-    linkStyle 1 stroke:#e05555,stroke-dasharray:5 5
-    linkStyle 2 stroke:#e05555,stroke-dasharray:5 5
-    linkStyle 5 stroke:#e05555,stroke-dasharray:5 5
 ```
 
 ---
@@ -70,16 +57,6 @@ flowchart TD
     Code -.->|reconcile back| Spec
     Docs -.->|reconcile back| Spec
     Code <-.->|"✓ always in sync via spec"| Docs
-
-    style Intent fill:#1a1d27,stroke:#444,color:#ccc
-    style Spec fill:#2d2215,stroke:#d4a24e,color:#d4a24e
-    style LLM fill:#2a2040,stroke:#8b6fc0,color:#b89eed
-    style Code fill:#1a2a1a,stroke:#4a9,color:#4a9
-    style Docs fill:#1e1e2e,stroke:#5588bb,color:#5588bb
-
-    linkStyle 4 stroke:#4a9,stroke-dasharray:5 5
-    linkStyle 5 stroke:#4a9,stroke-dasharray:5 5
-    linkStyle 6 stroke:#4a9,stroke-dasharray:4 4
 ```
 
 ---
@@ -157,11 +134,6 @@ flowchart LR
     A1 -->|trigger| A2
     A2 -->|reconcile| A3
     A3 -->|resolve| A4
-
-    style A1 fill:#1a2a1a,stroke:#4a9,color:#4a9
-    style A2 fill:#161820,stroke:#333,color:#ccc
-    style A3 fill:#2d2215,stroke:#d4a24e,color:#d4a24e
-    style A4 fill:#2a2040,stroke:#8b6fc0,color:#b89eed
 ```
 
 ### 4b. Scenario B: Human Edits Spec
@@ -177,11 +149,6 @@ flowchart LR
     B1 -->|direct| B3
     B2 --> B4
     B3 --> B4
-
-    style B1 fill:#2d2215,stroke:#d4a24e,color:#d4a24e
-    style B2 fill:#1a2a1a,stroke:#4a9,color:#4a9
-    style B3 fill:#1e1e2e,stroke:#5588bb,color:#5588bb
-    style B4 fill:#2a2040,stroke:#8b6fc0,color:#b89eed
 ```
 
 ### 4c. Scenario C: Conflict Detected
@@ -196,11 +163,6 @@ flowchart LR
     C1 -->|detect| C2
     C2 -->|reconcile| C3
     C3 -->|resolve| C4
-
-    style C1 fill:#2a1515,stroke:#e05555,color:#e05555
-    style C2 fill:#161820,stroke:#333,color:#ccc
-    style C3 fill:#2d2215,stroke:#d4a24e,color:#d4a24e
-    style C4 fill:#1a2a1a,stroke:#4a9,color:#4a9
 ```
 
 ---
@@ -214,11 +176,6 @@ flowchart LR
     A1["User says 'add OAuth'"] --> A2["LLM updates spec first"]
     A2 --> A3["User approves spec"]
     A3 --> A4["LLM writes code"]
-
-    style A1 fill:#1e1a1a,stroke:#665555,color:#ccc
-    style A2 fill:#1e1a1a,stroke:#665555,color:#ccc
-    style A3 fill:#1e1a1a,stroke:#665555,color:#ccc
-    style A4 fill:#1e1a1a,stroke:#665555,color:#ccc
 ```
 
 **B. Post-Push Reconciliation (Recommended)**
@@ -229,12 +186,6 @@ flowchart LR
     B2 --> B3["CI hook: LLM reviews<br/>diff ∩ affected specs"]
     B3 --> B4["Adds spec + doc updates to PR"]
     B4 --> B5["Single review:<br/>code + spec + docs"]
-
-    style B1 fill:#131e18,stroke:#2a4a3a,color:#ccc
-    style B2 fill:#131e18,stroke:#2a4a3a,color:#ccc
-    style B3 fill:#131e18,stroke:#2a4a3a,color:#ccc
-    style B4 fill:#131e18,stroke:#2a4a3a,color:#ccc
-    style B5 fill:#131e18,stroke:#2a4a3a,color:#ccc
 ```
 
 **C. Ambient Awareness — Balanced**
@@ -243,10 +194,6 @@ flowchart LR
 flowchart LR
     C1["LLM reads spec as context<br/>(like CLAUDE.md)"] --> C2["LLM writes code<br/>spec-informed, no friction"]
     C2 --> C3["Full reconciliation at push"]
-
-    style C1 fill:#1a1a28,stroke:#3a3a5a,color:#ccc
-    style C2 fill:#1a1a28,stroke:#3a3a5a,color:#ccc
-    style C3 fill:#1a1a28,stroke:#3a3a5a,color:#ccc
 ```
 
 > **Recommendation:** Start with **B** (post-push) as the default — lowest friction, easiest to adopt. Design the spec format to support **C** (ambient awareness) as the long-term target. The `sync_policy` field lets teams opt into different strategies per spec.
@@ -264,12 +211,6 @@ flowchart LR
     S5["Single review<br/>code + spec + docs<br/>all land together or not"]
 
     S1 --> S2 --> S3 --> S4 --> S5
-
-    style S1 fill:#1a2a1a,stroke:#4a9,color:#4a9
-    style S2 fill:#161820,stroke:#555,color:#ccc
-    style S3 fill:#2a2040,stroke:#8b6fc0,color:#b89eed
-    style S4 fill:#2d2215,stroke:#d4a24e,color:#d4a24e
-    style S5 fill:#131e18,stroke:#4a9,color:#4a9
 ```
 
 > The `artifacts` field in the spec tells the CI hook which specs are affected by which file paths — so it only reconciles what changed.
@@ -322,20 +263,6 @@ flowchart TD
     Logging -.->|applies| Auth
     Logging -.->|applies| Billing
     Logging -.->|applies| API
-
-    style System fill:#2d2215,stroke:#d4a24e,color:#d4a24e
-    style Auth fill:#2d2215,stroke:#d4a24e,color:#d4a24e
-    style Billing fill:#2d2215,stroke:#d4a24e,color:#d4a24e
-    style API fill:#2d2215,stroke:#d4a24e,color:#d4a24e
-    style Security fill:#1e1e2e,stroke:#5588bb,color:#5588bb
-    style Logging fill:#1e1e2e,stroke:#5588bb,color:#5588bb
-
-    linkStyle 3 stroke:#5588bb,stroke-dasharray:5 5
-    linkStyle 4 stroke:#5588bb,stroke-dasharray:5 5
-    linkStyle 5 stroke:#5588bb,stroke-dasharray:5 5
-    linkStyle 6 stroke:#5588bb,stroke-dasharray:5 5
-    linkStyle 7 stroke:#5588bb,stroke-dasharray:5 5
-    linkStyle 8 stroke:#5588bb,stroke-dasharray:5 5
 ```
 
 > When the LLM checks `auth.spec.yaml`, it also loads `security.spec.yaml` and validates that auth code satisfies **both** specs' invariants. Cross-cutting concerns are defined once and enforced everywhere.
@@ -366,10 +293,6 @@ flowchart LR
         T3c["IDE / editor configs"]
         T3d["node_modules, .git, etc."]
     end
-
-    style T1 fill:#1e2a1a,stroke:#4a9,color:#4a9
-    style T2 fill:#1e1e28,stroke:#5588bb,color:#5588bb
-    style T3 fill:#1e1a1a,stroke:#665555,color:#998877
 ```
 
 **Coverage equation:** `Tier 1 + Tier 2 + Tier 3 = entire repo`
@@ -416,12 +339,6 @@ flowchart LR
     S5["5. Activate<br/>sync engine<br/>watches for drift<br/>from this point on"]
 
     S1 --> S2 --> S3 --> S4 --> S5
-
-    style S1 fill:#161820,stroke:#333,color:#ccc
-    style S2 fill:#2a2040,stroke:#8b6fc0,color:#b89eed
-    style S3 fill:#2d2215,stroke:#d4a24e,color:#d4a24e
-    style S4 fill:#161820,stroke:#333,color:#ccc
-    style S5 fill:#1a2a1a,stroke:#4a9,color:#4a9
 ```
 
 > Bootstrap starts minimal and accrues precision over time — the spec is a living document.

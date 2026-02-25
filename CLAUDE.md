@@ -44,40 +44,48 @@ The full spec schema (field definitions, required fields, valid enums) is at:
 ## Build
 
 ```sh
-npm run build        # tsc → dist/
+cargo build --release    # → target/release/notarai
+cargo test               # run all tests
+npm ci                   # install prettier + docs-site deps (workspace)
 ```
 
-Spec files in `.notarai/` are validated automatically via the PostToolUse hook when written or edited.
+Spec files in `.notarai/` are validated automatically via the PostToolUse hook when written or edited. Rust files are auto-formatted with `rustfmt` and non-Rust files with `prettier` via PostToolUse hooks.
 
 ## Project Layout
 
 ```
 src/
-  bin.ts                  # CLI entry point — raw process.argv routing, no framework
+  main.rs                   # CLI entry point — clap derive API
   commands/
-    validate.ts           # notarai validate [file|dir]
-    init.ts               # notarai init — hook setup + command installation
-    hook-validate.ts      # notarai hook validate — PostToolUse stdin handler
-  lib/
-    validator.ts          # AJV-based YAML→JSON Schema validation
-    schema.ts             # loads notarai.spec.json at module init
-    yaml.ts               # js-yaml wrapper returning discriminated union
-notarai.spec.json         # the JSON Schema all spec files are validated against
-commands/                 # bundled slash command sources (copied by `notarai init`)
+    mod.rs
+    validate.rs             # notarai validate [file|dir]
+    init.rs                 # notarai init — hook setup + command installation
+    hook_validate.rs        # notarai hook validate — PostToolUse stdin handler
+  core/
+    mod.rs
+    validator.rs            # jsonschema-based YAML→JSON Schema validation
+    schema.rs               # include_str! + OnceLock for bundled schema
+    yaml.rs                 # serde_yaml_ng → serde_json::Value conversion
+notarai.spec.json           # the JSON Schema all spec files are validated against
+commands/                   # bundled slash command sources (copied by `notarai init`)
   notarai-reconcile.md
   notarai-bootstrap.md
-templates/                # bundled templates (written by `notarai init`)
+templates/                  # bundled templates (written by `notarai init`)
   claude-context.md
-.notarai/                 # this project's own specs
-dist/                     # build output (gitignored)
+.notarai/                   # this project's own specs
+tests/                      # integration tests (assert_cmd + tempfile)
+package.json                # npm workspace root (prettier + docs-site)
+prettier.config.mjs         # prettier config for non-Rust files
+docs-site/                  # Astro/Starlight docs (npm workspace member)
+target/                     # build output (gitignored)
 ```
 
 ## Key Architectural Constraints
 
-- **No CLI framework** — `bin.ts` uses raw `process.argv`. Keep it that way.
-- **No bundler** — TypeScript compiles directly to `dist/` and runs on Node.js. `module: "nodenext"` in tsconfig requires `.js` extensions on all local imports (even for `.ts` source files).
-- **AJV ESM interop** — AJV ships as CJS. The double-cast at `validator.ts:11` (`new (Ajv as unknown as typeof Ajv.default)`) is intentional; don't simplify it.
-- **Schema loaded once** — `schema.ts` loads and `validator.ts` compiles the AJV validator at module init. This is a constraint in the spec; don't move it to per-call.
+- **clap derive API** — `main.rs` uses clap 4.x derive macros for argument parsing and help generation.
+- **No bundler/runtime** — Rust compiles to a single static binary. All assets are embedded via `include_str!` at compile time.
+- **Schema compiled once** — `schema.rs` parses and `validator.rs` compiles the jsonschema validator at process init via `OnceLock`. Don't move to per-call.
+- **Module naming** — Core library lives in `src/core/` (not `src/lib/`) to avoid Rust's reserved `lib` module name.
 
 ## Schema Version
 
@@ -100,6 +108,6 @@ When bumping the schema version, update ALL of these consistently:
 
 `notarai init` writes a `## NotarAI` section to the target project's `CLAUDE.md` (appending to an existing file, or creating it) and copies `notarai.spec.json` to `.claude/notarai.spec.json`. The CLAUDE.md template (`templates/claude-context.md`) includes an `@.claude/notarai.spec.json` import so Claude auto-loads the schema in every conversation. The CLAUDE.md operation is idempotent — if a `## NotarAI` heading is already present (matched as a line-anchored heading, not inline text), init skips it. The schema copy always overwrites to keep it current.
 
-## No Tests Yet
+## Tests
 
-There is no test suite. When adding test coverage, check with the user before choosing a framework.
+Tests use `cargo test`. Unit tests are inline `#[cfg(test)]` modules in source files. Integration tests in `tests/` use `assert_cmd` for CLI binary testing and `tempfile` for isolated init tests.
