@@ -238,8 +238,8 @@ fn setup_gitignore(project_dir: &Path) {
     println!("Added .notarai/.cache/ to .gitignore");
 }
 
-fn setup_mcp_json(claude_dir: &Path) {
-    let mcp_path = claude_dir.join(".mcp.json");
+fn setup_mcp_json(project_root: &Path) {
+    let mcp_path = project_root.join(".mcp.json");
 
     let notarai_entry = serde_json::json!({
         "type": "stdio",

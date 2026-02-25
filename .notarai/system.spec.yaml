@@ -70,7 +70,7 @@ artifacts:
     - path: 'Cargo.toml'
       role: 'Rust package manifest — dependencies, build metadata, and binary target'
     - path: 'package.json'
-      role: 'npm workspace root — references docs-site workspace, provides prettier for formatting hooks and TypeScript for editor support'
+      role: 'npm workspace root — references docs-site workspace, provides prettier (with Astro plugin) for formatting hooks, ESLint for linting, and TypeScript for editor support'
     - path: 'prettier.config.mjs'
       role: 'Prettier formatting config — applies to non-Rust source files across the workspace'
     - path: 'scripts/install.sh'
@@ -79,6 +79,12 @@ artifacts:
       role: 'PowerShell install script for Windows'
     - path: 'CLAUDE.md'
       role: 'Claude Code context file — architectural constraints, build workflow, and conventions for AI-assisted development on this project'
+    - path: '.pre-commit-config.yaml'
+      role: 'pre-commit hook configuration — runs code formatters, linters, and type checkers before each commit'
+    - path: 'eslint.config.js'
+      role: 'ESLint configuration for docs-site Astro/MDX source files'
+    - path: 'tsconfig.json'
+      role: 'Root TypeScript config — shared base for the npm workspace'
 
 decisions:
   - date: '2026-02-20'
