@@ -124,7 +124,7 @@ pub fn run(project_root: Option<&Path>) -> i32 {
     setup_schema(&claude_dir);
     setup_claude_context(&root);
     setup_gitignore(&root);
-    setup_mcp_json(&claude_dir);
+    setup_mcp_json(&root);
 
     0
 }
@@ -239,7 +239,7 @@ fn setup_gitignore(project_dir: &Path) {
 }
 
 fn setup_mcp_json(claude_dir: &Path) {
-    let mcp_path = claude_dir.join("mcp.json");
+    let mcp_path = claude_dir.join(".mcp.json");
 
     let notarai_entry = serde_json::json!({
         "type": "stdio",
@@ -251,7 +251,7 @@ fn setup_mcp_json(claude_dir: &Path) {
         let content = match fs::read_to_string(&mcp_path) {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("Warning: could not read .claude/mcp.json: {e}");
+                eprintln!("Warning: could not read .mcp.json: {e}");
                 return;
             }
         };
@@ -264,7 +264,7 @@ fn setup_mcp_json(claude_dir: &Path) {
             .and_then(|s| s.get("notarai"))
             .is_some()
         {
-            println!("NotarAI MCP server already configured in .claude/mcp.json");
+            println!("NotarAI MCP server already configured in .mcp.json");
             return;
         }
 
@@ -275,10 +275,10 @@ fn setup_mcp_json(claude_dir: &Path) {
 
         let out = serde_json::to_string_pretty(&json).unwrap() + "\n";
         if let Err(e) = fs::write(&mcp_path, out) {
-            eprintln!("Warning: could not update .claude/mcp.json: {e}");
+            eprintln!("Warning: could not update .mcp.json: {e}");
             return;
         }
-        println!("Added notarai MCP server to .claude/mcp.json");
+        println!("Added notarai MCP server to .mcp.json");
     } else {
         let content = serde_json::to_string_pretty(&serde_json::json!({
             "mcpServers": {
@@ -289,10 +289,10 @@ fn setup_mcp_json(claude_dir: &Path) {
             + "\n";
 
         if let Err(e) = fs::write(&mcp_path, content) {
-            eprintln!("Warning: could not write .claude/mcp.json: {e}");
+            eprintln!("Warning: could not write .mcp.json: {e}");
             return;
         }
-        println!("Added NotarAI MCP server to .claude/mcp.json");
+        println!("Added NotarAI MCP server to .mcp.json");
     }
 }
 

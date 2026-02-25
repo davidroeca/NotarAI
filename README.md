@@ -152,7 +152,7 @@ Run `notarai init` in your project root. This does seven things:
 4. Copies `notarai.spec.json` to `.claude/notarai.spec.json` so Claude has the schema available in every session (always overwritten to stay current).
 5. Appends a `## NotarAI` context section to `CLAUDE.md` (or creates it) with an `@`-import of the schema and workflow instructions.
 6. Appends `.notarai/.cache/` to `.gitignore` so the hash cache DB is never committed.
-7. Writes `.claude/mcp.json` registering `notarai mcp` as a local MCP server so Claude Code can call reconciliation tools directly.
+7. Writes `.mcp.json` registering `notarai mcp` as a local MCP server so Claude Code can call reconciliation tools directly.
 
 ```sh
 notarai init

@@ -19,7 +19,7 @@ This does seven things:
 4. Copies `notarai.spec.json` to `.claude/notarai.spec.json` so Claude has the schema available in every session.
 5. Appends a `## NotarAI` section to `CLAUDE.md` with workflow instructions and an `@`-import of the schema.
 6. Appends `.notarai/.cache/` to `.gitignore` so the hash cache DB is never committed.
-7. Writes `.claude/mcp.json` registering `notarai mcp` as a local MCP server.
+7. Writes `.mcp.json` registering `notarai mcp` as a local MCP server.
 
 Running `init` again is safe — it detects existing configuration and skips.
 
