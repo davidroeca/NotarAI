@@ -97,9 +97,5 @@ pub fn run(path: Option<String>) -> i32 {
         }
     }
 
-    if has_failure {
-        1
-    } else {
-        0
-    }
+    if has_failure { 1 } else { 0 }
 }

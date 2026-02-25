@@ -11,7 +11,7 @@ intent: >
 behaviors:
   - name: ci_on_push_and_pr
     given: 'a push to main or a pull request targeting main'
-    then: 'the CI workflow builds the project with cargo build, runs cargo test, cargo fmt --check, and cargo clippy -- -D warnings'
+    then: 'the CI workflow runs three parallel jobs — fmt (cargo fmt --check), clippy (cargo clippy -- -D warnings), and test (cargo test, which implicitly builds); the test job requires fmt and clippy to pass first'
 
   - name: docs_deploy_on_push
     given: 'a push to main that touches any file under docs-site/ or notarai.spec.json'

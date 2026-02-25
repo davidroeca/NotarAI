@@ -57,11 +57,11 @@ pub fn run(project_root: Option<&Path>) -> i32 {
     let claude_dir = root.join(".claude");
     let settings_path = claude_dir.join("settings.json");
 
-    if !claude_dir.exists() {
-        if let Err(e) = fs::create_dir_all(&claude_dir) {
-            eprintln!("Error: could not create .claude/ directory: {e}");
-            return 1;
-        }
+    if !claude_dir.exists()
+        && let Err(e) = fs::create_dir_all(&claude_dir)
+    {
+        eprintln!("Error: could not create .claude/ directory: {e}");
+        return 1;
     }
 
     let mut settings: serde_json::Value = if settings_path.exists() {

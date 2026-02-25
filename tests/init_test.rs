@@ -149,14 +149,16 @@ fn copies_slash_commands() {
         .assert()
         .success();
 
-    assert!(tmp
-        .path()
-        .join(".claude/commands/notarai-reconcile.md")
-        .exists());
-    assert!(tmp
-        .path()
-        .join(".claude/commands/notarai-bootstrap.md")
-        .exists());
+    assert!(
+        tmp.path()
+            .join(".claude/commands/notarai-reconcile.md")
+            .exists()
+    );
+    assert!(
+        tmp.path()
+            .join(".claude/commands/notarai-bootstrap.md")
+            .exists()
+    );
 }
 
 #[test]

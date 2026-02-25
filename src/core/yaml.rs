@@ -1,12 +1,11 @@
 use serde_json::Value;
 
 pub fn parse_yaml(content: &str) -> Result<Value, String> {
-    let yaml_value: serde_yaml_ng::Value = serde_yaml_ng::from_str(content)
-        .map_err(|e| e.to_string())?;
+    let yaml_value: serde_yaml_ng::Value =
+        serde_yaml_ng::from_str(content).map_err(|e| e.to_string())?;
 
     // Convert YAML value to JSON value for jsonschema validation
-    serde_json::to_value(yaml_value)
-        .map_err(|e| format!("YAML to JSON conversion error: {e}"))
+    serde_json::to_value(yaml_value).map_err(|e| format!("YAML to JSON conversion error: {e}"))
 }
 
 #[cfg(test)]
