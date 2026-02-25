@@ -6,7 +6,15 @@ Note that the project's own spec drift is self-managed, so please get acquainted
 
 ## Development Setup
 
-Install [Rust](https://www.rust-lang.org/tools/install) (stable toolchain) and [Node.js](https://nodejs.org/) (for prettier and docs-site).
+Install [Rust](https://www.rust-lang.org/tools/install) (stable toolchain) and [Node.js](https://nodejs.org/) (for prettier and docs-site). Install [pre-commit](https://pre-commit.com/) for pre-commit hooks.
+
+Setup clippy and rustfmt via:
+
+```sh
+rustup component add rustfmt clippy
+```
+
+Then setup the repo:
 
 ```sh
 git clone https://github.com/davidroeca/NotarAI.git
@@ -14,6 +22,7 @@ cd NotarAI
 cargo build
 npm ci
 cargo install --path .
+pre-commit install
 ```
 
 The last step installs the `notarai` binary to `~/.cargo/bin` so the Claude Code
@@ -49,7 +58,7 @@ See `CLAUDE.md` for a detailed layout and architectural constraints.
 These changes will drive broader adoption but are not yet a priority:
 
 - Support other coding agents (e.g. Codex, Aider, Cline, OpenHands, Goose, opencode)
-- Optimize/limit token usage with minimal quality loss
+- Find/create new issues and reference them here
 
 ## License
 

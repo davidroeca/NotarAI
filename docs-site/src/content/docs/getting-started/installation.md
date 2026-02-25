@@ -25,15 +25,15 @@ cargo install notarai
 Download the binary for your platform from the
 [latest release](https://github.com/davidroeca/NotarAI/releases/latest):
 
-| Platform | Binary |
-|----------|--------|
-| Linux x86_64 (glibc) | `notarai-x86_64-linux-gnu` |
-| Linux x86_64 (musl) | `notarai-x86_64-linux-musl` |
-| Linux aarch64 (glibc) | `notarai-aarch64-linux-gnu` |
-| Linux aarch64 (musl) | `notarai-aarch64-linux-musl` |
-| macOS x86_64 | `notarai-x86_64-macos` |
-| macOS aarch64 (Apple Silicon) | `notarai-aarch64-macos` |
-| Windows x86_64 | `notarai-x86_64-windows.exe` |
+| Platform                      | Binary                       |
+| ----------------------------- | ---------------------------- |
+| Linux x86_64 (glibc)          | `notarai-x86_64-linux-gnu`   |
+| Linux x86_64 (musl)           | `notarai-x86_64-linux-musl`  |
+| Linux aarch64 (glibc)         | `notarai-aarch64-linux-gnu`  |
+| Linux aarch64 (musl)          | `notarai-aarch64-linux-musl` |
+| macOS x86_64                  | `notarai-x86_64-macos`       |
+| macOS aarch64 (Apple Silicon) | `notarai-aarch64-macos`      |
+| Windows x86_64                | `notarai-x86_64-windows.exe` |
 
 Make the binary executable and move it to a directory in your `PATH`:
 

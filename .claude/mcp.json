@@ -1,9 +1,7 @@
 {
   "mcpServers": {
     "notarai": {
-      "args": [
-        "mcp"
-      ],
+      "args": ["mcp"],
       "command": "notarai",
       "type": "stdio"
     }

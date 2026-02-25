@@ -256,7 +256,8 @@ fn setup_mcp_json(claude_dir: &Path) {
             }
         };
 
-        let mut json: serde_json::Value = serde_json::from_str(&content).unwrap_or(serde_json::json!({}));
+        let mut json: serde_json::Value =
+            serde_json::from_str(&content).unwrap_or(serde_json::json!({}));
 
         if json
             .get("mcpServers")

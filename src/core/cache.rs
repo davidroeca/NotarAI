@@ -1,9 +1,12 @@
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn db_path(project_root: &Path) -> PathBuf {
-    project_root.join(".notarai").join(".cache").join("notarai.db")
+    project_root
+        .join(".notarai")
+        .join(".cache")
+        .join("notarai.db")
 }
 
 pub fn open_cache_db(project_root: &Path) -> Result<Connection, String> {
@@ -12,8 +15,7 @@ pub fn open_cache_db(project_root: &Path) -> Result<Connection, String> {
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("could not create cache directory: {e}"))?;
     }
-    let conn = Connection::open(&path)
-        .map_err(|e| format!("could not open cache DB: {e}"))?;
+    let conn = Connection::open(&path).map_err(|e| format!("could not open cache DB: {e}"))?;
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS file_cache (
             path TEXT PRIMARY KEY,
@@ -26,8 +28,8 @@ pub fn open_cache_db(project_root: &Path) -> Result<Connection, String> {
 }
 
 pub fn hash_file(path: &Path) -> Result<String, String> {
-    let bytes = std::fs::read(path)
-        .map_err(|e| format!("could not read {}: {e}", path.display()))?;
+    let bytes =
+        std::fs::read(path).map_err(|e| format!("could not read {}: {e}", path.display()))?;
     Ok(blake3::hash(&bytes).to_hex().to_string())
 }
 
@@ -85,11 +87,9 @@ pub fn status(conn: &Connection) -> Result<(usize, Option<i64>), String> {
         .map_err(|e| format!("count query failed: {e}"))?;
     let count = count as usize;
     let newest: Option<i64> = conn
-        .query_row(
-            "SELECT MAX(updated_at) FROM file_cache",
-            [],
-            |row| row.get(0),
-        )
+        .query_row("SELECT MAX(updated_at) FROM file_cache", [], |row| {
+            row.get(0)
+        })
         .map_err(|e| format!("newest query failed: {e}"))?;
     Ok((count, newest))
 }

@@ -25,9 +25,7 @@ fn responds_to_initialize_with_server_info_and_tools() {
 fn unknown_method_returns_32601() {
     notarai()
         .arg("mcp")
-        .write_stdin(
-            r#"{"jsonrpc":"2.0","id":1,"method":"nonexistent","params":{}}"#,
-        )
+        .write_stdin(r#"{"jsonrpc":"2.0","id":1,"method":"nonexistent","params":{}}"#)
         .assert()
         .success()
         .stdout(predicate::str::contains("-32601"));
@@ -35,11 +33,7 @@ fn unknown_method_returns_32601() {
 
 #[test]
 fn exits_0_on_stdin_eof() {
-    notarai()
-        .arg("mcp")
-        .write_stdin("")
-        .assert()
-        .success();
+    notarai().arg("mcp").write_stdin("").assert().success();
 }
 
 #[test]

@@ -3,13 +3,11 @@ You are a **NotarAI reconciliation engine**. Your job is to detect drift between
 ## Instructions (V2 — MCP-accelerated)
 
 1. **Confirm base branch**:
-
    - Run `git branch`
    - Confirm the base branch with the user — usually `main` or `master`; sometimes `dev`, `develop`, or `trunk`
    - In one-off scenarios, a user may want to base off of an intermediary branch
 
 2. **List affected specs** using MCP:
-
    - Call `list_affected_specs({base_branch})` → returns affected spec paths + behaviors/constraints/invariants metadata
    - If the `notarai` MCP server is unavailable, fall back to **V1 steps** below
 
@@ -34,28 +32,26 @@ You are a **NotarAI reconciliation engine**. Your job is to detect drift between
 2. **Identify the base branch** (as above).
 
 3. **Get the code diff** from the base branch:
-
    - Run `git diff <base-branch>` to see what changed on this branch
    - Also run `git diff <base-branch> --stat` for a summary
 
-3.5. **Filter to hash-changed files** (if `notarai` is in PATH):
+4. **Filter to hash-changed files** (if `notarai` is in PATH):
 
-   - Run `git diff <base-branch> --name-only` to get the list of changed paths
-   - Run `notarai cache changed <paths...>` to get the subset with actual content changes
-   - Use this filtered set in step 5 for doc artifacts
-   - Degrade gracefully if `notarai` is not in PATH (use all changed files)
+- Run `git diff <base-branch> --name-only` to get the list of changed paths
+- Run `notarai cache changed <paths...>` to get the subset with actual content changes
+- Use this filtered set in step 6 for doc artifacts
+- Degrade gracefully if `notarai` is not in PATH (use all changed files)
 
-4. **Determine affected specs** by cross-referencing changed file paths against the `artifacts` mappings in each spec.
+5. **Determine affected specs** by cross-referencing changed file paths against the `artifacts` mappings in each spec.
 
-5. **For each affected spec**, read:
-
+6. **For each affected spec**, read:
    - The spec itself (behaviors, constraints, invariants)
    - The changed implementation files (from the diff)
-   - Only doc artifacts in the hash-changed set from step 3.5 (files absent from cache are treated as changed)
+   - Only doc artifacts in the hash-changed set from step 4 (files absent from cache are treated as changed)
 
-6. **Analyze and produce report** (format below).
+7. **Analyze and produce report** (format below).
 
-7. **Update cache**: Run `notarai cache update <all files read>` to seed the cache for next run.
+8. **Update cache**: Run `notarai cache update <all files read>` to seed the cache for next run.
 
 ---
 

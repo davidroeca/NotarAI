@@ -184,11 +184,7 @@ fn handle_tools_call(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcRes
         }
         "get_spec_diff" => {
             let Some(spec) = args.get("spec_path").and_then(|s| s.as_str()) else {
-                return error_response(
-                    req.id.clone(),
-                    -32602,
-                    "Missing spec_path".to_string(),
-                );
+                return error_response(req.id.clone(), -32602, "Missing spec_path".to_string());
             };
             let base = args
                 .get("base_branch")
@@ -198,11 +194,7 @@ fn handle_tools_call(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcRes
         }
         "get_changed_artifacts" => {
             let Some(spec) = args.get("spec_path").and_then(|s| s.as_str()) else {
-                return error_response(
-                    req.id.clone(),
-                    -32602,
-                    "Missing spec_path".to_string(),
-                );
+                return error_response(req.id.clone(), -32602, "Missing spec_path".to_string());
             };
             let art_type = args.get("artifact_type").and_then(|t| t.as_str());
             mcp_tools::get_changed_artifacts(spec, art_type, root)
