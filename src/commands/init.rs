@@ -123,6 +123,8 @@ pub fn run(project_root: Option<&Path>) -> i32 {
     setup_command("notarai-bootstrap", BOOTSTRAP_MD, &claude_dir);
     setup_schema(&claude_dir);
     setup_claude_context(&root);
+    setup_gitignore(&root);
+    setup_mcp_json(&claude_dir);
 
     0
 }
@@ -198,6 +200,99 @@ fn setup_schema(claude_dir: &Path) {
     }
 
     println!("Copied schema to .claude/notarai.spec.json");
+}
+
+fn setup_gitignore(project_dir: &Path) {
+    let gitignore_path = project_dir.join(".gitignore");
+    let cache_entry = ".notarai/.cache/";
+
+    let existing = if gitignore_path.exists() {
+        match fs::read_to_string(&gitignore_path) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Warning: could not read .gitignore: {e}");
+                return;
+            }
+        }
+    } else {
+        String::new()
+    };
+
+    if existing.lines().any(|line| line == cache_entry) {
+        println!(".notarai/.cache/ already in .gitignore");
+        return;
+    }
+
+    let mut content = existing;
+    if !content.is_empty() && !content.ends_with('\n') {
+        content.push('\n');
+    }
+    content.push_str(cache_entry);
+    content.push('\n');
+
+    if let Err(e) = fs::write(&gitignore_path, content) {
+        eprintln!("Warning: could not update .gitignore: {e}");
+        return;
+    }
+
+    println!("Added .notarai/.cache/ to .gitignore");
+}
+
+fn setup_mcp_json(claude_dir: &Path) {
+    let mcp_path = claude_dir.join("mcp.json");
+
+    let notarai_entry = serde_json::json!({
+        "type": "stdio",
+        "command": "notarai",
+        "args": ["mcp"]
+    });
+
+    if mcp_path.exists() {
+        let content = match fs::read_to_string(&mcp_path) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Warning: could not read .claude/mcp.json: {e}");
+                return;
+            }
+        };
+
+        let mut json: serde_json::Value = serde_json::from_str(&content).unwrap_or(serde_json::json!({}));
+
+        if json
+            .get("mcpServers")
+            .and_then(|s| s.get("notarai"))
+            .is_some()
+        {
+            println!("NotarAI MCP server already configured in .claude/mcp.json");
+            return;
+        }
+
+        if json.get("mcpServers").is_none() {
+            json["mcpServers"] = serde_json::json!({});
+        }
+        json["mcpServers"]["notarai"] = notarai_entry;
+
+        let out = serde_json::to_string_pretty(&json).unwrap() + "\n";
+        if let Err(e) = fs::write(&mcp_path, out) {
+            eprintln!("Warning: could not update .claude/mcp.json: {e}");
+            return;
+        }
+        println!("Added notarai MCP server to .claude/mcp.json");
+    } else {
+        let content = serde_json::to_string_pretty(&serde_json::json!({
+            "mcpServers": {
+                "notarai": notarai_entry
+            }
+        }))
+        .unwrap()
+            + "\n";
+
+        if let Err(e) = fs::write(&mcp_path, content) {
+            eprintln!("Warning: could not write .claude/mcp.json: {e}");
+            return;
+        }
+        println!("Added NotarAI MCP server to .claude/mcp.json");
+    }
 }
 
 #[cfg(test)]

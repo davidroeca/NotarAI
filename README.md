@@ -144,13 +144,15 @@ cargo build --release
 
 ### Setup
 
-Run `notarai init` in your project root. This does five things:
+Run `notarai init` in your project root. This does seven things:
 
 1. Adds a PostToolUse hook to `.claude/settings.json` so spec files are automatically validated when Claude Code writes or edits them.
 2. Copies the `/notarai-reconcile` slash command to `.claude/commands/` for drift detection.
 3. Copies the `/notarai-bootstrap` slash command to `.claude/commands/` for bootstrapping specs from an existing codebase.
 4. Copies `notarai.spec.json` to `.claude/notarai.spec.json` so Claude has the schema available in every session (always overwritten to stay current).
 5. Appends a `## NotarAI` context section to `CLAUDE.md` (or creates it) with an `@`-import of the schema and workflow instructions.
+6. Appends `.notarai/.cache/` to `.gitignore` so the hash cache DB is never committed.
+7. Writes `.claude/mcp.json` registering `notarai mcp` as a local MCP server so Claude Code can call reconciliation tools directly.
 
 ```sh
 notarai init
@@ -173,11 +175,28 @@ notarai validate .notarai/subsystems/
 
 Output is `PASS <file>` or `FAIL <file>` with an indented error list. Exit code is 0 if all files pass, 1 if any fail.
 
+```sh
+# Hash files and record them in the cache
+notarai cache update <files...>
+
+# Print only files that have changed since last update
+notarai cache changed <files...>
+
+# Show cache location and entry count
+notarai cache status
+
+# Delete the cache database
+notarai cache clear
+```
+
+The cache stores BLAKE3 hashes of governed files in `.notarai/.cache/notarai.db`. The `/notarai-reconcile` command uses it to skip doc artifacts that haven't changed, keeping context window usage proportional to what actually changed rather than the full repo.
+
 ### Claude Code Integration
 
 After running `notarai init`, spec files are validated automatically whenever Claude Code writes or edits a file in `.notarai/`. Invalid specs block the tool use with errors on stderr. Non-spec files are ignored silently.
 
-Use the `/notarai-reconcile` slash command to detect drift between specs and code.
+Use the `/notarai-reconcile` slash command to detect drift between specs and code. The reconciliation engine uses the `notarai` MCP server (registered by `notarai init`) to serve pre-filtered diffs and artifact lists, keeping context window usage proportional to what actually changed.
+
 Use the `/notarai-bootstrap` slash command to bootstrap `.notarai/` specs for an existing codebase via a structured developer interview.
 
 ## Status
@@ -187,13 +206,13 @@ This project is in early development. What's implemented:
 - Spec schema v0.4 (`notarai.spec.json`) with validation CLI
 - `/notarai-reconcile` slash command for drift detection
 - `/notarai-bootstrap` slash command for bootstrapping specs from an existing codebase via developer interview
+- BLAKE3+SQLite hash cache (`notarai cache`) to skip unchanged files during reconciliation
+- MCP server (`notarai mcp`) that serves pre-filtered diffs and artifact lists, keeping reconciliation context proportional to what changed
 
 Future goals include:
 
 - Supporting other models and agentic ecosystems beyond Claude Code
-- Minimizing token usage in spec-aware workflows
 - Richer invariant elicitation and multi-repo support in the bootstrap flow
-- Broader reconciliation techniques that don't balloon the context
 
 ## Inspirations
 

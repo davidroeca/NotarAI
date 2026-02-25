@@ -50,6 +50,7 @@ exclude:
   - 'img/**'
   - '.claude/**'
   - 'docs-site/.vscode/**'
+  - '.notarai/.cache/**'
 
 artifacts:
   docs:
@@ -101,3 +102,6 @@ decisions:
   - date: '2026-02-23'
     choice: 'Migrate CLI from Node.js/TypeScript to Rust'
     rationale: 'Single static binary eliminates Node.js runtime dependency; enables cross-platform distribution via direct download; project has not been released yet so this is a clean replacement with no migration concerns'
+  - date: '2026-02-24'
+    choice: 'Hash cache + MCP server for proportional context usage in reconciliation'
+    rationale: 'Full git diffs and unconditional artifact reads would flood the context window as repos grow. The hash cache skips unchanged files; the MCP server pre-filters diffs to only files a given spec governs. Together they make reconciliation context proportional to what actually changed.'

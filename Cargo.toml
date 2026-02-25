@@ -21,6 +21,9 @@ serde_json = "1"
 serde_yaml_ng = "0.10"
 jsonschema = "0.42"
 walkdir = "2"
+rusqlite = { version = "0.38", features = ["bundled"] }
+blake3 = "1"
+glob = "0.3"
 
 [dev-dependencies]
 assert_cmd = "2"
