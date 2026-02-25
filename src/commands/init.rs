@@ -119,8 +119,8 @@ pub fn run(project_root: Option<&Path>) -> i32 {
         println!("Added NotarAI validation hook to .claude/settings.json");
     }
 
-    setup_reconcile_command(&claude_dir);
-    setup_bootstrap_command(&claude_dir);
+    setup_command("notarai-reconcile", RECONCILE_MD, &claude_dir);
+    setup_command("notarai-bootstrap", BOOTSTRAP_MD, &claude_dir);
     setup_schema(&claude_dir);
     setup_claude_context(&root);
 
@@ -167,12 +167,12 @@ fn setup_claude_context(project_dir: &Path) {
     println!("Added NotarAI context to CLAUDE.md");
 }
 
-fn setup_reconcile_command(claude_dir: &Path) {
+fn setup_command(name: &str, content: &str, claude_dir: &Path) {
     let commands_dir = claude_dir.join("commands");
-    let dest_path = commands_dir.join("notarai-reconcile.md");
+    let dest_path = commands_dir.join(format!("{name}.md"));
 
     if dest_path.exists() {
-        println!("Reconcile command already exists at .claude/commands/notarai-reconcile.md");
+        println!("{name} command already exists at .claude/commands/{name}.md");
         return;
     }
 
@@ -181,34 +181,12 @@ fn setup_reconcile_command(claude_dir: &Path) {
         return;
     }
 
-    if let Err(e) = fs::write(&dest_path, RECONCILE_MD) {
-        eprintln!("Warning: could not write notarai-reconcile.md: {e}");
+    if let Err(e) = fs::write(&dest_path, content) {
+        eprintln!("Warning: could not write {name}.md: {e}");
         return;
     }
 
-    println!("Added /notarai-reconcile command to .claude/commands/notarai-reconcile.md");
-}
-
-fn setup_bootstrap_command(claude_dir: &Path) {
-    let commands_dir = claude_dir.join("commands");
-    let dest_path = commands_dir.join("notarai-bootstrap.md");
-
-    if dest_path.exists() {
-        println!("Bootstrap command already exists at .claude/commands/notarai-bootstrap.md");
-        return;
-    }
-
-    if let Err(e) = fs::create_dir_all(&commands_dir) {
-        eprintln!("Warning: could not create .claude/commands/ directory: {e}");
-        return;
-    }
-
-    if let Err(e) = fs::write(&dest_path, BOOTSTRAP_MD) {
-        eprintln!("Warning: could not write notarai-bootstrap.md: {e}");
-        return;
-    }
-
-    println!("Added /notarai-bootstrap command to .claude/commands/notarai-bootstrap.md");
+    println!("Added /{name} command to .claude/commands/{name}.md");
 }
 
 fn setup_schema(claude_dir: &Path) {

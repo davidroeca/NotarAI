@@ -1,4 +1,5 @@
 use assert_cmd::cargo_bin_cmd;
+use predicates::prelude::*;
 use std::fs;
 use tempfile::TempDir;
 
@@ -168,6 +169,45 @@ fn copies_schema() {
         .success();
 
     assert!(tmp.path().join(".claude/notarai.spec.json").exists());
+}
+
+#[test]
+fn does_not_overwrite_slash_commands_on_rerun() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .arg("init")
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let reconcile_path = tmp.path().join(".claude/commands/notarai-reconcile.md");
+    fs::write(&reconcile_path, "sentinel content").unwrap();
+
+    notarai()
+        .arg("init")
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let content = fs::read_to_string(reconcile_path).unwrap();
+    assert_eq!(content, "sentinel content");
+}
+
+#[test]
+fn warns_on_stderr_when_notarai_section_has_drifted() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("CLAUDE.md"),
+        "## NotarAI\n\nThis is outdated content that differs from the bundled template.\n",
+    )
+    .unwrap();
+
+    notarai()
+        .arg("init")
+        .current_dir(tmp.path())
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("drifted"));
 }
 
 #[test]

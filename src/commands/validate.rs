@@ -64,8 +64,11 @@ pub fn run(path: Option<String>) -> i32 {
     };
 
     if files.is_empty() {
-        eprintln!("No .spec.yaml files found in {}", resolved.display());
-        return 1;
+        eprintln!(
+            "Warning: no .spec.yaml files found in {}",
+            resolved.display()
+        );
+        return 0;
     }
 
     let mut has_failure = false;

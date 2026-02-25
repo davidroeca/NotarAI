@@ -10,18 +10,11 @@ pub struct HookResult {
 }
 
 fn is_spec_file(file_path: &str, cwd: &Path) -> bool {
-    let Ok(rel) = pathdiff(file_path, cwd) else {
+    let Ok(rel) = Path::new(file_path).strip_prefix(cwd) else {
         return false;
     };
-    rel.starts_with(".notarai/") && rel.ends_with(".spec.yaml")
-}
-
-fn pathdiff(file_path: &str, base: &Path) -> Result<String, ()> {
-    let file = Path::new(file_path);
-    match file.strip_prefix(base) {
-        Ok(rel) => Ok(rel.to_string_lossy().to_string()),
-        Err(_) => Err(()),
-    }
+    rel.starts_with(Path::new(".notarai"))
+        && rel.to_str().is_some_and(|s| s.ends_with(".spec.yaml"))
 }
 
 pub fn process_hook_input(input: &str, cwd: &Path) -> HookResult {

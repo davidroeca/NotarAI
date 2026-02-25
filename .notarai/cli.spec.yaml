@@ -14,7 +14,7 @@ behaviors:
 
   - name: validate_directory
     given: 'a path to a directory (or no args, defaulting to .notarai/)'
-    then: 'recursively finds all .spec.yaml files, validates each; exits 1 if any fail or if no .spec.yaml files are found'
+    then: 'recursively finds all .spec.yaml files, validates each; exits 1 if any fail; exits 0 with a stderr warning if no .spec.yaml files are found'
 
   - name: hook_validate_spec_file
     given: 'PostToolUse JSON on stdin with a file_path matching .notarai/**/*.spec.yaml'

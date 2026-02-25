@@ -1,5 +1,5 @@
 use crate::core::schema;
-use crate::core::yaml::{self, YamlResult};
+use crate::core::yaml;
 use jsonschema::Validator;
 use std::sync::OnceLock;
 
@@ -19,21 +19,14 @@ fn validator() -> &'static Validator {
 
 pub fn validate_spec(content: &str) -> ValidationResult {
     let data = match yaml::parse_yaml(content) {
-        YamlResult::Ok(v) => v,
-        YamlResult::Err(e) => {
+        Ok(v) => v,
+        Err(e) => {
             return ValidationResult {
                 valid: false,
                 errors: vec![format!("YAML parse error: {e}")],
             };
         }
     };
-
-    if validator().is_valid(&data) {
-        return ValidationResult {
-            valid: true,
-            errors: vec![],
-        };
-    }
 
     let errors: Vec<String> = validator()
         .iter_errors(&data)
@@ -48,9 +41,16 @@ pub fn validate_spec(content: &str) -> ValidationResult {
         })
         .collect();
 
-    ValidationResult {
-        valid: false,
-        errors,
+    if errors.is_empty() {
+        ValidationResult {
+            valid: true,
+            errors: vec![],
+        }
+    } else {
+        ValidationResult {
+            valid: false,
+            errors,
+        }
     }
 }
 
@@ -60,9 +60,28 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
+    const MINIMAL_VALID: &str = "\
+schema_version: \"0.4\"
+intent: \"Test intent\"
+behaviors:
+  - name: b
+    given: \"some precondition\"
+    then: \"expected outcome\"
+artifacts:
+  code:
+    - path: \"src/**\"
+";
+
     fn fixture_spec() -> String {
         fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(".notarai/cli.spec.yaml"))
             .expect("fixture spec exists")
+    }
+
+    #[test]
+    fn validates_minimal_inline_spec() {
+        let result = validate_spec(MINIMAL_VALID);
+        assert!(result.valid, "errors: {:?}", result.errors);
+        assert!(result.errors.is_empty());
     }
 
     #[test]
