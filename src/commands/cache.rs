@@ -37,7 +37,7 @@ fn collect_paths(args: Vec<String>) -> Vec<String> {
         stdin
             .lock()
             .lines()
-            .filter_map(|l| l.ok())
+            .map_while(Result::ok)
             .filter(|l| !l.trim().is_empty())
             .collect()
     } else {
