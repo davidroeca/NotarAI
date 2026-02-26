@@ -120,7 +120,7 @@ fn tools_list() -> serde_json::Value {
         },
         {
             "name": "get_spec_diff",
-            "description": "Get the git diff filtered to files governed by a specific spec",
+            "description": "Get the git diff filtered to files governed by a specific spec. Files already reconciled (per cache) are skipped; the response includes a 'skipped' field listing them. A cold or absent cache causes all governed files to be diffed (safe fallback). Pass bypass_cache: true to force a full diff regardless of cache state.",
             "inputSchema": {
                 "type": "object",
                 "required": ["spec_path", "base_branch"],
@@ -131,6 +131,10 @@ fn tools_list() -> serde_json::Value {
                         "type": "array",
                         "items": {"type": "string"},
                         "description": "Glob patterns to exclude from the diff via git :(exclude) pathspecs (e.g. [\"Cargo.lock\", \"*.lock\"])"
+                    },
+                    "bypass_cache": {
+                        "type": "boolean",
+                        "description": "If true, skip cache filtering and diff all governed files regardless of prior reconciliation state"
                     }
                 }
             }
@@ -160,6 +164,14 @@ fn tools_list() -> serde_json::Value {
                         "description": "Relative file paths to cache"
                     }
                 }
+            }
+        },
+        {
+            "name": "clear_cache",
+            "description": "Delete the reconciliation cache database, forcing the next get_spec_diff call to diff all governed files",
+            "inputSchema": {
+                "type": "object",
+                "properties": {}
             }
         }
     ])
@@ -204,7 +216,11 @@ fn handle_tools_call(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcRes
                         .collect()
                 })
                 .unwrap_or_default();
-            mcp_tools::get_spec_diff(spec, base, &exclude_patterns, root)
+            let bypass_cache = args
+                .get("bypass_cache")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            mcp_tools::get_spec_diff(spec, base, &exclude_patterns, bypass_cache, root)
         }
         "get_changed_artifacts" => {
             let Some(spec) = args.get("spec_path").and_then(|s| s.as_str()) else {
@@ -223,6 +239,7 @@ fn handle_tools_call(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcRes
                 .collect();
             mcp_tools::mark_reconciled(&files, root)
         }
+        "clear_cache" => mcp_tools::clear_cache(root),
         _ => Err(mcp_tools::McpError {
             code: -32601,
             message: format!("Unknown tool: {tool_name}"),

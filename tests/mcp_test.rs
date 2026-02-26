@@ -164,6 +164,164 @@ fn get_spec_diff_exclude_patterns_suppresses_exact_filename_from_diff() {
         .stdout(predicate::str::contains("diff --git a/noisy.txt").not());
 }
 
+// -- get_spec_diff: cache filtering ------------------------------------------
+
+#[test]
+fn get_spec_diff_cold_cache_includes_all_changed_files() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "initial").unwrap();
+    fs::write(root.join("beta.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    fs::write(root.join("alpha.txt"), "changed").unwrap();
+    fs::write(root.join("beta.txt"), "changed").unwrap();
+    git_commit_all(root, "changes");
+
+    // No cache seeding; cold start should diff everything.
+    let msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/test.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("diff --git a/alpha.txt"))
+        .stdout(predicate::str::contains("diff --git a/beta.txt"));
+}
+
+#[test]
+fn get_spec_diff_skips_file_matching_cache() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "initial").unwrap();
+    fs::write(root.join("beta.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    fs::write(root.join("alpha.txt"), "changed").unwrap();
+    fs::write(root.join("beta.txt"), "changed").unwrap();
+    git_commit_all(root, "changes");
+
+    // Seed beta.txt via mark_reconciled (uses relative path keys, same as get_spec_diff).
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":["beta.txt"]}}}"#;
+    let diff_msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/test.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n{diff_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        // alpha.txt is not in cache -> appears in diff
+        .stdout(predicate::str::contains("diff --git a/alpha.txt"))
+        // beta.txt hash matches cache -> skipped
+        .stdout(predicate::str::contains("diff --git a/beta.txt").not())
+        .stdout(predicate::str::contains("beta.txt"));
+}
+
+#[test]
+fn get_spec_diff_skips_all_when_all_files_cached() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "initial").unwrap();
+    fs::write(root.join("beta.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    fs::write(root.join("alpha.txt"), "changed").unwrap();
+    fs::write(root.join("beta.txt"), "changed").unwrap();
+    git_commit_all(root, "changes");
+
+    // Seed both files via mark_reconciled - both should be skipped.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":["alpha.txt","beta.txt"]}}}"#;
+    let diff_msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/test.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n{diff_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("diff --git").not())
+        .stdout(predicate::str::contains("alpha.txt"))
+        .stdout(predicate::str::contains("beta.txt"));
+}
+
+#[test]
+fn get_spec_diff_bypass_cache_includes_all_files() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "initial").unwrap();
+    fs::write(root.join("beta.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    fs::write(root.join("alpha.txt"), "changed").unwrap();
+    fs::write(root.join("beta.txt"), "changed").unwrap();
+    git_commit_all(root, "changes");
+
+    // Seed both files via mark_reconciled, then bypass_cache should still show full diff.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":["alpha.txt","beta.txt"]}}}"#;
+    let diff_msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/test.spec.yaml","base_branch":"HEAD~1","bypass_cache":true}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n{diff_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("diff --git a/alpha.txt"))
+        .stdout(predicate::str::contains("diff --git a/beta.txt"));
+}
+
+#[test]
+fn clear_cache_allows_full_diff_on_next_call() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "initial").unwrap();
+    fs::write(root.join("beta.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    fs::write(root.join("alpha.txt"), "changed").unwrap();
+    fs::write(root.join("beta.txt"), "changed").unwrap();
+    git_commit_all(root, "changes");
+
+    // Seed both files via mark_reconciled, then clear cache, then verify full diff.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":["alpha.txt","beta.txt"]}}}"#;
+    let clear_msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"clear_cache","arguments":{}}}"#;
+    let diff_msg = r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/test.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n{clear_msg}\n{diff_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("cleared"))
+        // After cache cleared, cold start -> both files in diff.
+        .stdout(predicate::str::contains("diff --git a/alpha.txt"))
+        .stdout(predicate::str::contains("diff --git a/beta.txt"));
+}
+
 #[test]
 fn get_spec_diff_exclude_patterns_supports_glob_patterns() {
     let tmp = TempDir::new().unwrap();
@@ -180,7 +338,7 @@ fn get_spec_diff_exclude_patterns_supports_glob_patterns() {
     fs::write(root.join("data.lock"), "modified").unwrap();
     git_commit_all(root, "changes");
 
-    // Spec governs *.txt only, so data.lock won't appear in files at all —
+    // Spec governs *.txt only, so data.lock won't appear in files at all -
     // but add a second spec variant that governs both so we can confirm the
     // glob exclude works across matched files.
     let both_spec = r#"schema_version: '0.4'

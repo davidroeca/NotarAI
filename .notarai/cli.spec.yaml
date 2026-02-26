@@ -70,7 +70,7 @@ behaviors:
 
   - name: mcp_server
     given: 'notarai mcp is invoked and JSON-RPC 2.0 messages are sent on stdin'
-    then: 'responds to initialize with serverInfo and 4 tool definitions (list_affected_specs, get_spec_diff, get_changed_artifacts, mark_reconciled); dispatches tools/call to the appropriate implementation; exits 0 on stdin EOF; get_spec_diff accepts an optional exclude_patterns array of glob strings passed as git :(exclude) pathspecs to suppress noisy files from the diff output'
+    then: 'responds to initialize with serverInfo and 5 tool definitions (list_affected_specs, get_spec_diff, get_changed_artifacts, mark_reconciled, clear_cache); dispatches tools/call to the appropriate implementation; exits 0 on stdin EOF; get_spec_diff accepts an optional exclude_patterns array of glob strings passed as git :(exclude) pathspecs to suppress noisy files from the diff output; get_spec_diff filters governed files through the hash cache before diffing — files whose hash matches the cache are omitted and listed in the response "skipped" field; a missing or empty cache causes all governed files to be diffed (safe cold-start fallback); get_spec_diff accepts an optional bypass_cache boolean to force a full diff regardless of cache state; clear_cache deletes the cache database so the next get_spec_diff call diffs all governed files'
 
 constraints:
   - 'Exit codes: 0 for success/no-op, 1 for validation failure or errors'
@@ -108,6 +108,12 @@ decisions:
   - date: '2026-02-24'
     choice: 'rusqlite bundled feature for SQLite'
     rationale: 'Compiles SQLite from source as part of the crate, keeping the binary fully self-contained without requiring a system libsqlite3'
+  - date: '2026-02-25'
+    choice: 'get_spec_diff filters governed files via hash cache before diffing'
+    rationale: 'Files already reconciled (per mark_reconciled) are skipped; only files whose on-disk hash differs from the cache are passed to git diff, making response size proportional to what actually changed since the last reconcile run'
+  - date: '2026-02-25'
+    choice: 'clear_cache added as a 5th MCP tool alongside bypass_cache on get_spec_diff'
+    rationale: 'Cache clearing was CLI-only; exposing it via MCP lets the reconcile command reset state without dropping to the shell; bypass_cache provides a per-call escape hatch without destroying the cache'
 
 artifacts:
   code:
