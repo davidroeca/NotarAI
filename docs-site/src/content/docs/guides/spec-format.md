@@ -103,7 +103,7 @@ References to other specs this one interacts with.
 
 ```yaml
 dependencies:
-  - ref: 'billing.spec.yaml'
+  - $ref: 'billing.spec.yaml'
     relationship: 'auth gates billing endpoints'
 ```
 

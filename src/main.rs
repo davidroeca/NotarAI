@@ -29,6 +29,13 @@ enum Commands {
         #[command(subcommand)]
         action: HookAction,
     },
+    /// Hash-based file cache for context footprint reduction
+    Cache {
+        #[command(subcommand)]
+        action: commands::cache::CacheAction,
+    },
+    /// MCP server (stdio JSON-RPC 2.0 transport)
+    Mcp,
 }
 
 #[derive(Subcommand)]
@@ -46,6 +53,8 @@ fn main() {
         Some(Commands::Hook { action }) => match action {
             HookAction::Validate => commands::hook_validate::run(),
         },
+        Some(Commands::Cache { action }) => commands::cache::run(action),
+        Some(Commands::Mcp) => commands::mcp::run(),
         None => {
             // Print help when no command given
             use clap::CommandFactory;

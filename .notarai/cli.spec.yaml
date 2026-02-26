@@ -30,7 +30,7 @@ behaviors:
 
   - name: init_fresh
     given: 'no existing .claude/settings.json'
-    then: 'creates .claude/settings.json with the PostToolUse validation hook (command: notarai hook validate), copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/, copies notarai.spec.json to .claude/notarai.spec.json, and creates CLAUDE.md with the bundled NotarAI context section (which @-imports the schema)'
+    then: 'creates .claude/settings.json with the PostToolUse validation hook (command: notarai hook validate), copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/, copies notarai.spec.json to .claude/notarai.spec.json, creates CLAUDE.md with the bundled NotarAI context section (which @-imports the schema), appends .notarai/.cache/ to .gitignore, and writes .mcp.json (project root) registering notarai mcp as a local MCP server'
 
   - name: validate_warns_stale_schema
     given: 'notarai validate runs and .claude/notarai.spec.json exists but its $id differs from the bundled schema'
@@ -38,7 +38,7 @@ behaviors:
 
   - name: init_idempotent
     given: "notarai init has already been run, all commands are already installed, and CLAUDE.md already contains a '## NotarAI' section"
-    then: 'detects existing hook, commands, and CLAUDE.md context, reports already configured; always refreshes .claude/notarai.spec.json (unconditional overwrite keeps schema current)'
+    then: 'detects existing hook, commands, and CLAUDE.md context, reports already configured; always refreshes .claude/notarai.spec.json (unconditional overwrite keeps schema current); idempotently checks .gitignore for .notarai/.cache/ and .mcp.json (project root) for the notarai MCP server entry'
 
   - name: bootstrap_command_setup
     given: 'notarai init runs and .claude/commands/notarai-bootstrap.md does not exist'
@@ -51,6 +51,26 @@ behaviors:
   - name: init_claude_md_drift_warning
     given: "notarai init runs and CLAUDE.md contains a '## NotarAI' section that differs from the bundled template"
     then: 'prints a warning suggesting manual review or delete-and-reinit; does not overwrite'
+
+  - name: cache_update
+    given: 'one or more file paths as arguments (or one path per line on stdin if no args given)'
+    then: 'computes a BLAKE3 hash for each existing file and upserts it into .notarai/.cache/notarai.db; prints the count of files cached'
+
+  - name: cache_changed
+    given: 'one or more file paths as arguments (or one path per line on stdin if no args given)'
+    then: 'prints only the paths whose content has changed since the last cache update, or that are absent from the cache; always exits 0 (empty output means nothing changed)'
+
+  - name: cache_status
+    given: 'notarai cache status is invoked'
+    then: 'prints the DB file path and the number of cached entries; creates an empty DB if none exists'
+
+  - name: cache_clear
+    given: 'notarai cache clear is invoked'
+    then: 'deletes .notarai/.cache/notarai.db and exits 0; no-op if the file does not exist'
+
+  - name: mcp_server
+    given: 'notarai mcp is invoked and JSON-RPC 2.0 messages are sent on stdin'
+    then: 'responds to initialize with serverInfo and 4 tool definitions (list_affected_specs, get_spec_diff, get_changed_artifacts, mark_reconciled); dispatches tools/call to the appropriate implementation; exits 0 on stdin EOF'
 
 constraints:
   - 'Exit codes: 0 for success/no-op, 1 for validation failure or errors'
@@ -79,15 +99,24 @@ decisions:
   - date: '2026-02-23'
     choice: 'assert_cmd + tempfile for integration tests'
     rationale: 'assert_cmd runs the compiled binary as a subprocess matching real usage; tempfile provides isolated directories for init tests'
+  - date: '2026-02-24'
+    choice: 'BLAKE3+SQLite hash cache for reconciliation context reduction'
+    rationale: 'Hashing governed files and storing results in a local SQLite DB (.notarai/.cache/notarai.db) lets the reconcile command skip doc artifacts that have not changed since the last run, keeping context window usage proportional to actual change volume rather than the full repo'
+  - date: '2026-02-24'
+    choice: 'Synchronous JSON-RPC 2.0 over stdio for the MCP server (no tokio)'
+    rationale: 'The MCP stdio transport is a simple request/response loop — no async I/O is needed. Synchronous BufRead line-by-line is sufficient and avoids pulling in a tokio runtime'
+  - date: '2026-02-24'
+    choice: 'rusqlite bundled feature for SQLite'
+    rationale: 'Compiles SQLite from source as part of the crate, keeping the binary fully self-contained without requiring a system libsqlite3'
 
 artifacts:
   code:
     - path: 'src/main.rs'
       role: 'CLI entry point — clap definition and command dispatch'
     - path: 'src/commands/*.rs'
-      role: 'Command implementations (validate, init, hook_validate)'
+      role: 'Command implementations (validate, init, hook_validate, cache, mcp)'
     - path: 'src/core/*.rs'
-      role: 'Core library (schema embedding, YAML parsing, jsonschema validation)'
+      role: 'Core library (schema embedding, YAML parsing, jsonschema validation, hash cache, MCP tool implementations)'
   configs:
     - path: 'Cargo.toml'
       role: 'Rust package manifest — dependencies, build metadata, and binary target'

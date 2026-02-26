@@ -25,13 +25,16 @@ The system is always **propose-and-approve**, never auto-sync. Both humans and L
 
 After running `notarai init`, use the `/notarai-reconcile` slash command in Claude Code to trigger a reconciliation pass.
 
-The reconciliation engine will:
+The reconciliation engine uses the `notarai` MCP server to serve pre-filtered data, keeping context usage proportional to what actually changed:
 
-1. Read all spec files in `.notarai/`
-2. Examine the governed artifacts (code, docs, tests) listed in each spec's `artifacts` section
-3. Compare the current state of artifacts against the spec's intent, behaviors, and constraints
-4. Report any drift or conflicts found
-5. Propose updates to bring everything back into alignment
+1. Calls `list_affected_specs` to identify which specs govern changed files
+2. For each affected spec, calls `get_spec_diff` to get only the diff for files that spec governs
+3. Calls `get_changed_artifacts` to get only doc artifacts that changed since the last reconciliation (using the hash cache to skip unchanged files)
+4. Reads only those files, analyzes drift against the spec's behaviors, constraints, and invariants
+5. Proposes targeted updates to bring spec, code, and docs back into alignment
+6. Calls `mark_reconciled` to update the hash cache for next run
+
+If the MCP server is unavailable, the command falls back to a manual flow using `git diff` and `notarai cache changed`.
 
 ## Sync policies
 

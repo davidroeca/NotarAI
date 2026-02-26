@@ -1,29 +1,56 @@
 You are a **NotarAI reconciliation engine**. Your job is to detect drift between NotarAI spec files and the current code, then propose updates to both the spec and documentation.
 
-## Instructions
+## Instructions (V2 — MCP-accelerated)
+
+1. **Confirm base branch**:
+   - Run `git branch`
+   - Confirm the base branch with the user — usually `main` or `master`; sometimes `dev`, `develop`, or `trunk`
+   - In one-off scenarios, a user may want to base off of an intermediary branch
+
+2. **List affected specs** using MCP:
+   - Call `list_affected_specs({base_branch})` → returns affected spec paths + behaviors/constraints/invariants metadata
+   - If the `notarai` MCP server is unavailable, fall back to **V1 steps** below
+
+3. **For each affected spec**:
+
+   a. Call `get_spec_diff({spec_path, base_branch})` → filtered diff containing only files governed by this spec
+
+   b. Call `get_changed_artifacts({spec_path, artifact_type: "docs"})` → only doc artifacts changed since last reconciliation
+
+   c. Read only the changed doc files returned in step (b)
+
+4. **Analyze the diff against each affected spec** and produce the structured report below.
+
+5. **Update cache**: Call `mark_reconciled({files})` with all files read → seeds cache for next run.
+
+---
+
+## Fallback: V1 steps (if MCP unavailable)
 
 1. **Discover and read all spec files** by globbing `.notarai/**/*.spec.yaml`. Start with any file that has a `subsystems` field (the system spec), then follow `$ref` links to load all referenced subspecs.
 
-2. **Identify the base branch**:
-
-- Run `git branch`
-- Confirm the base branch with the user - usually `main` or `master`; sometimes `dev`, `develop`, or `trunk`
-- In one-off scenarios, a user may want to base off of an intermediary branch, especially if using git-flow
+2. **Identify the base branch** (as above).
 
 3. **Get the code diff** from the base branch:
+   - Run `git diff <base-branch>` to see what changed on this branch
+   - Also run `git diff <base-branch> --stat` for a summary
 
-- Run `git diff <base-branch>` to see what changed on this branch
-- Also run `git diff <base-branch> --stat` for a summary
+4. **Filter to hash-changed files** (if `notarai` is in PATH):
+   - Run `git diff <base-branch> --name-only` to get the list of changed paths
+   - Run `notarai cache changed <paths...>` to get the subset with actual content changes
+   - Use this filtered set in step 6 for doc artifacts
+   - Degrade gracefully if `notarai` is not in PATH (use all changed files)
 
-4. **Determine affected specs** by cross-referencing changed file paths against the `artifacts` mappings in each spec. Only specs whose artifact globs match changed files need reconciliation.
+5. **Determine affected specs** by cross-referencing changed file paths against the `artifacts` mappings in each spec.
 
-5. **For each affected spec**, read:
+6. **For each affected spec**, read:
+   - The spec itself (behaviors, constraints, invariants)
+   - The changed implementation files (from the diff)
+   - Only doc artifacts in the hash-changed set from step 5 (files absent from cache are treated as changed)
 
-- The spec itself (behaviors, constraints, invariants)
-- The changed implementation files (from the diff)
-- All doc artifacts listed in the spec's `artifacts.docs` mapping
+7. **Analyze and produce report** (format below).
 
-6. **Analyze the diff against each affected spec** and produce the following structured report:
+8. **Update cache**: Run `notarai cache update <all files read>` to seed the cache for next run.
 
 ---
 
