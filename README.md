@@ -16,7 +16,7 @@ NotarAI is a continuous intent reconciliation tool that keeps your specs, code, 
 
 ## Getting started
 
-The docsite has detailed [docs for getting started](http://localhost:4321/NotarAI/docs/getting-started/installation/).
+The docsite has detailed [docs for getting started](https://davidroeca.github.io/NotarAI/docs/getting-started/installation/).
 
 ## Spec: complementary, not competing
 
