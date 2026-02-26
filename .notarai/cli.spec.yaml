@@ -62,15 +62,19 @@ behaviors:
 
   - name: cache_status
     given: 'notarai cache status is invoked'
-    then: 'prints the DB file path and the number of cached entries; creates an empty DB if none exists'
+    then: 'prints the DB file path, the number of cached entries, and the newest entry timestamp; creates an empty DB if none exists'
 
   - name: cache_clear
     given: 'notarai cache clear is invoked'
     then: 'deletes .notarai/.cache/notarai.db and exits 0; no-op if the file does not exist'
 
+  - name: mcp_cache_filtering
+    given: 'get_spec_diff is called with bypass_cache unset or false'
+    then: 'files whose BLAKE3 hash matches the cache are listed in the skipped field and excluded from the diff; a cold or absent cache diffs all governed files as a safe fallback'
+
   - name: mcp_server
     given: 'notarai mcp is invoked and JSON-RPC 2.0 messages are sent on stdin'
-    then: 'responds to initialize with serverInfo and 5 tool definitions (list_affected_specs, get_spec_diff, get_changed_artifacts, mark_reconciled, clear_cache); dispatches tools/call to the appropriate implementation; exits 0 on stdin EOF; get_spec_diff accepts an optional exclude_patterns array of glob strings passed as git :(exclude) pathspecs to suppress noisy files from the diff output; get_spec_diff filters governed files through the hash cache before diffing — files whose hash matches the cache are omitted and listed in the response "skipped" field; a missing or empty cache causes all governed files to be diffed (safe cold-start fallback); get_spec_diff accepts an optional bypass_cache boolean to force a full diff regardless of cache state; clear_cache deletes the cache database so the next get_spec_diff call diffs all governed files'
+    then: 'responds to initialize with serverInfo and 5 tool definitions (list_affected_specs, get_spec_diff, get_changed_artifacts, mark_reconciled, clear_cache); dispatches tools/call to the appropriate implementation; exits 0 on stdin EOF; get_spec_diff accepts an optional exclude_patterns array of glob strings passed as git :(exclude) pathspecs to suppress noisy files from the diff output; cache-filtering semantics are described by the mcp_cache_filtering behavior'
 
 constraints:
   - 'Exit codes: 0 for success/no-op, 1 for validation failure or errors'

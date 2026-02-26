@@ -6,6 +6,7 @@ description: Why NotarAI exists and the problem it solves.
 ## The problem
 
 With LLMs generating both code and documentation from natural language prompts, there's no authoritative representation of **intent** that persists across changes. Code and docs drift out of sync — and unlike the pre-LLM era where code was the single source of truth, now either artifact can be the one that's "right." This is the three-body problem: intent, code, and docs can all diverge.
+human
 
 ## The idea
 
@@ -31,7 +32,7 @@ Three strategies, configurable per spec via `sync_policy`:
 
 ## Bootstrap
 
-For existing codebases: ingest code + docs + commit history, then the LLM interviews the developer about goals and undocumented rules, drafts a spec with required fields only, and the human reviews and enriches. The spec accrues precision over time.
+For existing codebases: ingest code + docs + commit history, then the LLM interviews the developer about goals and undocumented rules, drafts a spec with required fields only, and the user reviews and enriches. The spec accrues precision over time.
 
 ## Inspirations
 

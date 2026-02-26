@@ -7,19 +7,19 @@ description: How NotarAI detects and resolves drift between specs, code, and doc
 
 The reconciliation engine detects three scenarios:
 
-### 1. Human edits code
+### 1. Someone edits code
 
 The engine detects that code has drifted from the spec and proposes spec and doc updates.
 
-### 2. Human edits spec
+### 2. Someone edits spec
 
 The engine propagates the spec change to code and documentation.
 
 ### 3. Conflict
 
-Code says one thing, the spec says another. The engine surfaces the disagreement and the human decides which is correct.
+Code says one thing, the spec says another. The engine surfaces the disagreement and the user decides which is correct.
 
-The system is always **propose-and-approve**, never auto-sync. Both humans and LLMs can edit everything; the spec is the tiebreaker.
+The system is always **propose-and-approve**, never auto-sync. Both users and LLMs can edit everything; the spec is the tiebreaker.
 
 ## Using reconciliation
 
@@ -28,11 +28,13 @@ After running `notarai init`, use the `/notarai-reconcile` slash command in Clau
 The reconciliation engine uses the `notarai` MCP server to serve pre-filtered data, keeping context usage proportional to what actually changed:
 
 1. Calls `list_affected_specs` to identify which specs govern changed files
-2. For each affected spec, calls `get_spec_diff` to get only the diff for files that spec governs
+2. For each affected spec, calls `get_spec_diff` to get only the diff for files that spec governs — files already reconciled (per the BLAKE3 hash cache) are skipped and listed in the `skipped` field; pass `exclude_patterns` to suppress noisy files like lockfiles from the diff; pass `bypass_cache: true` to force a full diff without destroying the cache
 3. Calls `get_changed_artifacts` to get only doc artifacts that changed since the last reconciliation (using the hash cache to skip unchanged files)
 4. Reads only those files, analyzes drift against the spec's behaviors, constraints, and invariants
 5. Proposes targeted updates to bring spec, code, and docs back into alignment
 6. Calls `mark_reconciled` to update the hash cache for next run
+
+See the [MCP Server reference](/NotarAI/docs/reference/mcp-server/) for full tool parameters and return shapes.
 
 If the MCP server is unavailable, the command falls back to a manual flow using `git diff` and `notarai cache changed`.
 
