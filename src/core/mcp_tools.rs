@@ -78,7 +78,13 @@ pub fn list_affected_specs(base_branch: &str, project_root: &Path) -> McpResult 
     }))
 }
 
-pub fn get_spec_diff(spec_path: &str, base_branch: &str, project_root: &Path) -> McpResult {
+pub fn get_spec_diff(
+    spec_path: &str,
+    base_branch: &str,
+    exclude_patterns: &[String],
+    bypass_cache: bool,
+    project_root: &Path,
+) -> McpResult {
     let abs_spec = project_root.join(spec_path);
     let content = std::fs::read_to_string(&abs_spec).map_err(|e| McpError {
         code: -32603,
@@ -92,12 +98,47 @@ pub fn get_spec_diff(spec_path: &str, base_branch: &str, project_root: &Path) ->
     let files = expand_artifact_globs(&spec_value, project_root);
 
     if files.is_empty() {
-        return Ok(serde_json::json!({"diff": "", "files": []}));
+        return Ok(
+            serde_json::json!({"diff": "", "files": [], "skipped": [], "excluded": exclude_patterns}),
+        );
     }
 
-    let mut args = vec!["diff", base_branch, "--"];
-    let file_refs: Vec<&str> = files.iter().map(String::as_str).collect();
-    args.extend(file_refs.iter().copied());
+    // Split files into to_diff (cache says changed) and skipped (cache says unchanged).
+    let (files_to_diff, skipped): (Vec<String>, Vec<String>) = if bypass_cache {
+        (files, vec![])
+    } else {
+        match crate::core::cache::open_cache_db(project_root) {
+            Ok(conn) => files.into_iter().partition(|rel| {
+                let abs = project_root.join(rel);
+                !matches!(
+                    crate::core::cache::check_changed(&conn, rel, &abs),
+                    Ok(None)
+                )
+            }),
+            Err(_) => (files, vec![]), // cache unavailable: diff everything
+        }
+    };
+
+    if files_to_diff.is_empty() {
+        return Ok(serde_json::json!({
+            "diff": "",
+            "files": [],
+            "skipped": skipped,
+            "excluded": exclude_patterns,
+        }));
+    }
+
+    // Build :(exclude) pathspecs from caller-supplied patterns.
+    // Git resolves these as globs, so patterns like "Cargo.lock" or "*.lock"
+    // work without pre-expansion.
+    let exclude_args: Vec<String> = exclude_patterns
+        .iter()
+        .map(|p| format!(":(exclude){p}"))
+        .collect();
+
+    let mut args: Vec<&str> = vec!["diff", base_branch, "--"];
+    args.extend(files_to_diff.iter().map(String::as_str));
+    args.extend(exclude_args.iter().map(String::as_str));
 
     let output = std::process::Command::new("git")
         .args(&args)
@@ -111,8 +152,23 @@ pub fn get_spec_diff(spec_path: &str, base_branch: &str, project_root: &Path) ->
     let diff = String::from_utf8_lossy(&output.stdout).to_string();
     Ok(serde_json::json!({
         "diff": diff,
-        "files": files,
+        "files": files_to_diff,
+        "skipped": skipped,
+        "excluded": exclude_patterns,
     }))
+}
+
+pub fn clear_cache(project_root: &Path) -> McpResult {
+    let path = crate::core::cache::db_path(project_root);
+    if path.exists() {
+        std::fs::remove_file(&path).map_err(|e| McpError {
+            code: -32603,
+            message: format!("could not delete cache: {e}"),
+        })?;
+        Ok(serde_json::json!({"cleared": true}))
+    } else {
+        Ok(serde_json::json!({"cleared": false}))
+    }
 }
 
 pub fn get_changed_artifacts(
