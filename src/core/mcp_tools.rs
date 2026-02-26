@@ -78,7 +78,12 @@ pub fn list_affected_specs(base_branch: &str, project_root: &Path) -> McpResult 
     }))
 }
 
-pub fn get_spec_diff(spec_path: &str, base_branch: &str, project_root: &Path) -> McpResult {
+pub fn get_spec_diff(
+    spec_path: &str,
+    base_branch: &str,
+    exclude_patterns: &[String],
+    project_root: &Path,
+) -> McpResult {
     let abs_spec = project_root.join(spec_path);
     let content = std::fs::read_to_string(&abs_spec).map_err(|e| McpError {
         code: -32603,
@@ -95,9 +100,17 @@ pub fn get_spec_diff(spec_path: &str, base_branch: &str, project_root: &Path) ->
         return Ok(serde_json::json!({"diff": "", "files": []}));
     }
 
-    let mut args = vec!["diff", base_branch, "--"];
-    let file_refs: Vec<&str> = files.iter().map(String::as_str).collect();
-    args.extend(file_refs.iter().copied());
+    // Build :(exclude) pathspecs from caller-supplied patterns.
+    // Git resolves these as globs, so patterns like "Cargo.lock" or "*.lock"
+    // work without pre-expansion.
+    let exclude_args: Vec<String> = exclude_patterns
+        .iter()
+        .map(|p| format!(":(exclude){p}"))
+        .collect();
+
+    let mut args: Vec<&str> = vec!["diff", base_branch, "--"];
+    args.extend(files.iter().map(String::as_str));
+    args.extend(exclude_args.iter().map(String::as_str));
 
     let output = std::process::Command::new("git")
         .args(&args)
@@ -112,6 +125,7 @@ pub fn get_spec_diff(spec_path: &str, base_branch: &str, project_root: &Path) ->
     Ok(serde_json::json!({
         "diff": diff,
         "files": files,
+        "excluded": exclude_patterns,
     }))
 }
 

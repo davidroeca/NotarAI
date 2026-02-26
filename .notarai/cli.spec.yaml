@@ -70,7 +70,7 @@ behaviors:
 
   - name: mcp_server
     given: 'notarai mcp is invoked and JSON-RPC 2.0 messages are sent on stdin'
-    then: 'responds to initialize with serverInfo and 4 tool definitions (list_affected_specs, get_spec_diff, get_changed_artifacts, mark_reconciled); dispatches tools/call to the appropriate implementation; exits 0 on stdin EOF'
+    then: 'responds to initialize with serverInfo and 4 tool definitions (list_affected_specs, get_spec_diff, get_changed_artifacts, mark_reconciled); dispatches tools/call to the appropriate implementation; exits 0 on stdin EOF; get_spec_diff accepts an optional exclude_patterns array of glob strings passed as git :(exclude) pathspecs to suppress noisy files from the diff output'
 
 constraints:
   - 'Exit codes: 0 for success/no-op, 1 for validation failure or errors'

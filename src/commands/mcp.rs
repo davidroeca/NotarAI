@@ -126,7 +126,12 @@ fn tools_list() -> serde_json::Value {
                 "required": ["spec_path", "base_branch"],
                 "properties": {
                     "spec_path": {"type": "string", "description": "Relative path to the spec file"},
-                    "base_branch": {"type": "string", "description": "The base branch to diff against"}
+                    "base_branch": {"type": "string", "description": "The base branch to diff against"},
+                    "exclude_patterns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Glob patterns to exclude from the diff via git :(exclude) pathspecs (e.g. [\"Cargo.lock\", \"*.lock\"])"
+                    }
                 }
             }
         },
@@ -190,7 +195,16 @@ fn handle_tools_call(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcRes
                 .get("base_branch")
                 .and_then(|b| b.as_str())
                 .unwrap_or("main");
-            mcp_tools::get_spec_diff(spec, base, root)
+            let exclude_patterns: Vec<String> = args
+                .get("exclude_patterns")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            mcp_tools::get_spec_diff(spec, base, &exclude_patterns, root)
         }
         "get_changed_artifacts" => {
             let Some(spec) = args.get("spec_path").and_then(|s| s.as_str()) else {
