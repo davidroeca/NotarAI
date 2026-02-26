@@ -34,6 +34,13 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Reference',
+          items: [
+            { label: 'CLI Commands', slug: 'reference/cli' },
+            { label: 'MCP Server', slug: 'reference/mcp-server' },
+          ],
+        },
+        {
           label: 'Background',
           items: [
             { label: 'Motivation', slug: 'background/motivation' },

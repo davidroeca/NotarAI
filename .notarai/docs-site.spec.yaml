@@ -17,7 +17,7 @@ behaviors:
 
   - name: sidebar_navigation
     given: 'a visitor opens the docs site'
-    then: 'the sidebar presents Getting Started, Guides, and Background sections in that order, with pages nested under each'
+    then: 'the sidebar presents Getting Started, Guides, Reference, and Background sections in that order, with pages nested under each'
 
   - name: base_path
     given: 'the site is deployed to GitHub Pages under a project sub-path'
@@ -83,6 +83,14 @@ artifacts:
       role: 'Complete spec YAML format reference — all fields, types, and examples'
     - path: 'docs-site/src/content/docs/guides/reconciliation.md'
       role: 'Guide to the reconciliation engine — how drift is detected, sync policies, automatic validation'
+    - path: 'docs-site/src/content/docs/reference/cli.md'
+      role: 'CLI command reference — all subcommands, flags, and exit codes'
+    - path: 'docs-site/src/content/docs/reference/mcp-server.md'
+      role: 'MCP server reference — tool definitions, parameters, return shapes, and cache semantics'
+
+dependencies:
+  - $ref: './cli.spec.yaml'
+    relationship: 'Guide content (CLI reference, MCP server docs, quick-start) reflects CLI behavior and MCP tool definitions'
 
 decisions:
   - date: '2026-02-22'
