@@ -9,24 +9,33 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs-on }}
 
     strategy:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
+            runs-on: ubuntu-latest
             binary: notarai-x86_64-linux-gnu
           - target: x86_64-unknown-linux-musl
+            runs-on: ubuntu-latest
             binary: notarai-x86_64-linux-musl
+            musl: true
           - target: aarch64-unknown-linux-gnu
+            runs-on: ubuntu-24.04-arm
             binary: notarai-aarch64-linux-gnu
           - target: aarch64-unknown-linux-musl
+            runs-on: ubuntu-24.04-arm
             binary: notarai-aarch64-linux-musl
+            musl: true
           - target: x86_64-apple-darwin
+            runs-on: macos-14
             binary: notarai-x86_64-macos
           - target: aarch64-apple-darwin
+            runs-on: macos-latest
             binary: notarai-aarch64-macos
           - target: x86_64-pc-windows-gnu
+            runs-on: windows-latest
             binary: notarai-x86_64-windows.exe
 
     steps:
@@ -36,15 +45,16 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Install musl tools
+        if: matrix.musl
+        run: sudo apt-get install -y musl-tools
+
       - uses: Swatinem/rust-cache@v2
 
-      - uses: mlugg/setup-zig@v2
-
-      - run: cargo install cargo-zigbuild
-
-      - run: cargo zigbuild --release --target ${{ matrix.target }}
+      - run: cargo build --release --target ${{ matrix.target }}
 
       - name: Rename binary
+        shell: bash
         run: |
           src="target/${{ matrix.target }}/release/notarai"
           if [[ "${{ matrix.target }}" == *"windows"* ]]; then
