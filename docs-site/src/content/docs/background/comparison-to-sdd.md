@@ -7,7 +7,7 @@ Spec-driven development (SDD) has emerged as a major pattern for AI-assisted cod
 
 - **Spec-first:** Write a spec, generate code, discard or ignore the spec afterward.
 - **Spec-anchored:** Keep the spec around for ongoing maintenance, but how it stays current is left vague.
-- **Spec-as-source:** The spec _replaces_ code as the primary artifact. Humans never touch code directly.
+- **Spec-as-source:** The spec _replaces_ code as the primary artifact. People never touch code directly.
 
 Most SDD tools ([Kiro](https://kiro.dev/), [Spec Kit](https://github.com/github/spec-kit), [OpenSpec](https://github.com/Fission-AI/OpenSpec)) are spec-first in practice: they help you go from intent to plan to tasks to code, but once the code exists, the spec quietly goes stale. [Superpowers](https://github.com/obra/superpowers) takes the spec-first workflow further with a structured seven-stage methodology and subagent-driven execution, but its plans are task-scoped artifacts. [Tessl](https://docs.tessl.io/) is exploring spec-as-source, where code is generated from specs and marked "DO NOT EDIT", but this sacrifices the flexibility of direct code editing.
 
@@ -19,7 +19,7 @@ SDD tools help you _write_ specs. NotarAI helps you _keep them true_.
 
 - A developer adds a feature — NotarAI detects the spec doesn't account for it and proposes an update
 - A team lead updates the spec — NotarAI propagates the change to code and docs
-- Code contradicts a spec constraint — NotarAI flags the conflict and asks the human to decide
+- Code contradicts a spec constraint — NotarAI flags the conflict and asks the user to decide
 
 The spec isn't just a blueprint. It's a **witness** — a living contract the LLM continuously verifies against reality.
 

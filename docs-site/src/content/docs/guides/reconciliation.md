@@ -7,19 +7,19 @@ description: How NotarAI detects and resolves drift between specs, code, and doc
 
 The reconciliation engine detects three scenarios:
 
-### 1. Human edits code
+### 1. Someone edits code
 
 The engine detects that code has drifted from the spec and proposes spec and doc updates.
 
-### 2. Human edits spec
+### 2. Someone edits spec
 
 The engine propagates the spec change to code and documentation.
 
 ### 3. Conflict
 
-Code says one thing, the spec says another. The engine surfaces the disagreement and the human decides which is correct.
+Code says one thing, the spec says another. The engine surfaces the disagreement and the user decides which is correct.
 
-The system is always **propose-and-approve**, never auto-sync. Both humans and LLMs can edit everything; the spec is the tiebreaker.
+The system is always **propose-and-approve**, never auto-sync. Both users and LLMs can edit everything; the spec is the tiebreaker.
 
 ## Using reconciliation
 
