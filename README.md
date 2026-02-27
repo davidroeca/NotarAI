@@ -38,7 +38,7 @@ Files not covered by any tier are flagged as "unspecced" -- a lint warning, not 
 
 This project is in early development. What's implemented:
 
-- Spec schema v0.4 (`notarai.spec.json`) with validation CLI
+- Spec schema v0.5 (`notarai.spec.json`) with validation CLI
 - `/notarai-reconcile` slash command for drift detection
 - `/notarai-bootstrap` slash command for bootstrapping specs from an existing codebase via developer interview
 - BLAKE3+SQLite hash cache (`notarai cache`) to skip unchanged files during reconciliation

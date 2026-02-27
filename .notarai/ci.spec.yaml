@@ -1,9 +1,9 @@
-schema_version: '0.4'
+schema_version: '0.5'
 
 intent: >
   GitHub Actions workflows and Dependabot configuration for NotarAI. CI runs
   on every PR and push to main; docs are deployed to GitHub Pages on every
-  push that touches docs-site/ or notarai.spec.json; cross-platform release
+  push that touches docs/ or notarai.spec.json; cross-platform release
   binaries are built and published to GitHub Releases and crates.io on every
   GitHub release. Dependabot keeps GitHub Actions and Cargo dependency
   versions current.
@@ -14,8 +14,12 @@ behaviors:
     then: 'the CI workflow runs three parallel jobs — fmt (cargo fmt --check), clippy (cargo clippy -- -D warnings), and test (cargo test, which implicitly builds); the test job requires fmt and clippy to pass first'
 
   - name: docs_deploy_on_push
-    given: 'a push to main that touches any file under docs-site/ or notarai.spec.json'
-    then: 'the docs workflow builds the Astro site and deploys the output to GitHub Pages; only one deploy runs at a time (cancel-in-progress)'
+    given: 'a push to main that touches any file under docs/ or notarai.spec.json'
+    then: 'the docs workflow installs mdbook and mdbook-mermaid via cargo, builds the book, copies notarai.spec.json to docs/book/schema/0.5/spec.schema.json, and deploys the output to GitHub Pages; only one deploy runs at a time (cancel-in-progress)'
+
+  - name: init_sync_check
+    given: 'the test job passes on a push to main or a PR targeting main'
+    then: 'the init-sync job builds the release binary, runs notarai init, then checks git diff --exit-code .claude/commands/ to ensure the installed commands match the binary-embedded content; fails if any drift is detected'
 
   - name: release_on_tag
     given: 'a GitHub release is published'
@@ -39,7 +43,7 @@ artifacts:
     - path: '.github/workflows/ci.yml'
       role: 'CI workflow — build + test + fmt + clippy on push and PR'
     - path: '.github/workflows/docs.yml'
-      role: 'Docs deploy workflow — Astro build + GitHub Pages deploy on docs-site changes'
+      role: 'Docs deploy workflow -- mdBook build + schema copy + GitHub Pages deploy on docs/ changes'
     - path: '.github/workflows/release.yml'
       role: 'Release workflow — cargo-zigbuild cross-compile + GitHub Releases + crates.io publish'
     - path: '.github/dependabot.yml'
@@ -52,3 +56,9 @@ decisions:
   - date: '2026-02-23'
     choice: 'Dual distribution: GitHub Releases + crates.io'
     rationale: 'GitHub Releases provides direct binary downloads for users without Rust; crates.io serves Rust users who prefer cargo install'
+  - date: '2026-02-26'
+    choice: 'init-sync CI job to catch command drift'
+    rationale: 'notarai init always overwrites .claude/commands/ from embedded binary content; the CI job verifies that the checked-in .claude/commands/ files match by running init and checking for a clean git diff'
+  - date: '2026-02-26'
+    choice: 'Migrate docs from Astro/Starlight to mdBook'
+    rationale: 'mdBook is simpler and lighter -- no Node.js ecosystem, no build pipeline, no workspace dependencies. The CI docs job is now a single cargo install + mdbook build step instead of a multi-step npm/Astro pipeline'

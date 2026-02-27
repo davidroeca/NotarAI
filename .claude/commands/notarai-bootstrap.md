@@ -35,9 +35,9 @@ Present this report clearly, then proceed to Phase 2.
 
 ---
 
-## Phase 2 — Interview (ask all questions in one block, wait for human to respond)
+## Phase 2 — Interview (ask all questions in one block, wait for user to respond)
 
-Present the following questions **all at once** as a numbered list. Do not ask them one at a time. Wait for the human to answer before proceeding to Phase 3.
+Present the following questions **all at once** as a numbered list. Do not ask them one at a time. Wait for the user to answer before proceeding to Phase 3.
 
 Introduce the questions with: "Here's what I found. Please answer these questions so I can draft your specs:"
 
@@ -59,19 +59,19 @@ Introduce the questions with: "Here's what I found. Please answer these question
 
 ---
 
-## Phase 3 — Draft (write specs after human responds)
+## Phase 3 — Draft (write specs after user responds)
 
-After the human answers the interview questions:
+After the user answers the interview questions:
 
 1. **Create the `.notarai/` directory** if it doesn't exist.
 
 2. **Write `system.spec.yaml`** with the following structure. Use `schema_version: "0.4"`. Populate all fields from the interview answers:
 
 ```yaml
-schema_version: '0.4'
+schema_version: '0.5'
 
 intent: >
-  [one or two sentences from the human's answer to question 2]
+  [one or two sentences from the user's answer to question 2]
 
 behaviors:
   - name: [snake_case_name]
@@ -107,7 +107,7 @@ decisions: # omit if no notable decisions emerged
     rationale: '[why]'
 ```
 
-3. **Write subspecs** for any subsystems the human confirmed. Each subspec is a separate `.notarai/[name].spec.yaml` using the same schema but scoped to that module. Include it in the system spec via `subsystems.$ref`.
+3. **Write subspecs** for any subsystems the user confirmed. Each subspec is a separate `.notarai/[name].spec.yaml` using the same schema but scoped to that module. Include it in the system spec via `subsystems.$ref`.
 
 4. **Validate** by running: `notarai validate .notarai/`
    - If validation fails, read the errors, fix the YAML, and re-run until it passes.

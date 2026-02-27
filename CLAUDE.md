@@ -4,49 +4,15 @@ NotarAI is a continuous intent reconciliation tool that keeps specs (`.notarai/*
 
 ## NotarAI
 
-This project uses [NotarAI](https://github.com/davidroeca/NotarAI) for intent
-reconciliation. Specs in `.notarai/` are the canonical source of truth for what
-this project should do. The spec is always the tiebreaker when code and intent
-diverge.
-
-### Spec Format
-
-Specs are YAML files (`.notarai/**/*.spec.yaml`) with these key fields:
-
-- `intent` — plain-language description of purpose
-- `behaviors` — Given/Then scenarios describing observable behavior
-- `constraints` — rules the system must actively enforce
-- `invariants` — conditions that must NEVER be true (highest priority)
-- `artifacts` — glob patterns mapping spec to governed files (code, docs, tests,
-  notebooks, configs)
-- `decisions` — log of architectural choices with rationale
-
-**Tiers**: `full` (intent + behaviors), `registered` (intent + artifacts only,
-for utilities), or excluded via `exclude:` globs in the system spec.
-
-### Slash Commands
-
-- `/notarai-reconcile` — detect drift between specs and code after making changes
-- `/notarai-bootstrap` — generate initial specs for an existing codebase via
-  developer interview
-
-### Workflow
-
-Spec files in `.notarai/` are validated automatically when written or edited.
-Run `/notarai-reconcile` after significant code changes. When code and spec
-disagree, surface the conflict rather than silently resolving it — the spec is
-the tiebreaker.
-
-The full spec schema (field definitions, required fields, valid enums) is at:
-
-@.claude/notarai.spec.json
+@.notarai/README.md
+@.notarai/notarai.spec.json
 
 ## Build
 
 ```sh
 cargo build --release    # → target/release/notarai
 cargo test               # run all tests
-npm ci                   # install prettier + docs-site deps (workspace)
+npm ci                   # install prettier (for formatting hooks)
 ```
 
 Spec files in `.notarai/` are validated automatically via the PostToolUse hook when written or edited. Rust files are auto-formatted with `rustfmt` and non-Rust files with `prettier` via PostToolUse hooks.
@@ -55,28 +21,35 @@ Spec files in `.notarai/` are validated automatically via the PostToolUse hook w
 
 ```
 src/
-  main.rs                   # CLI entry point — clap derive API
+  main.rs                   # CLI entry point -- clap derive API
   commands/
     mod.rs
     validate.rs             # notarai validate [file|dir]
-    init.rs                 # notarai init — hook setup + command installation
-    hook_validate.rs        # notarai hook validate — PostToolUse stdin handler
+    init.rs                 # notarai init -- hook setup + command installation
+    hook_validate.rs        # notarai hook validate -- PostToolUse stdin handler
+    cache.rs                # notarai cache <status|clear>
+    mcp.rs                  # notarai mcp -- JSON-RPC 2.0 MCP server
+    schema_bump.rs          # notarai schema-bump -- version migration
   core/
     mod.rs
-    validator.rs            # jsonschema-based YAML→JSON Schema validation
+    validator.rs            # jsonschema-based YAML->JSON Schema validation
     schema.rs               # include_str! + OnceLock for bundled schema
-    yaml.rs                 # serde_yaml_ng → serde_json::Value conversion
+    yaml.rs                 # serde_yaml_ng -> serde_json::Value conversion
+    cache.rs                # BLAKE3+SQLite hash cache
+    mcp_tools.rs            # MCP tool implementations
 notarai.spec.json           # the JSON Schema all spec files are validated against
 commands/                   # bundled slash command sources (copied by `notarai init`)
   notarai-reconcile.md
   notarai-bootstrap.md
 templates/                  # bundled templates (written by `notarai init`)
-  claude-context.md
+  notarai-readme.md         # .notarai/README.md template ({{VERSION}} injected at write time)
 .notarai/                   # this project's own specs
+docs/                       # mdBook documentation source
+  book.toml
+  src/
 tests/                      # integration tests (assert_cmd + tempfile)
-package.json                # npm workspace root (prettier + docs-site)
+package.json                # npm root (prettier for formatting hooks)
 prettier.config.mjs         # prettier config for non-Rust files
-docs-site/                  # Astro/Starlight docs (npm workspace member)
 target/                     # build output (gitignored)
 ```
 
@@ -92,21 +65,26 @@ target/                     # build output (gitignored)
 When bumping the schema version, update ALL of these consistently:
 
 1. `notarai.spec.json` — `$id` URL and `schema_version` enum
-2. All specs in `.notarai/` — `schema_version` field
-3. `commands/notarai-bootstrap.md` + `.claude/commands/notarai-bootstrap.md` — template `schema_version`
-4. Any example snippets in `docs-site/` that show `schema_version`
+2. Run `notarai schema-bump` in the repo to update `.notarai/notarai.spec.json` and all `.notarai/*.spec.yaml` files automatically
+3. `commands/notarai-bootstrap.md` and `.claude/commands/notarai-bootstrap.md` — template `schema_version`
+4. Any example snippets in `docs/` that show `schema_version`
 5. Add a `decisions` entry to the system spec recording the rationale
 
 ## Slash Commands
 
-`commands/` holds the **source of truth** for slash command prompts. `notarai init` copies them to the target project's `.claude/commands/`. When editing a command prompt, update **both** copies:
-
-- `commands/<name>.md` (source)
-- `.claude/commands/<name>.md` (local installed copy)
+`commands/` holds the **source of truth** for slash command prompts. `notarai init` always overwrites `.claude/commands/` with the bundled content on every run. When editing a command prompt, update `commands/<name>.md` (the source); the installed copy will be refreshed on the next `notarai init` run, or you can copy it manually to `.claude/commands/<name>.md` in the meantime.
 
 ## CLAUDE.md Generation
 
-`notarai init` writes a `## NotarAI` section to the target project's `CLAUDE.md` (appending to an existing file, or creating it) and copies `notarai.spec.json` to `.claude/notarai.spec.json`. The CLAUDE.md template (`templates/claude-context.md`) includes an `@.claude/notarai.spec.json` import so Claude auto-loads the schema in every conversation. The CLAUDE.md operation is idempotent — if a `## NotarAI` heading is already present (matched as a line-anchored heading, not inline text), init skips it. The schema copy always overwrites to keep it current.
+`notarai init` writes a `## NotarAI` section to the target project's `CLAUDE.md`. The section contains two `@` imports:
+
+```
+## NotarAI
+@.notarai/README.md
+@.notarai/notarai.spec.json
+```
+
+If a `## NotarAI` heading already exists, the section is replaced with the current content (not skipped). The schema is copied to `.notarai/notarai.spec.json` and the README template is written to `.notarai/README.md` on every run (always overwrite).
 
 ## Tests
 

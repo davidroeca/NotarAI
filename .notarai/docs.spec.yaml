@@ -1,0 +1,79 @@
+schema_version: '0.5'
+
+intent: >
+  An mdBook documentation site published to GitHub Pages at
+  https://davidroeca.github.io/NotarAI/docs/. All documentation routes live
+  under /docs, the root / redirects to /docs, and /schema/0.5/spec.schema.json
+  serves the JSON Schema directly (matching the $id URL). Covers installation,
+  quick-start, spec format reference, and reconciliation guides. Background/concept
+  docs (motivation, design diagrams, comparison to SDD) are governed by the system
+  spec but rendered through this site.
+
+behaviors:
+  - name: static_build
+    given: 'mdbook build docs/'
+    then: 'mdBook compiles all content pages to static HTML in docs/book/; the CI workflow then copies the schema to docs/book/schema/0.5/spec.schema.json before deploying'
+
+  - name: sidebar_navigation
+    given: 'a visitor opens the docs site'
+    then: 'the sidebar presents Getting Started, Guides, Reference, and Background sections (with pages nested under each), then a top-level Contributing entry -- driven by SUMMARY.md'
+
+  - name: base_path
+    given: 'the site is deployed to GitHub Pages under a project sub-path'
+    then: 'all internal links and assets use the /NotarAI/docs site-url defined in book.toml'
+
+  - name: schema_hosting
+    given: 'a client requests /NotarAI/schema/0.5/spec.schema.json'
+    then: 'the server returns the JSON Schema file matching the $id in notarai.spec.json, copied from the repo root during the CI build step'
+
+  - name: mermaid_diagrams
+    given: 'a docs page contains a mermaid code block'
+    then: 'mdbook-mermaid renders the diagram at build time as embedded SVG within the HTML output'
+
+constraints:
+  - 'Every new content page must be registered in docs/src/SUMMARY.md'
+  - 'The mdBook site-url must match the GitHub Pages deployment path (/NotarAI/docs/)'
+  - 'The repo root notarai.spec.json is the single source of truth for the schema; the hosted copy is produced by a CI step, never maintained by hand'
+  - 'Background concept pages (background/**) are edited for content by the system spec; docs spec only controls their presentation'
+  - 'Docs should be accessible to new programmers'
+  - 'Docs should be concise and use clean language accessible to non-native English speakers'
+  - 'Docs should avoid obvious LLM-isms such as over-use of em-dash'
+
+artifacts:
+  configs:
+    - path: 'docs/book.toml'
+      role: 'mdBook configuration -- title, site-url, mermaid preprocessor'
+  docs:
+    - path: 'docs/src/SUMMARY.md'
+      role: 'mdBook table of contents -- sidebar structure and page ordering'
+    - path: 'docs/src/index.md'
+      role: 'Docs site landing page -- intro and quick links'
+    - path: 'docs/src/getting-started/installation.md'
+      role: 'CLI installation instructions (shell script, cargo install, direct download)'
+    - path: 'docs/src/getting-started/quick-start.md'
+      role: 'End-to-end quick-start: init, create first spec, validate, schema-bump, bootstrap, reconcile'
+    - path: 'docs/src/guides/spec-format.md'
+      role: 'Complete spec YAML format reference -- all fields, types, and examples'
+    - path: 'docs/src/guides/reconciliation.md'
+      role: 'Guide to the reconciliation engine -- how drift is detected, automatic validation'
+    - path: 'docs/src/reference/cli.md'
+      role: 'CLI command reference -- all subcommands, flags, and exit codes'
+    - path: 'docs/src/reference/mcp-server.md'
+      role: 'MCP server reference -- tool definitions, parameters, return shapes, and cache semantics'
+    - path: 'docs/src/contributing.md'
+      role: 'Full contributing guide -- development setup, code style, and PR workflow'
+
+dependencies:
+  - $ref: './cli.spec.yaml'
+    relationship: 'Guide content (CLI reference, MCP server docs, quick-start) reflects CLI behavior and MCP tool definitions'
+
+decisions:
+  - date: '2026-02-22'
+    choice: 'Astro + Starlight for the documentation site'
+    rationale: 'Starlight provides built-in sidebar navigation, search, and MDX support with minimal configuration; GitHub Pages deployment requires only a static build output'
+  - date: '2026-02-24'
+    choice: 'Docs under /docs with post-build composition and /schema hosting'
+    rationale: 'Reserves the root path for a future main website; Starlight has no config option to mount at a subpath, so a post-build script moves Astro output into docs/ and overlays non-docs assets. Schema is served at the $id URL path via symlink to maintain a single source of truth.'
+  - date: '2026-02-26'
+    choice: 'Migrate from Astro/Starlight to mdBook'
+    rationale: 'mdBook is a simpler, lighter-weight documentation tool with no Node.js ecosystem dependencies beyond mdBook itself. Eliminates the Astro/Starlight/MDX dependency chain, simplifies CI, and removes the prettier-plugin-astro requirement. mdbook-mermaid handles diagram rendering at build time. The tradeoff is loss of the Starlight dark/light theme-reactive Mermaid rendering, but build-time SVG rendering is more reliable.'

@@ -1,0 +1,30 @@
+schema_version: '0.5'
+
+intent: >
+  Maintain consistent American English dialect and ASCII-safe encoding
+  across all project artifacts -- code, comments, and documentation.
+
+behaviors:
+  - name: american_english_docs
+    given: 'documentation contains British English spellings (e.g. "initialise", "behaviour")'
+    then: 'reconciliation flags the drift and suggests American English alternatives'
+
+  - name: ascii_code_comments
+    given: 'source code or comments contain non-ASCII characters (e.g. em-dashes, curly quotes)'
+    then: 'reconciliation flags the violation and suggests ASCII equivalents (-- for em-dash, etc.)'
+
+invariants:
+  - 'No non-ASCII characters in source code or inline code comments'
+  - 'All documentation uses American English spellings throughout'
+
+artifacts:
+  code:
+    - path: 'src/**/*.rs'
+      role: 'source code and inline comments'
+  docs:
+    - path: 'docs/src/**/*.md'
+      role: 'user-facing documentation'
+    - path: 'commands/*.md'
+      role: 'slash command prompts'
+    - path: 'templates/*.md'
+      role: 'bundled templates'

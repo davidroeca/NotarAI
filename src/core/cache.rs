@@ -2,6 +2,9 @@ use rusqlite::{Connection, params};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// Return the canonical path to the SQLite cache database.
+///
+/// Always `.notarai/.cache/notarai.db` relative to `project_root`.
 pub fn db_path(project_root: &Path) -> PathBuf {
     project_root
         .join(".notarai")
@@ -9,6 +12,14 @@ pub fn db_path(project_root: &Path) -> PathBuf {
         .join("notarai.db")
 }
 
+/// Open (or create) the SQLite cache database at `project_root`.
+///
+/// Creates the `.notarai/.cache/` directory if it does not exist, opens the
+/// database, and runs the `CREATE TABLE IF NOT EXISTS` migration. Returns a
+/// `Connection` ready for use, or an error string.
+///
+/// Note: `Connection` is not `Sync`, so callers must open a new connection per
+/// command invocation -- never store it in a `OnceLock` or shared state.
 pub fn open_cache_db(project_root: &Path) -> Result<Connection, String> {
     let path = db_path(project_root);
     if let Some(parent) = path.parent() {
@@ -27,12 +38,18 @@ pub fn open_cache_db(project_root: &Path) -> Result<Connection, String> {
     Ok(conn)
 }
 
+/// Compute the BLAKE3 hash of a file, returned as a lowercase hex string.
 pub fn hash_file(path: &Path) -> Result<String, String> {
     let bytes =
         std::fs::read(path).map_err(|e| format!("could not read {}: {e}", path.display()))?;
     Ok(blake3::hash(&bytes).to_hex().to_string())
 }
 
+/// Insert or replace a file's hash record in the cache.
+///
+/// `rel_path` is the cache key -- always a relative path from the project
+/// root (e.g., `"src/main.rs"`). Stores the current Unix timestamp as
+/// `updated_at`.
 pub fn upsert(conn: &Connection, rel_path: &str, hash: &str) -> Result<(), String> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -46,6 +63,15 @@ pub fn upsert(conn: &Connection, rel_path: &str, hash: &str) -> Result<(), Strin
     Ok(())
 }
 
+/// Check whether a file's content has changed since it was last cached.
+///
+/// Returns `Ok(None)` if the file's current hash matches the cached hash
+/// (unchanged). Returns `Ok(Some(hash))` if the file is new, modified, or
+/// absent (absent is treated as changed with an empty hash string). Returns
+/// `Err` only on I/O or database failure.
+///
+/// Cache keys use relative paths (`rel_path`); the absolute path (`abs_path`)
+/// is used only to read file content for hashing.
 pub fn check_changed(
     conn: &Connection,
     rel_path: &str,
@@ -69,18 +95,9 @@ pub fn check_changed(
     }
 }
 
-pub fn update_batch(conn: &Connection, paths: &[(&str, &Path)]) -> Result<usize, String> {
-    let mut count = 0;
-    for (rel_path, abs_path) in paths {
-        if abs_path.exists() {
-            let hash = hash_file(abs_path)?;
-            upsert(conn, rel_path, &hash)?;
-            count += 1;
-        }
-    }
-    Ok(count)
-}
-
+/// Return the number of cached entries and the most recent `updated_at` timestamp.
+///
+/// The timestamp is `None` when the cache is empty.
 pub fn status(conn: &Connection) -> Result<(usize, Option<i64>), String> {
     let count: i64 = conn
         .query_row("SELECT COUNT(*) FROM file_cache", [], |row| row.get(0))

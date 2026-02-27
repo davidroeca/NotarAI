@@ -10,6 +10,11 @@ pub struct ValidationResult {
 
 static VALIDATOR: OnceLock<Validator> = OnceLock::new();
 
+/// Return the compiled jsonschema validator for the bundled schema.
+///
+/// Compiled once on first call via `OnceLock`. Panics if the bundled schema
+/// cannot be compiled -- which would indicate a defect in the bundled JSON
+/// Schema, not in user input.
 fn validator() -> &'static Validator {
     VALIDATOR.get_or_init(|| {
         jsonschema::validator_for(schema::schema())
@@ -17,6 +22,12 @@ fn validator() -> &'static Validator {
     })
 }
 
+/// Validate a YAML spec string against the bundled NotarAI JSON Schema.
+///
+/// Parses `content` as YAML, converts it to a JSON value, then runs the
+/// compiled validator. Returns a `ValidationResult` with `valid: true` and an
+/// empty error list on success, or `valid: false` with human-readable error
+/// strings on failure.
 pub fn validate_spec(content: &str) -> ValidationResult {
     let data = match yaml::parse_yaml(content) {
         Ok(v) => v,
@@ -61,7 +72,7 @@ mod tests {
     use std::path::Path;
 
     const MINIMAL_VALID: &str = "\
-schema_version: \"0.4\"
+schema_version: \"0.5\"
 intent: \"Test intent\"
 behaviors:
   - name: b
@@ -93,7 +104,7 @@ artifacts:
 
     #[test]
     fn returns_invalid_for_missing_required_fields() {
-        let result = validate_spec("schema_version: \"0.4\"\n");
+        let result = validate_spec("schema_version: \"0.5\"\n");
         assert!(!result.valid);
         assert!(!result.errors.is_empty());
     }

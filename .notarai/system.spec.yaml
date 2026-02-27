@@ -1,4 +1,4 @@
-schema_version: '0.4'
+schema_version: '0.5'
 
 intent: >
   NotarAI is a continuous intent reconciliation platform. It represents a shift
@@ -45,13 +45,18 @@ invariants:
 
 subsystems:
   - $ref: './cli.spec.yaml'
-  - $ref: './docs-site.spec.yaml'
+  - $ref: './docs.spec.yaml'
   - $ref: './ci.spec.yaml'
+
+applies:
+  - $ref: './style.spec.yaml'
 
 exclude:
   - 'img/**'
   - '.claude/**'
-  - 'docs-site/.vscode/**'
+  - 'docs/book/**'
+  - 'docs/mermaid-init.js'
+  - 'docs/mermaid.min.js'
   - '.notarai/.cache/**'
 
 artifacts:
@@ -59,36 +64,30 @@ artifacts:
     - path: 'README.md'
       role: 'Project-level overview covering the NotarAI platform, philosophy, and CLI usage'
     - path: 'CONTRIBUTING.md'
-      role: 'Contributor guide stub — redirects to the full guide on the docs site'
-    - path: 'docs-site/README.md'
-      role: 'Docs site developer guide — local development, content structure, and build commands'
-    - path: 'docs-site/src/content/docs/background/motivation.md'
+      role: 'Contributor guide stub -- redirects to the full guide on the docs site'
+    - path: 'docs/src/background/motivation.md'
       role: 'Narrative motivation for the NotarAI approach and the three-body drift problem'
-    - path: 'docs-site/src/content/docs/background/design-diagrams.md'
+    - path: 'docs/src/background/design-diagrams.md'
       role: 'Design diagrams illustrating the problem, solution, and reconciliation lifecycle'
-    - path: 'docs-site/src/content/docs/background/comparison-to-sdd.md'
+    - path: 'docs/src/background/comparison-to-sdd.md'
       role: 'Conceptual comparison between NotarAI and Spec-Driven Development (SDD) tools, positioning NotarAI as spec-anchored with active reconciliation'
-    - path: 'docs-site/src/content/docs/background/inspirations.md'
-      role: 'Background page covering the tools and traditions that shaped NotarAI — BDD, IaC, JSON Schema, Design by Contract, and ADRs'
+    - path: 'docs/src/background/inspirations.md'
+      role: 'Background page covering the tools and traditions that shaped NotarAI -- BDD, IaC, JSON Schema, Design by Contract, and ADRs'
   configs:
     - path: 'Cargo.toml'
-      role: 'Rust package manifest — dependencies, build metadata, and binary target'
+      role: 'Rust package manifest -- dependencies, build metadata, and binary target'
     - path: 'package.json'
-      role: 'npm workspace root — references docs-site workspace, provides prettier (with Astro plugin) for formatting hooks, ESLint for linting, and TypeScript for editor support'
+      role: 'npm root -- provides prettier for formatting hooks'
     - path: 'prettier.config.mjs'
-      role: 'Prettier formatting config — applies to non-Rust source files across the workspace'
+      role: 'Prettier formatting config -- applies to non-Rust source files'
     - path: 'scripts/install.sh'
-      role: 'Shell install script — detects OS/arch, downloads appropriate binary from GitHub Releases'
+      role: 'Shell install script -- detects OS/arch, downloads appropriate binary from GitHub Releases'
     - path: 'scripts/install.ps1'
       role: 'PowerShell install script for Windows'
     - path: 'CLAUDE.md'
-      role: 'Claude Code context file — architectural constraints, build workflow, and conventions for AI-assisted development on this project'
+      role: 'Claude Code context file -- architectural constraints, build workflow, and conventions for AI-assisted development on this project'
     - path: '.pre-commit-config.yaml'
-      role: 'pre-commit hook configuration — runs sufficiently fast code formatters, linters, and type checkers before each commit (tsc currently too slow)'
-    - path: 'eslint.config.js'
-      role: 'ESLint configuration for docs-site Astro/MDX source files'
-    - path: 'tsconfig.json'
-      role: 'Root TypeScript config — shared base for the npm workspace'
+      role: 'pre-commit hook configuration -- runs code formatters and linters before each commit'
 
 decisions:
   - date: '2026-02-20'
@@ -115,3 +114,10 @@ decisions:
   - date: '2026-02-24'
     choice: 'Hash cache + MCP server for proportional context usage in reconciliation'
     rationale: 'Full git diffs and unconditional artifact reads would flood the context window as repos grow. The hash cache skips unchanged files; the MCP server pre-filters diffs to only files a given spec governs. Together they make reconciliation context proportional to what actually changed.'
+  - date: '2026-02-26'
+    choice: 'Remove sync_policy from schema (v0.5)'
+    rationale: >
+      sync_policy had no implementation behind it -- the reconciliation
+      engine always uses propose-and-approve. Removed to reduce schema
+      surface and set honest expectations. Users who need custom workflow
+      behavior should encode it in their LLM workflow conventions.

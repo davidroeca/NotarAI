@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docs-site/**'
+      - 'docs/**'
       - 'notarai.spec.json'
   workflow_dispatch:
 
@@ -24,18 +24,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
+      - name: Install mdBook and mermaid preprocessor
+        run: |
+          cargo install mdbook mdbook-mermaid
 
-      - run: npm ci
-
-      - run: npm run build --workspace=docs-site
+      - name: Build docs
+        run: |
+          mdbook build docs/
+          mkdir -p docs/book/schema/0.5
+          cp notarai.spec.json docs/book/schema/0.5/spec.schema.json
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: docs-site/gh-pages
+          path: docs/book
 
   deploy:
     needs: build
