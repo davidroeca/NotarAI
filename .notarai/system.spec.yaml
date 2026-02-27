@@ -35,6 +35,8 @@ constraints:
   - 'The spec is always the canonical tiebreaker when code and spec disagree'
   - 'Specs are version-controlled and diffable — every change is traceable'
   - 'Coverage policy defaults to warn; unspecced files are flagged, not blocked, unless policy is set to strict'
+  - 'README.md should be concise and complementary to the docs site'
+  - 'Install scripts should avoid the need for sudo/admin access if possible'
 
 invariants:
   - 'The engine must never silently auto-modify code, specs, or docs without human approval'
@@ -66,6 +68,8 @@ artifacts:
       role: 'Design diagrams illustrating the problem, solution, and reconciliation lifecycle'
     - path: 'docs-site/src/content/docs/background/comparison-to-sdd.md'
       role: 'Conceptual comparison between NotarAI and Spec-Driven Development (SDD) tools, positioning NotarAI as spec-anchored with active reconciliation'
+    - path: 'docs-site/src/content/docs/background/inspirations.md'
+      role: 'Background page covering the tools and traditions that shaped NotarAI — BDD, IaC, JSON Schema, Design by Contract, and ADRs'
   configs:
     - path: 'Cargo.toml'
       role: 'Rust package manifest — dependencies, build metadata, and binary target'

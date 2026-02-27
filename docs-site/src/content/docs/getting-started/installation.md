@@ -10,7 +10,8 @@ curl -fsSL https://raw.githubusercontent.com/davidroeca/NotarAI/main/scripts/ins
 ```
 
 This detects your OS and architecture, downloads the appropriate binary from
-GitHub Releases, and installs it to `/usr/local/bin`.
+GitHub Releases, and installs it to `~/.local/bin`. If that directory is not
+in your `PATH`, the script will print a one-line export command to add it.
 
 ## From crates.io
 
@@ -39,7 +40,15 @@ Make the binary executable and move it to a directory in your `PATH`:
 
 ```sh
 chmod +x notarai-*
-sudo mv notarai-* /usr/local/bin/notarai
+mkdir -p ~/.local/bin
+mv notarai-* ~/.local/bin/notarai
+```
+
+If `~/.local/bin` is not already in your `PATH`, add this to your shell profile
+(`~/.bashrc`, `~/.zshrc`, etc.):
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ## From Source

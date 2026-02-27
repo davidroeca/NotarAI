@@ -96,7 +96,7 @@ Get the git diff filtered to files governed by a specific spec. Uses the hash ca
 **Cache behavior:**
 
 - Files whose on-disk BLAKE3 hash matches the cached hash are listed in `skipped` and excluded from the diff.
-- A cold or absent cache causes all governed files to be diffed — a safe fallback that ensures nothing is missed.
+- A cold or absent cache causes all governed files to be diffed. This is a safe fallback that ensures nothing is missed.
 - `bypass_cache: true` forces a full diff without destroying the cache (useful for re-checking everything).
 
 ---

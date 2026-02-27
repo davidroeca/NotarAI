@@ -49,6 +49,9 @@ constraints:
   - 'The repo root notarai.spec.json is the single source of truth for the schema; the hosted copy is a symlink, never a duplicate'
   - 'Non-docs root assets (redirect page, schema) must live in public-root/, not in Astro public/, to avoid being processed with the docs base path'
   - 'Background concept pages (background/**) are edited for content by the system spec; docs-site only controls their presentation'
+  - 'Docs should be accessible to new programmers'
+  - 'Docs should be concise and use clean language accessible to non-native english speakers'
+  - 'Docs should avoid obvious LLM-isms such as over-use of em-dash'
 
 artifacts:
   configs:

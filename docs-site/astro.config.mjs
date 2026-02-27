@@ -52,6 +52,7 @@ export default defineConfig({
               label: 'Design Diagrams',
               slug: 'background/design-diagrams',
             },
+            { label: 'Inspirations', slug: 'background/inspirations' },
           ],
         },
       ],

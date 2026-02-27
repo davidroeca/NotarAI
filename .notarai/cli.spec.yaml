@@ -81,6 +81,8 @@ constraints:
   - 'CLI uses clap 4.x derive API for argument parsing and help generation'
   - 'The jsonschema validator is compiled once at process init via OnceLock (not per call); runtime schema reads (e.g. freshness checks) are permitted'
   - 'All bundled assets (schema, templates, commands) are embedded at compile time via include_str!'
+  - 'The crate README should contain valid links'
+  - 'If certain files are linked in the crate README, they must be bundled with the crate'
 
 invariants:
   - 'A valid spec file must never be reported as FAIL'

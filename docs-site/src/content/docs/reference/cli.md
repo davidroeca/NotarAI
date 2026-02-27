@@ -39,7 +39,7 @@ notarai validate .notarai/subsystems/
 
 ## notarai init
 
-Set up NotarAI in a project. Running `init` again is safe — it detects existing configuration and skips.
+Set up NotarAI in a project. Running `init` again is safe: it detects existing configuration and skips.
 
 ```sh
 notarai init
@@ -61,7 +61,7 @@ notarai init
 
 ## notarai hook validate
 
-PostToolUse hook handler — validates spec files when Claude Code writes or edits them.
+PostToolUse hook handler. Validates spec files when Claude Code writes or edits them.
 
 ```sh
 # Called automatically by Claude Code, not typically invoked manually
@@ -88,7 +88,7 @@ BLAKE3 + SQLite hash cache for tracking file changes between reconciliation runs
 
 ### notarai cache status
 
-Show cache status — database path, entry count, and newest entry timestamp.
+Show cache status: database path, entry count, and newest entry timestamp.
 
 ```sh
 notarai cache status

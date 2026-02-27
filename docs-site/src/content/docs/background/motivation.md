@@ -6,7 +6,6 @@ description: Why NotarAI exists and the problem it solves.
 ## The problem
 
 With LLMs generating both code and documentation from natural language prompts, there's no authoritative representation of **intent** that persists across changes. Code and docs drift out of sync — and unlike the pre-LLM era where code was the single source of truth, now either artifact can be the one that's "right." This is the three-body problem: intent, code, and docs can all diverge.
-human
 
 ## The idea
 
@@ -36,10 +35,4 @@ For existing codebases: ingest code + docs + commit history, then the LLM interv
 
 ## Inspirations
 
-NotarAI synthesizes ideas from several established traditions:
-
-- **[Cucumber](https://cucumber.io/) / [Gherkin](https://cucumber.io/docs/gherkin/):** The Given/Then behavior format is directly informed by BDD's structured scenario language, but kept in natural language to lower the authoring barrier.
-- **[Terraform](https://www.terraform.io/) and Infrastructure-as-Code:** The reconciliation model (declare desired state, detect drift from actual state, propose a plan to converge) is borrowed from IaC tools.
-- **[JSON Schema](https://json-schema.org/) / [OpenAPI](https://www.openapis.org/):** The `$ref` composition model and the use of a JSON Schema to govern spec validity come directly from these standards.
-- **[Design by Contract](https://en.wikipedia.org/wiki/Design_by_contract) (Eiffel):** The distinction between `constraints` and `invariants` echoes Eiffel's preconditions, postconditions, and class invariants.
-- **[Architecture Decision Records](https://adr.github.io/):** The `decisions` field is a lightweight ADR log, capturing the _why_ alongside the _what_.
+See the [Inspirations](/NotarAI/docs/background/inspirations/) page.

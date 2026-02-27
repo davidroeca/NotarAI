@@ -21,7 +21,7 @@ This does seven things:
 6. Appends `.notarai/.cache/` to `.gitignore` so the hash cache DB is never committed.
 7. Writes `.mcp.json` registering `notarai mcp` as a local MCP server, so the [MCP-accelerated reconciliation](/NotarAI/docs/reference/mcp-server/) works out of the box.
 
-Running `init` again is safe — it detects existing configuration and skips.
+Running `init` again is safe: it detects existing configuration and skips.
 
 ## Create your first spec
 

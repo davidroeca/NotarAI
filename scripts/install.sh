@@ -6,12 +6,12 @@
 #
 # Environment variables:
 #   VERSION      — release tag to install (default: latest)
-#   INSTALL_DIR  — installation directory (default: /usr/local/bin)
+#   INSTALL_DIR  — installation directory (default: ~/.local/bin)
 
 set -e
 
 REPO="davidroeca/NotarAI"
-INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
 # Detect OS
 OS="$(uname -s)"
@@ -67,6 +67,9 @@ fi
 
 chmod +x "$tmpfile"
 
+# Ensure install directory exists
+mkdir -p "$INSTALL_DIR"
+
 # Install
 if [ -w "$INSTALL_DIR" ]; then
   mv "$tmpfile" "${INSTALL_DIR}/notarai"
@@ -76,3 +79,14 @@ fi
 
 echo "notarai installed to ${INSTALL_DIR}/notarai"
 notarai --version 2>/dev/null || true
+
+# Warn if the install directory is not in PATH
+case ":$PATH:" in
+  *":${INSTALL_DIR}:"*) ;;
+  *)
+    echo ""
+    echo "Note: ${INSTALL_DIR} is not in your PATH."
+    echo "Add the following line to your shell profile (e.g., ~/.bashrc or ~/.zshrc):"
+    echo "  export PATH=\"${INSTALL_DIR}:\$PATH\""
+    ;;
+esac

@@ -28,7 +28,7 @@ After running `notarai init`, use the `/notarai-reconcile` slash command in Clau
 The reconciliation engine uses the `notarai` MCP server to serve pre-filtered data, keeping context usage proportional to what actually changed:
 
 1. Calls `list_affected_specs` to identify which specs govern changed files
-2. For each affected spec, calls `get_spec_diff` to get only the diff for files that spec governs — files already reconciled (per the BLAKE3 hash cache) are skipped and listed in the `skipped` field; pass `exclude_patterns` to suppress noisy files like lockfiles from the diff; pass `bypass_cache: true` to force a full diff without destroying the cache
+2. For each affected spec, calls `get_spec_diff` to get only the diff for files that spec governs. Files already reconciled (per the BLAKE3 hash cache) are skipped and listed in the `skipped` field. Pass `exclude_patterns` to suppress noisy files like lockfiles; pass `bypass_cache: true` to force a full diff without clearing the cache.
 3. Calls `get_changed_artifacts` to get only doc artifacts that changed since the last reconciliation (using the hash cache to skip unchanged files)
 4. Reads only those files, analyzes drift against the spec's behaviors, constraints, and invariants
 5. Proposes targeted updates to bring spec, code, and docs back into alignment
