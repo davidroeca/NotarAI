@@ -2,18 +2,18 @@ You are a **NotarAI reconciliation engine**. Your job is to detect drift between
 
 ## Instructions
 
-### Step 1 -- Confirm base branch
+### Step 1: Confirm base branch
 
 Run `git branch` and confirm the base branch with the user (usually `main` or `master`; sometimes `dev`, `develop`, or `trunk`). In one-off scenarios, a user may want to base off of an intermediary branch.
 
-### Step 2 -- List affected specs
+### Step 2: List affected specs
 
 Call `list_affected_specs({base_branch})` via MCP.
 
 - Returns affected spec paths with behaviors, constraints, and invariants metadata.
 - If the `notarai` MCP server is unavailable, fall back to **V1 steps** at the bottom of this prompt.
 
-### Step 3 -- Gather context for each affected spec
+### Step 3: Gather context for each affected spec
 
 For each affected spec:
 
@@ -23,7 +23,7 @@ For each affected spec:
 
 **c.** Read only the changed doc files returned in step (b).
 
-### Step 3b -- Load cross-cutting specs (`applies`)
+### Step 4: Load cross-cutting specs (`applies`)
 
 For each affected spec that has an `applies` array:
 
@@ -31,7 +31,7 @@ For each affected spec that has an `applies` array:
 - Merge those specs' `invariants` and `constraints` into the analysis context for this spec.
 - Treat applied invariants as if they were the spec's own -- violations must be flagged loudly.
 
-### Step 3c -- Note dependency ripple effects (`dependencies`)
+### Step 5: Note dependency ripple effects (`dependencies`)
 
 For each affected spec that has a `dependencies` array:
 
@@ -39,15 +39,15 @@ For each affected spec that has a `dependencies` array:
 - If the dependency's governed files are also in the changed set, flag it explicitly.
 - If not, add a one-line note: "Dependency on `<spec>` -- verify no ripple effects."
 
-### Step 4 -- Analyze and produce the structured report
+### Step 6: Analyze and produce the structured report
 
 Produce the report described in the **Report Format** section below. Apply `applies` invariants and constraints when analyzing each spec.
 
-### Step 5 -- Update cache
+### Step 7: Update cache
 
 Call `mark_reconciled({files})` with all files read -- seeds the cache for the next run.
 
-### Step 6 -- Interactive resolution (if drift found)
+### Step 8: Interactive resolution (if drift found)
 
 After presenting the report, if any drift was found:
 
@@ -70,7 +70,7 @@ Repeat for remaining specs or until the user skips.
 **Default: silence is sync.** Only report deviations. Omit specs with no issues.
 
 ```
-## Reconciliation Report -- <base_branch>
+## Reconciliation Report: <base_branch>
 
 ### [checkmark] auth.spec.yaml (4 behaviors * 2 constraints * 1 invariant)
 ### [X] cli.spec.yaml (9 behaviors * 4 constraints * 3 invariants) -- 2 issue(s)
@@ -109,7 +109,7 @@ Issue types:
 
 ---
 
-## V1 Fallback (no MCP server)
+## Fallback (no MCP server)
 
 Use this flow only if the `notarai` MCP server is unavailable.
 
@@ -117,6 +117,6 @@ Use this flow only if the `notarai` MCP server is unavailable.
 2. Glob `.notarai/**/*.spec.yaml` to find all spec files.
 3. For each spec file, read the YAML and check whether any of the changed files match its `artifacts` globs.
 4. For each matching spec: read the spec file and the changed artifact files directly.
-5. Apply the same analysis and report format as the MCP flow above.
-6. Load any `applies` specs by reading them directly.
-7. Note any `dependencies` refs manually.
+5. Load any `applies` specs by reading them directly.
+6. Note any `dependencies` refs manually.
+7. Apply the same analysis and report format as the MCP flow above.
