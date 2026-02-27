@@ -1,13 +1,13 @@
 [package]
 name = "notarai"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "CLI validator for NotarAI spec files"
 license = "Apache-2.0"
 repository = "https://github.com/davidroeca/NotarAI"
 homepage = "https://github.com/davidroeca/NotarAI"
-keywords = ["notarai", "spec", "validation", "schema", "reconciliation"]
-categories = ["command-line-utilities", "development-tools"]
+keywords = ["reconciliation", "llm", "mcp", "spec-driven", "linting"]
+categories = ["command-line-utilities", "development-tools", "artificial-intelligence"]
 readme = "README.md"
 
 [[bin]]
