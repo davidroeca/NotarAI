@@ -84,7 +84,7 @@ artifacts:
     - path: 'CLAUDE.md'
       role: 'Claude Code context file — architectural constraints, build workflow, and conventions for AI-assisted development on this project'
     - path: '.pre-commit-config.yaml'
-      role: 'pre-commit hook configuration — runs code formatters, linters, and type checkers before each commit'
+      role: 'pre-commit hook configuration — runs sufficiently fast code formatters, linters, and type checkers before each commit (tsc currently too slow)'
     - path: 'eslint.config.js'
       role: 'ESLint configuration for docs-site Astro/MDX source files'
     - path: 'tsconfig.json'
