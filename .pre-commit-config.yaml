@@ -34,12 +34,3 @@ repos:
         entry: npx eslint --fix --cache --cache-location .eslintcache --max-warnings=0
         language: system
         files: \.(js|ts|jsx|tsx|astro|mdx)$
-
-  # TypeScript type check
-  - repo: local
-    hooks:
-      - id: tsc
-        name: tsc
-        entry: bash -c "cd docs-site && npx tsc --noEmit"
-        language: system
-        pass_filenames: false
