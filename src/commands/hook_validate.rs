@@ -109,7 +109,7 @@ mod tests {
     use tempfile::TempDir;
 
     const VALID_SPEC_YAML: &str = "\
-schema_version: \"0.4\"
+schema_version: \"0.5\"
 intent: \"Test spec\"
 behaviors:
   - name: b1

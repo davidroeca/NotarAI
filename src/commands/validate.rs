@@ -21,7 +21,7 @@ fn find_spec_files(dir: &Path) -> Vec<String> {
 }
 
 fn check_schema_freshness() {
-    let local_path = Path::new(".claude/notarai.spec.json");
+    let local_path = Path::new(".notarai/notarai.spec.json");
     if !local_path.exists() {
         return;
     }

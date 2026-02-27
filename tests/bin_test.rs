@@ -53,7 +53,7 @@ fn no_command_exits_1() {
 }
 
 const VALID_SPEC_YAML: &str = "\
-schema_version: \"0.4\"
+schema_version: \"0.5\"
 intent: \"Test spec\"
 behaviors:
   - name: b1
@@ -89,7 +89,7 @@ fn hook_validate_exits_1_for_invalid_spec() {
     let spec_dir = tmp.path().join(".notarai");
     fs::create_dir_all(&spec_dir).unwrap();
     let spec_path = spec_dir.join("test.spec.yaml");
-    fs::write(&spec_path, "schema_version: \"0.4\"\n").unwrap();
+    fs::write(&spec_path, "schema_version: \"0.5\"\n").unwrap();
 
     let input = serde_json::json!({
         "tool_input": { "file_path": spec_path.to_str().unwrap() }
@@ -142,11 +142,9 @@ fn validate_warns_when_local_schema_is_stale() {
     let spec_dir = tmp.path().join(".notarai");
     fs::create_dir_all(&spec_dir).unwrap();
     fs::write(spec_dir.join("test.spec.yaml"), VALID_SPEC_YAML).unwrap();
-
-    let claude_dir = tmp.path().join(".claude");
-    fs::create_dir_all(&claude_dir).unwrap();
+    // Write a stale schema at the new location (.notarai/notarai.spec.json)
     fs::write(
-        claude_dir.join("notarai.spec.json"),
+        spec_dir.join("notarai.spec.json"),
         r#"{"$id":"https://notarai.dev/schema/0.3/spec.schema.json"}"#,
     )
     .unwrap();

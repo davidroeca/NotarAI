@@ -36,6 +36,8 @@ enum Commands {
     },
     /// MCP server (stdio JSON-RPC 2.0 transport)
     Mcp,
+    /// Update schema version across all specs in the project
+    SchemaBump,
 }
 
 #[derive(Subcommand)]
@@ -55,6 +57,7 @@ fn main() {
         },
         Some(Commands::Cache { action }) => commands::cache::run(action),
         Some(Commands::Mcp) => commands::mcp::run(),
+        Some(Commands::SchemaBump) => commands::schema_bump::run(None),
         None => {
             // Print help when no command given
             use clap::CommandFactory;

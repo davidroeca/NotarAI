@@ -1,5 +1,4 @@
 use assert_cmd::cargo_bin_cmd;
-use predicates::prelude::*;
 use std::fs;
 use tempfile::TempDir;
 
@@ -98,6 +97,8 @@ fn creates_claude_md_when_missing() {
     assert!(claude_md.exists());
     let content = fs::read_to_string(claude_md).unwrap();
     assert!(content.contains("## NotarAI"));
+    assert!(content.contains("@.notarai/README.md"));
+    assert!(content.contains("@.notarai/notarai.spec.json"));
 }
 
 #[test]
@@ -121,7 +122,30 @@ fn appends_to_existing_claude_md() {
 }
 
 #[test]
-fn skips_claude_md_when_notarai_header_present_and_matches() {
+fn replaces_existing_notarai_section_in_claude_md() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("CLAUDE.md"),
+        "## NotarAI\n\nThis is outdated content.\n",
+    )
+    .unwrap();
+
+    notarai()
+        .arg("init")
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let content = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
+    // Outdated content is replaced
+    assert!(!content.contains("This is outdated content."));
+    // New section present
+    assert!(content.contains("@.notarai/README.md"));
+    assert!(content.contains("@.notarai/notarai.spec.json"));
+}
+
+#[test]
+fn replaces_notarai_section_on_second_run() {
     let tmp = TempDir::new().unwrap();
     notarai()
         .arg("init")
@@ -129,15 +153,16 @@ fn skips_claude_md_when_notarai_header_present_and_matches() {
         .assert()
         .success();
 
-    let original = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
     notarai()
         .arg("init")
         .current_dir(tmp.path())
         .assert()
         .success();
 
-    let after = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
-    assert_eq!(original, after);
+    let content = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
+    // Section still present, not duplicated
+    let count = content.matches("## NotarAI").count();
+    assert_eq!(count, 1);
 }
 
 #[test]
@@ -162,19 +187,7 @@ fn copies_slash_commands() {
 }
 
 #[test]
-fn copies_schema() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .arg("init")
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    assert!(tmp.path().join(".claude/notarai.spec.json").exists());
-}
-
-#[test]
-fn does_not_overwrite_slash_commands_on_rerun() {
+fn always_overwrites_slash_commands_on_rerun() {
     let tmp = TempDir::new().unwrap();
     notarai()
         .arg("init")
@@ -191,25 +204,21 @@ fn does_not_overwrite_slash_commands_on_rerun() {
         .assert()
         .success();
 
-    let content = fs::read_to_string(reconcile_path).unwrap();
-    assert_eq!(content, "sentinel content");
+    let content = fs::read_to_string(&reconcile_path).unwrap();
+    // Sentinel was overwritten
+    assert_ne!(content, "sentinel content");
 }
 
 #[test]
-fn warns_on_stderr_when_notarai_section_has_drifted() {
+fn copies_schema_to_notarai_dir() {
     let tmp = TempDir::new().unwrap();
-    fs::write(
-        tmp.path().join("CLAUDE.md"),
-        "## NotarAI\n\nThis is outdated content that differs from the bundled template.\n",
-    )
-    .unwrap();
-
     notarai()
         .arg("init")
         .current_dir(tmp.path())
         .assert()
-        .success()
-        .stderr(predicate::str::contains("drifted"));
+        .success();
+
+    assert!(tmp.path().join(".notarai/notarai.spec.json").exists());
 }
 
 #[test]
@@ -221,7 +230,7 @@ fn always_overwrites_schema_on_rerun() {
         .assert()
         .success();
 
-    let schema_path = tmp.path().join(".claude/notarai.spec.json");
+    let schema_path = tmp.path().join(".notarai/notarai.spec.json");
     fs::write(&schema_path, "{}").unwrap();
     notarai()
         .arg("init")
@@ -231,4 +240,49 @@ fn always_overwrites_schema_on_rerun() {
 
     let content = fs::read_to_string(schema_path).unwrap();
     assert_ne!(content, "{}");
+}
+
+#[test]
+fn writes_notarai_readme() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .arg("init")
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let readme = tmp.path().join(".notarai/README.md");
+    assert!(readme.exists());
+    let content = fs::read_to_string(readme).unwrap();
+    assert!(content.contains("# NotarAI"));
+    assert!(content.contains("notarai validate"));
+}
+
+#[test]
+fn gitignore_entry_added() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .arg("init")
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let gitignore = fs::read_to_string(tmp.path().join(".gitignore")).unwrap();
+    assert!(gitignore.contains(".notarai/.cache/"));
+}
+
+#[test]
+fn mcp_json_created() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .arg("init")
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let mcp = tmp.path().join(".mcp.json");
+    assert!(mcp.exists());
+    let content = fs::read_to_string(mcp).unwrap();
+    assert!(content.contains("notarai"));
+    assert!(content.contains("mcp"));
 }

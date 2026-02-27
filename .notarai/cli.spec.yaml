@@ -1,4 +1,4 @@
-schema_version: '0.4'
+schema_version: '0.5'
 
 intent: >
   A CLI tool that validates NotarAI spec files against the JSON Schema
@@ -30,35 +30,37 @@ behaviors:
 
   - name: init_fresh
     given: 'no existing .claude/settings.json'
-    then: 'creates .claude/settings.json with the PostToolUse validation hook (command: notarai hook validate), copies notarai-reconcile.md and notarai-bootstrap.md to .claude/commands/, copies notarai.spec.json to .claude/notarai.spec.json, creates CLAUDE.md with the bundled NotarAI context section (which @-imports the schema), appends .notarai/.cache/ to .gitignore, and writes .mcp.json (project root) registering notarai mcp as a local MCP server'
+    then: >
+      creates .claude/settings.json with the PostToolUse validation hook (command: notarai
+      hook validate); copies notarai-reconcile.md and notarai-bootstrap.md to
+      .claude/commands/ (always overwriting); copies notarai.spec.json to
+      .notarai/notarai.spec.json; writes .notarai/README.md from the bundled template with
+      the current CLI version injected; creates or updates CLAUDE.md with the NotarAI section
+      (@.notarai/README.md and @.notarai/notarai.spec.json); appends .notarai/.cache/ to
+      .gitignore; writes .mcp.json registering notarai mcp as a local MCP server
 
   - name: validate_warns_stale_schema
-    given: 'notarai validate runs and .claude/notarai.spec.json exists but its $id differs from the bundled schema'
+    given: 'notarai validate runs and .notarai/notarai.spec.json exists but its $id differs from the bundled schema'
     then: 'prints a warning telling the user to run `notarai init` to update; validation continues normally'
 
   - name: init_idempotent
-    given: "notarai init has already been run, all commands are already installed, and CLAUDE.md already contains a '## NotarAI' section"
-    then: 'detects existing hook, commands, and CLAUDE.md context, reports already configured; always refreshes .claude/notarai.spec.json (unconditional overwrite keeps schema current); idempotently checks .gitignore for .notarai/.cache/ and .mcp.json (project root) for the notarai MCP server entry'
+    given: 'notarai init has already been run'
+    then: >
+      detects existing hook and MCP entry and reports already configured; always overwrites
+      .claude/commands/ (no existence check); always overwrites .notarai/notarai.spec.json and
+      .notarai/README.md; replaces the ## NotarAI section in CLAUDE.md with the current
+      template content; idempotently checks .gitignore and .mcp.json
 
-  - name: bootstrap_command_setup
-    given: 'notarai init runs and .claude/commands/notarai-bootstrap.md does not exist'
-    then: 'copies commands/notarai-bootstrap.md to .claude/commands/notarai-bootstrap.md'
+  - name: init_replace_claude_section
+    given: "CLAUDE.md already contains a '## NotarAI' heading"
+    then: 'replaces the content between ## NotarAI and the next ## heading (or EOF) with the current template; does not skip or warn'
 
-  - name: claude_context_setup
-    given: "notarai init runs and the target project's CLAUDE.md does not contain a '## NotarAI' section"
-    then: 'appends (or creates) CLAUDE.md with the bundled templates/claude-context.md content'
-
-  - name: init_claude_md_drift_warning
-    given: "notarai init runs and CLAUDE.md contains a '## NotarAI' section that differs from the bundled template"
-    then: 'prints a warning suggesting manual review or delete-and-reinit; does not overwrite'
-
-  - name: cache_update
-    given: 'one or more file paths as arguments (or one path per line on stdin if no args given)'
-    then: 'computes a BLAKE3 hash for each existing file and upserts it into .notarai/.cache/notarai.db; prints the count of files cached'
-
-  - name: cache_changed
-    given: 'one or more file paths as arguments (or one path per line on stdin if no args given)'
-    then: 'prints only the paths whose content has changed since the last cache update, or that are absent from the cache; always exits 0 (empty output means nothing changed)'
+  - name: schema_bump
+    given: 'notarai schema-bump is invoked in a project with an older schema version'
+    then: >
+      detects the old version from .notarai/notarai.spec.json, overwrites it with the bundled
+      schema, updates the schema_version field in all .notarai/*.spec.yaml files, validates all
+      updated specs, and prints a summary; exits 0 on success, 1 on validation failure
 
   - name: cache_status
     given: 'notarai cache status is invoked'
@@ -114,7 +116,7 @@ decisions:
     rationale: 'Hashing governed files and storing results in a local SQLite DB (.notarai/.cache/notarai.db) lets the reconcile command skip doc artifacts that have not changed since the last run, keeping context window usage proportional to actual change volume rather than the full repo'
   - date: '2026-02-24'
     choice: 'Synchronous JSON-RPC 2.0 over stdio for the MCP server (no tokio)'
-    rationale: 'The MCP stdio transport is a simple request/response loop — no async I/O is needed. Synchronous BufRead line-by-line is sufficient and avoids pulling in a tokio runtime'
+    rationale: 'The MCP stdio transport is a simple request/response loop -- no async I/O is needed. Synchronous BufRead line-by-line is sufficient and avoids pulling in a tokio runtime'
   - date: '2026-02-24'
     choice: 'rusqlite bundled feature for SQLite'
     rationale: 'Compiles SQLite from source as part of the crate, keeping the binary fully self-contained without requiring a system libsqlite3'
@@ -124,26 +126,35 @@ decisions:
   - date: '2026-02-25'
     choice: 'clear_cache added as a 5th MCP tool alongside bypass_cache on get_spec_diff'
     rationale: 'Cache clearing was CLI-only; exposing it via MCP lets the reconcile command reset state without dropping to the shell; bypass_cache provides a per-call escape hatch without destroying the cache'
+  - date: '2026-02-26'
+    choice: 'Remove cache update and cache changed CLI subcommands'
+    rationale: 'These subcommands were only used to seed the MCP cache from the CLI, but the correct way to seed the cache is via mark_reconciled (which uses relative paths as keys, matching how get_spec_diff queries it). The CLI subcommands used absolute paths as keys, creating a separate namespace. Removing them eliminates the confusion and reduces CLI surface.'
+  - date: '2026-02-26'
+    choice: 'init always overwrites .claude/commands/ and replaces the CLAUDE.md NotarAI section'
+    rationale: 'Previous behavior skipped existing commands and warned on CLAUDE.md drift, requiring manual intervention to keep installed commands in sync with the bundled version. Always overwriting and always replacing makes init idempotent without user involvement -- the section is small and always correct after a run.'
+  - date: '2026-02-26'
+    choice: 'Move schema copy from .claude/notarai.spec.json to .notarai/notarai.spec.json'
+    rationale: '.notarai/ is the natural home for NotarAI config; the old .claude/ path mixed project config with Claude-specific settings. The new location is more predictable and survives .claude/ resets. schema-bump also writes to .notarai/notarai.spec.json for consistency.'
 
 artifacts:
   code:
     - path: 'src/main.rs'
-      role: 'CLI entry point — clap definition and command dispatch'
+      role: 'CLI entry point -- clap definition and command dispatch'
     - path: 'src/commands/*.rs'
-      role: 'Command implementations (validate, init, hook_validate, cache, mcp)'
+      role: 'Command implementations (validate, init, hook_validate, cache, mcp, schema_bump)'
     - path: 'src/core/*.rs'
       role: 'Core library (schema embedding, YAML parsing, jsonschema validation, hash cache, MCP tool implementations)'
   configs:
     - path: 'Cargo.toml'
-      role: 'Rust package manifest — dependencies, build metadata, and binary target'
+      role: 'Rust package manifest -- dependencies, build metadata, and binary target'
     - path: 'notarai.spec.json'
       role: 'JSON Schema that spec files are validated against'
     - path: 'commands/notarai-reconcile.md'
       role: 'Bundled Claude Code slash command copied by init'
     - path: 'commands/notarai-bootstrap.md'
       role: 'Bundled Claude Code slash command for bootstrap interview, copied by init'
-    - path: 'templates/claude-context.md'
-      role: 'Bundled CLAUDE.md section template written by notarai init to target projects'
+    - path: 'templates/notarai-readme.md'
+      role: 'Bundled .notarai/README.md template written by notarai init to target projects'
   tests:
     - path: 'tests/**/*.rs'
       role: 'Integration tests (assert_cmd CLI tests, tempdir-based init tests)'

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://notarai.dev/schema/0.4/spec.schema.json",
+  "$id": "https://notarai.dev/schema/0.5/spec.schema.json",
   "title": "NotarAI Spec File",
   "description": "A structured intent specification that serves as the canonical source of truth for a system, feature, or artifact. The LLM reconciliation engine uses this schema to validate specs, detect drift between spec and implementation, and propose updates.",
   "type": "object",
@@ -10,7 +10,7 @@
     "schema_version": {
       "type": "string",
       "description": "The version of the spec schema this file conforms to. Used for forward compatibility as the schema evolves.",
-      "enum": ["0.4"]
+      "enum": ["0.5"]
     },
     "domain": {
       "type": "string",
@@ -163,7 +163,7 @@
     },
     "coverage": {
       "type": "object",
-      "description": "Configuration for how unspecced files are handled. Only meaningful in the top-level system spec.",
+      "description": "Configuration for how unspecced files are handled. Only meaningful in the top-level system spec. Reserved for future CI integration.",
       "properties": {
         "policy": {
           "type": "string",
@@ -174,31 +174,6 @@
         "message": {
           "type": "string",
           "description": "Custom message shown when unspecced files are detected."
-        }
-      },
-      "additionalProperties": false
-    },
-    "sync_policy": {
-      "type": "object",
-      "description": "Configures when and how the LLM reconciles this spec with its artifacts. Allows different strategies per spec.",
-      "properties": {
-        "on_code_change": {
-          "type": "string",
-          "description": "What happens when code governed by this spec changes.",
-          "enum": ["propose_spec_update", "auto_update_spec", "notify_only"],
-          "default": "propose_spec_update"
-        },
-        "on_spec_change": {
-          "type": "string",
-          "description": "What happens when this spec is edited directly.",
-          "enum": ["update_code_and_docs", "update_docs_only", "notify_only"],
-          "default": "update_code_and_docs"
-        },
-        "on_doc_change": {
-          "type": "string",
-          "description": "What happens when documentation governed by this spec changes.",
-          "enum": ["propose_spec_update", "notify_only"],
-          "default": "propose_spec_update"
         }
       },
       "additionalProperties": false

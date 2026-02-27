@@ -14,122 +14,58 @@ fn status_exits_0_on_empty_cache() {
         .args(["cache", "status"])
         .current_dir(tmp.path())
         .assert()
-        .success()
-        .stdout(predicate::str::contains("Entries: 0"));
+        .success();
 }
 
 #[test]
-fn update_hashes_given_files() {
+fn status_prints_entries_0_when_no_db() {
     let tmp = TempDir::new().unwrap();
-    let file = tmp.path().join("test.txt");
-    fs::write(&file, "hello").unwrap();
-
-    notarai()
-        .args(["cache", "update", file.to_str().unwrap()])
-        .current_dir(tmp.path())
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Updated 1"));
-
     notarai()
         .args(["cache", "status"])
         .current_dir(tmp.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("Entries: 1"));
+        .stdout(predicate::str::contains("Entries: 0"));
 }
 
 #[test]
-fn changed_prints_new_file() {
+fn clear_exits_0_when_no_db() {
     let tmp = TempDir::new().unwrap();
-    let file = tmp.path().join("test.txt");
-    fs::write(&file, "hello").unwrap();
-
     notarai()
-        .args(["cache", "changed", file.to_str().unwrap()])
-        .current_dir(tmp.path())
-        .assert()
-        .success()
-        .stdout(predicate::str::contains(file.to_str().unwrap()));
-}
-
-#[test]
-fn changed_prints_nothing_for_cached_unchanged() {
-    let tmp = TempDir::new().unwrap();
-    let file = tmp.path().join("test.txt");
-    fs::write(&file, "hello").unwrap();
-
-    notarai()
-        .args(["cache", "update", file.to_str().unwrap()])
+        .args(["cache", "clear"])
         .current_dir(tmp.path())
         .assert()
         .success();
-
-    notarai()
-        .args(["cache", "changed", file.to_str().unwrap()])
-        .current_dir(tmp.path())
-        .assert()
-        .success()
-        .stdout("");
 }
 
 #[test]
-fn changed_prints_path_after_modification() {
+fn clear_prints_not_initialized_when_no_db() {
     let tmp = TempDir::new().unwrap();
-    let file = tmp.path().join("test.txt");
-    fs::write(&file, "hello").unwrap();
-
     notarai()
-        .args(["cache", "update", file.to_str().unwrap()])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    fs::write(&file, "world").unwrap();
-
-    notarai()
-        .args(["cache", "changed", file.to_str().unwrap()])
+        .args(["cache", "clear"])
         .current_dir(tmp.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains(file.to_str().unwrap()));
+        .stdout(predicate::str::contains("not initialized"));
 }
 
 #[test]
-fn clear_removes_db() {
+fn clear_removes_db_when_it_exists() {
     let tmp = TempDir::new().unwrap();
-    let file = tmp.path().join("test.txt");
-    fs::write(&file, "hello").unwrap();
+    let db_dir = tmp.path().join(".notarai/.cache");
+    fs::create_dir_all(&db_dir).unwrap();
+    let db = db_dir.join("notarai.db");
+    // Write a placeholder file to simulate an existing cache DB
+    fs::write(&db, b"placeholder").unwrap();
 
-    notarai()
-        .args(["cache", "update", file.to_str().unwrap()])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let db = tmp.path().join(".notarai/.cache/notarai.db");
     assert!(db.exists());
 
     notarai()
         .args(["cache", "clear"])
         .current_dir(tmp.path())
         .assert()
-        .success();
+        .success()
+        .stdout(predicate::str::contains("cleared"));
 
     assert!(!db.exists());
-}
-
-#[test]
-fn update_reads_from_stdin_when_no_args() {
-    let tmp = TempDir::new().unwrap();
-    let file = tmp.path().join("test.txt");
-    fs::write(&file, "hello").unwrap();
-
-    notarai()
-        .args(["cache", "update"])
-        .current_dir(tmp.path())
-        .write_stdin(format!("{}\n", file.to_str().unwrap()))
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Updated 1"));
 }

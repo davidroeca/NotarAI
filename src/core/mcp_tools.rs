@@ -1,12 +1,21 @@
 use std::path::{Path, PathBuf};
 
+/// A JSON-RPC error returned by an MCP tool.
 pub struct McpError {
     pub code: i32,
     pub message: String,
 }
 
+/// Shorthand result type for MCP tool functions.
 pub type McpResult = Result<serde_json::Value, McpError>;
 
+/// List specs whose governed files overlap with files changed since `base_branch`.
+///
+/// Runs `git diff <base_branch> --name-only`, then cross-references each
+/// `.notarai/*.spec.yaml` artifact glob against the changed file list. Returns
+/// a JSON object with `changed_files` (all changed paths) and `affected_specs`
+/// (specs with at least one matching artifact, including their `behaviors`,
+/// `constraints`, and `invariants`).
 pub fn list_affected_specs(base_branch: &str, project_root: &Path) -> McpResult {
     let output = std::process::Command::new("git")
         .args(["diff", base_branch, "--name-only"])
@@ -78,6 +87,22 @@ pub fn list_affected_specs(base_branch: &str, project_root: &Path) -> McpResult 
     }))
 }
 
+/// Return a filtered `git diff` for the files governed by a spec.
+///
+/// Reads `spec_path`, expands its artifact globs, then:
+/// - Splits governed files into spec files (`.notarai/**/*.spec.yaml`) and
+///   non-spec artifacts.
+/// - Unless `bypass_cache` is true, filters out files whose hash matches the
+///   cache (these are listed in `"skipped"`). A cold or absent cache is treated
+///   as "include everything".
+/// - Returns full content (not a diff) for any changed spec files in
+///   `"spec_changes"`. When `spec_changes` is non-empty, also includes
+///   `"system_spec"` with the full content of the spec containing `subsystems`.
+/// - Runs `git diff <base_branch>` on the remaining non-spec artifacts,
+///   applying `exclude_patterns` as `:(exclude)` pathspecs.
+///
+/// The returned JSON has keys: `diff`, `files`, `skipped`, `excluded`,
+/// `spec_changes`, `system_spec`.
 pub fn get_spec_diff(
     spec_path: &str,
     base_branch: &str,
@@ -198,6 +223,10 @@ pub fn get_spec_diff(
     }))
 }
 
+/// Delete the cache database file, if it exists.
+///
+/// Returns `{"cleared": true}` when the file was deleted, `{"cleared": false}`
+/// when it did not exist.
 pub fn clear_cache(project_root: &Path) -> McpResult {
     let path = crate::core::cache::db_path(project_root);
     if path.exists() {
@@ -211,6 +240,14 @@ pub fn clear_cache(project_root: &Path) -> McpResult {
     }
 }
 
+/// Return artifact files governed by a spec that have changed since last cached.
+///
+/// Expands the spec's artifact globs (optionally filtered to `artifact_type`),
+/// then checks each file against the hash cache. Files with a hash mismatch
+/// (or absent from the cache) are returned in `{"changed_artifacts": [...]}`.
+///
+/// Unlike `get_spec_diff`, this does not run `git diff` -- it compares against
+/// the local cache state, which is updated by `mark_reconciled`.
 pub fn get_changed_artifacts(
     spec_path: &str,
     artifact_type: Option<&str>,
@@ -249,6 +286,15 @@ pub fn get_changed_artifacts(
     Ok(serde_json::json!({"changed_artifacts": changed}))
 }
 
+/// Record that the given files have been reconciled by hashing and caching them.
+///
+/// For each path in `files` that exists on disk, computes its BLAKE3 hash and
+/// upserts it into the cache. Files that do not exist are silently skipped.
+/// Returns `{"updated": N}` with the count of successfully cached files.
+///
+/// This is the correct way to seed or update the MCP cache -- not the CLI
+/// `cache update` subcommand, which uses absolute paths as keys instead of
+/// relative paths.
 pub fn mark_reconciled(files: &[String], project_root: &Path) -> McpResult {
     let conn = crate::core::cache::open_cache_db(project_root).map_err(|e| McpError {
         code: -32603,

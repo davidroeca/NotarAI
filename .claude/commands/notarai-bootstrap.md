@@ -68,7 +68,7 @@ After the human answers the interview questions:
 2. **Write `system.spec.yaml`** with the following structure. Use `schema_version: "0.4"`. Populate all fields from the interview answers:
 
 ```yaml
-schema_version: '0.4'
+schema_version: '0.5'
 
 intent: >
   [one or two sentences from the human's answer to question 2]

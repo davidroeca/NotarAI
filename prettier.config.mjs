@@ -2,7 +2,13 @@ const config = {
   semi: false,
   trailingComma: 'all',
   singleQuote: true,
-  plugins: ['prettier-plugin-astro'],
+  plugins: [],
+  overrides: [
+    {
+      files: '*.yaml',
+      options: { singleQuote: true },
+    },
+  ],
 }
 
 export default config

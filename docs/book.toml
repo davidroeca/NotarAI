@@ -1,0 +1,12 @@
+[book]
+title = "NotarAI"
+language = "en"
+src = "src"
+
+[output.html]
+site-url = "/NotarAI/docs/"
+git-repository-url = "https://github.com/davidroeca/NotarAI"
+edit-url-template = "https://github.com/davidroeca/NotarAI/edit/main/docs/src/{path}"
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
