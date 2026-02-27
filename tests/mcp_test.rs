@@ -8,7 +8,7 @@ fn notarai() -> assert_cmd::Command {
     cargo_bin_cmd!("notarai")
 }
 
-/// Initialise a throwaway git repo with a test identity so commits work
+/// Initialize a throwaway git repo with a test identity so commits work
 /// regardless of the host environment's global git config.
 fn setup_git_repo(dir: &Path) {
     for args in [
@@ -45,6 +45,57 @@ behaviors:
 artifacts:
   code:
     - path: '*.txt'
+"#;
+
+/// Spec that governs a code file AND a child spec file.
+const GOVERNING_SPEC: &str = r#"schema_version: '0.4'
+intent: 'Spec that governs a child spec and a code file'
+behaviors:
+  - name: tracks
+    given: 'child spec and code file exist'
+    then: 'they are tracked'
+artifacts:
+  code:
+    - path: 'code.txt'
+    - path: '.notarai/child.spec.yaml'
+"#;
+
+/// A child spec (v1).
+const CHILD_SPEC_V1: &str = r#"schema_version: '0.4'
+intent: 'Child spec v1'
+behaviors:
+  - name: test
+    given: 'test'
+    then: 'test'
+artifacts:
+  code:
+    - path: 'code.txt'
+"#;
+
+/// A child spec (v2 -- updated intent to trigger a diff).
+const CHILD_SPEC_V2: &str = r#"schema_version: '0.4'
+intent: 'Child spec v2 - updated'
+behaviors:
+  - name: test
+    given: 'test'
+    then: 'test updated'
+artifacts:
+  code:
+    - path: 'code.txt'
+"#;
+
+/// A system spec with a `subsystems` key.
+const SYSTEM_SPEC: &str = r#"schema_version: '0.4'
+intent: 'System spec with subsystems'
+behaviors:
+  - name: orchestrates
+    given: 'subsystems exist'
+    then: 'they are composed'
+subsystems:
+  - $ref: './child.spec.yaml'
+artifacts:
+  docs:
+    - path: 'README.md'
 "#;
 
 const INITIALIZE_MSG: &str = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{}}}"#;
@@ -89,7 +140,7 @@ fn unknown_tool_returns_error() {
         .stdout(predicate::str::contains("error"));
 }
 
-// ── get_spec_diff: exclude_patterns ──────────────────────────────────────────
+// -- get_spec_diff: exclude_patterns ------------------------------------------
 
 #[test]
 fn get_spec_diff_advertises_exclude_patterns_in_schema() {
@@ -365,4 +416,139 @@ artifacts:
         .success()
         .stdout(predicate::str::contains("diff --git a/keep.txt"))
         .stdout(predicate::str::contains("diff --git a/data.lock").not());
+}
+
+// -- get_spec_diff: spec-aware splitting --------------------------------------
+
+#[test]
+fn get_spec_diff_splits_spec_files_into_spec_changes() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/governing.spec.yaml"), GOVERNING_SPEC).unwrap();
+    fs::write(root.join(".notarai/child.spec.yaml"), CHILD_SPEC_V1).unwrap();
+    fs::write(root.join("code.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    // Modify both the governed spec file and the code file.
+    fs::write(root.join(".notarai/child.spec.yaml"), CHILD_SPEC_V2).unwrap();
+    fs::write(root.join("code.txt"), "modified").unwrap();
+    git_commit_all(root, "changes");
+
+    let msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/governing.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        // spec_changes must contain the child spec
+        .stdout(predicate::str::contains("spec_changes"))
+        .stdout(predicate::str::contains("child.spec.yaml"))
+        // code.txt diff must appear in the diff field
+        .stdout(predicate::str::contains("diff --git a/code.txt"))
+        // child spec must NOT appear as a git diff header (it's in spec_changes, not diff)
+        .stdout(predicate::str::contains("diff --git a/.notarai/child.spec.yaml").not());
+}
+
+#[test]
+fn get_spec_diff_includes_system_spec_when_spec_changes() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    // system.spec.yaml has subsystems -- it's the system spec.
+    fs::write(root.join(".notarai/system.spec.yaml"), SYSTEM_SPEC).unwrap();
+    fs::write(root.join(".notarai/governing.spec.yaml"), GOVERNING_SPEC).unwrap();
+    fs::write(root.join(".notarai/child.spec.yaml"), CHILD_SPEC_V1).unwrap();
+    fs::write(root.join("code.txt"), "initial").unwrap();
+    fs::write(root.join("README.md"), "readme").unwrap();
+    git_commit_all(root, "base");
+
+    // Only change the governed child spec (not the system spec).
+    fs::write(root.join(".notarai/child.spec.yaml"), CHILD_SPEC_V2).unwrap();
+    git_commit_all(root, "changes");
+
+    let msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/governing.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        // spec_changes must contain the changed child spec
+        .stdout(predicate::str::contains("child.spec.yaml"))
+        // system_spec must be present with content (it didn't change so content is included)
+        .stdout(predicate::str::contains("system_spec"))
+        .stdout(predicate::str::contains("System spec with subsystems"));
+}
+
+#[test]
+fn get_spec_diff_no_spec_changes_when_only_code_changes() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    // Only a code file changes -- no spec files in the governed set.
+    fs::write(root.join("alpha.txt"), "changed").unwrap();
+    git_commit_all(root, "changes");
+
+    let msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/test.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        // diff must contain the code change
+        .stdout(predicate::str::contains("diff --git a/alpha.txt"))
+        // spec_changes key must be present but empty
+        .stdout(predicate::str::contains("spec_changes"))
+        // system_spec must be null (no spec changes)
+        .stdout(predicate::str::contains("system_spec"));
+}
+
+#[test]
+fn get_spec_diff_cache_filtering_applies_to_spec_files() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/governing.spec.yaml"), GOVERNING_SPEC).unwrap();
+    fs::write(root.join(".notarai/child.spec.yaml"), CHILD_SPEC_V1).unwrap();
+    fs::write(root.join("code.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    // Modify both the child spec and code file.
+    fs::write(root.join(".notarai/child.spec.yaml"), CHILD_SPEC_V2).unwrap();
+    fs::write(root.join("code.txt"), "modified").unwrap();
+    git_commit_all(root, "changes");
+
+    // Seed the child spec into the cache with its current (changed) hash --
+    // the cache now considers it reconciled.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":[".notarai/child.spec.yaml"]}}}"#;
+    let diff_msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/governing.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n{diff_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        // code.txt is not cached -> appears in the diff
+        .stdout(predicate::str::contains("diff --git a/code.txt"))
+        // child spec is cached -> must NOT appear in spec_changes content
+        .stdout(predicate::str::contains("Child spec v2").not());
 }

@@ -79,24 +79,42 @@ Get the git diff filtered to files governed by a specific spec. Uses the hash ca
 
 ```json
 {
-  "diff": "unified diff output...",
-  "files": ["src/auth.rs", "src/main.rs"],
+  "diff": "unified diff of non-spec governed files...",
+  "files": ["src/auth.rs"],
   "skipped": ["src/utils.rs"],
-  "excluded": ["Cargo.lock"]
+  "excluded": ["Cargo.lock"],
+  "spec_changes": [
+    {
+      "path": ".notarai/cli.spec.yaml",
+      "content": "full file content..."
+    }
+  ],
+  "system_spec": {
+    "path": ".notarai/system.spec.yaml",
+    "content": "full file content..."
+  }
 }
 ```
 
-| Field      | Description                                                    |
-| ---------- | -------------------------------------------------------------- |
-| `diff`     | Unified diff output for the filtered files                     |
-| `files`    | Files included in the diff                                     |
-| `skipped`  | Files whose BLAKE3 hash matched the cache (already reconciled) |
-| `excluded` | Patterns passed via `exclude_patterns`                         |
+| Field          | Description                                                                                                          |
+| -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `diff`         | Unified diff output for non-spec artifact files only                                                                 |
+| `files`        | Non-spec files included in the diff                                                                                  |
+| `skipped`      | Non-spec files whose BLAKE3 hash matched the cache (already reconciled)                                              |
+| `excluded`     | Patterns passed via `exclude_patterns`                                                                               |
+| `spec_changes` | Array of `{path, content}` for each governed `.notarai/**/*.spec.yaml` file that changed                             |
+| `system_spec`  | The system spec (the spec with a `subsystems` key) — included whenever `spec_changes` is non-empty; `null` otherwise |
+
+**Why full content for spec files?**
+
+Spec files express intent, not implementation. The reconciliation engine needs the complete spec to evaluate drift — diff hunks showing only changed lines lack the context to determine whether behavior is still satisfied. Returning full content also avoids the ambiguity of partial context when the spec is the source of truth.
+
+**Spec deduplication:** If the system spec itself changed, it appears in `spec_changes` with full content and `system_spec` contains only `{path}` (a reference) to avoid duplicating the content.
 
 **Cache behavior:**
 
-- Files whose on-disk BLAKE3 hash matches the cached hash are listed in `skipped` and excluded from the diff.
-- A cold or absent cache causes all governed files to be diffed. This is a safe fallback that ensures nothing is missed.
+- Files whose on-disk BLAKE3 hash matches the cached hash are listed in `skipped` (for artifact files) or omitted from `spec_changes` (for spec files).
+- A cold or absent cache causes all governed files to be included. This is a safe fallback that ensures nothing is missed.
 - `bypass_cache: true` forces a full diff without destroying the cache (useful for re-checking everything).
 
 ---

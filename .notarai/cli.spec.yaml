@@ -72,9 +72,13 @@ behaviors:
     given: 'get_spec_diff is called with bypass_cache unset or false'
     then: 'files whose BLAKE3 hash matches the cache are listed in the skipped field and excluded from the diff; a cold or absent cache diffs all governed files as a safe fallback'
 
+  - name: mcp_spec_aware_splitting
+    given: 'get_spec_diff is called and the diff includes .notarai/*.spec.yaml files'
+    then: 'spec files are returned in a separate spec_changes field with full file content (not diff hunks); the system spec is always included in system_spec when any spec changed (with full content if it did not change, or just the path reference if it appears in spec_changes); the diff field contains only non-spec artifact diffs'
+
   - name: mcp_server
     given: 'notarai mcp is invoked and JSON-RPC 2.0 messages are sent on stdin'
-    then: 'responds to initialize with serverInfo and 5 tool definitions (list_affected_specs, get_spec_diff, get_changed_artifacts, mark_reconciled, clear_cache); dispatches tools/call to the appropriate implementation; exits 0 on stdin EOF; get_spec_diff accepts an optional exclude_patterns array of glob strings passed as git :(exclude) pathspecs to suppress noisy files from the diff output; cache-filtering semantics are described by the mcp_cache_filtering behavior'
+    then: 'responds to initialize with serverInfo and 5 tool definitions (list_affected_specs, get_spec_diff, get_changed_artifacts, mark_reconciled, clear_cache); dispatches tools/call to the appropriate implementation; exits 0 on stdin EOF; get_spec_diff accepts an optional exclude_patterns array of glob strings passed as git :(exclude) pathspecs to suppress noisy files from the diff output; cache-filtering semantics are described by the mcp_cache_filtering behavior; spec-aware splitting semantics are described by the mcp_spec_aware_splitting behavior'
 
 constraints:
   - 'Exit codes: 0 for success/no-op, 1 for validation failure or errors'

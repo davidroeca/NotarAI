@@ -120,7 +120,7 @@ fn tools_list() -> serde_json::Value {
         },
         {
             "name": "get_spec_diff",
-            "description": "Get the git diff filtered to files governed by a specific spec. Files already reconciled (per cache) are skipped; the response includes a 'skipped' field listing them. A cold or absent cache causes all governed files to be diffed (safe fallback). Pass bypass_cache: true to force a full diff regardless of cache state.",
+            "description": "Get the git diff filtered to files governed by a specific spec. Files already reconciled (per cache) are skipped; the response includes a 'skipped' field listing them. A cold or absent cache causes all governed files to be diffed (safe fallback). Pass bypass_cache: true to force a full diff regardless of cache state. Spec files (.notarai/**/*.spec.yaml) in the governed set are split into a separate 'spec_changes' field with full file content (not diff hunks); the 'diff' field contains only non-spec artifact diffs. When spec_changes is non-empty, 'system_spec' is also included with the full content of the system spec (the spec with a subsystems key), even if the system spec itself did not change.",
             "inputSchema": {
                 "type": "object",
                 "required": ["spec_path", "base_branch"],

@@ -111,3 +111,8 @@ When bumping the schema version, update ALL of these consistently:
 ## Tests
 
 Tests use `cargo test`. Unit tests are inline `#[cfg(test)]` modules in source files. Integration tests in `tests/` use `assert_cmd` for CLI binary testing and `tempfile` for isolated init tests.
+
+## Style
+
+- **American English** throughout — code, comments, docs, and specs (e.g. "initialize" not "initialise").
+- **ASCII in code and comments** — use `--` for dashes, `->` for arrows, plain quotes. Non-ASCII is fine in user-facing printed strings where it aids readability.
