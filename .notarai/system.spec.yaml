@@ -59,7 +59,7 @@ artifacts:
     - path: 'README.md'
       role: 'Project-level overview covering the NotarAI platform, philosophy, and CLI usage'
     - path: 'CONTRIBUTING.md'
-      role: 'Contributor guide — development setup, code style, and PR workflow'
+      role: 'Contributor guide stub — redirects to the full guide on the docs site'
     - path: 'docs-site/README.md'
       role: 'Docs site developer guide — local development, content structure, and build commands'
     - path: 'docs-site/src/content/docs/background/motivation.md'

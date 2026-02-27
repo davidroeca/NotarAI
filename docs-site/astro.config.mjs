@@ -40,6 +40,7 @@ export default defineConfig({
             { label: 'MCP Server', slug: 'reference/mcp-server' },
           ],
         },
+        { label: 'Contributing', slug: 'contributing' },
         {
           label: 'Background',
           items: [

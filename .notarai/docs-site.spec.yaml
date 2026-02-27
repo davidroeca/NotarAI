@@ -17,7 +17,7 @@ behaviors:
 
   - name: sidebar_navigation
     given: 'a visitor opens the docs site'
-    then: 'the sidebar presents Getting Started, Guides, Reference, and Background sections in that order, with pages nested under each'
+    then: 'the sidebar presents Getting Started, Guides, Reference sections (with pages nested under each), then a top-level Contributing entry, then a Background section'
 
   - name: base_path
     given: 'the site is deployed to GitHub Pages under a project sub-path'
@@ -90,6 +90,8 @@ artifacts:
       role: 'CLI command reference — all subcommands, flags, and exit codes'
     - path: 'docs-site/src/content/docs/reference/mcp-server.md'
       role: 'MCP server reference — tool definitions, parameters, return shapes, and cache semantics'
+    - path: 'docs-site/src/content/docs/contributing.md'
+      role: 'Full contributing guide — development setup, code style, and PR workflow'
 
 dependencies:
   - $ref: './cli.spec.yaml'

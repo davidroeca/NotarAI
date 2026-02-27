@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="img/NotarAI.png" alt="NotarAI logo" width="300" height="300">
+<img src="https://raw.githubusercontent.com/davidroeca/NotarAI/main/img/NotarAI.png" alt="NotarAI logo" width="300" height="300">
 
 _Intent captured. Drift witnessed._
 
