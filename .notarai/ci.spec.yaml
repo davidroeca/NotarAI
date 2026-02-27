@@ -3,7 +3,7 @@ schema_version: '0.5'
 intent: >
   GitHub Actions workflows and Dependabot configuration for NotarAI. CI runs
   on every PR and push to main; docs are deployed to GitHub Pages on every
-  push that touches docs-site/ or notarai.spec.json; cross-platform release
+  push that touches docs/ or notarai.spec.json; cross-platform release
   binaries are built and published to GitHub Releases and crates.io on every
   GitHub release. Dependabot keeps GitHub Actions and Cargo dependency
   versions current.

@@ -75,7 +75,7 @@ artifacts:
     - path: 'Cargo.toml'
       role: 'Rust package manifest -- dependencies, build metadata, and binary target'
     - path: 'package.json'
-      role: 'npm workspace root -- provides prettier for formatting hooks'
+      role: 'npm root -- provides prettier for formatting hooks'
     - path: 'prettier.config.mjs'
       role: 'Prettier formatting config -- applies to non-Rust source files'
     - path: 'scripts/install.sh'
