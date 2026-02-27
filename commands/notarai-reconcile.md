@@ -1,6 +1,6 @@
 You are a **NotarAI reconciliation engine**. Your job is to detect drift between NotarAI spec files and the current code, then propose updates to both the spec and documentation.
 
-## Instructions (V2 — MCP-accelerated)
+## Instructions
 
 1. **Confirm base branch**:
    - Run `git branch`
@@ -23,79 +23,34 @@ You are a **NotarAI reconciliation engine**. Your job is to detect drift between
 
 5. **Update cache**: Call `mark_reconciled({files})` with all files read → seeds cache for next run.
 
----
-
-## Fallback: V1 steps (if MCP unavailable)
-
-1. **Discover and read all spec files** by globbing `.notarai/**/*.spec.yaml`. Start with any file that has a `subsystems` field (the system spec), then follow `$ref` links to load all referenced subspecs.
-
-2. **Identify the base branch** (as above).
-
-3. **Get the code diff** from the base branch:
-   - Run `git diff <base-branch>` to see what changed on this branch
-   - Also run `git diff <base-branch> --stat` for a summary
-
-4. **Filter to hash-changed files** (if `notarai` is in PATH):
-   - Run `git diff <base-branch> --name-only` to get the list of changed paths
-   - Run `notarai cache changed <paths...>` to get the subset with actual content changes
-   - Use this filtered set in step 6 for doc artifacts
-   - Degrade gracefully if `notarai` is not in PATH (use all changed files)
-
-5. **Determine affected specs** by cross-referencing changed file paths against the `artifacts` mappings in each spec.
-
-6. **For each affected spec**, read:
-   - The spec itself (behaviors, constraints, invariants)
-   - The changed implementation files (from the diff)
-   - Only doc artifacts in the hash-changed set from step 5 (files absent from cache are treated as changed)
-
-7. **Analyze and produce report** (format below).
-
-8. **Update cache**: Run `notarai cache update <all files read>` to seed the cache for next run.
-
----
-
 ## Report Format
 
-### 1. Spec Status
+**Default: silence is sync.** Only report deviations. Omit any spec item that is in sync — absence of mention means the behavior/constraint/invariant is clean.
 
-For each behavior, constraint, and invariant in the affected spec(s), report one of:
+### Per-spec header
 
-- **IN SYNC** — code matches spec
-- **DRIFT DETECTED** — code has diverged from spec (explain how)
-- **VIOLATED** — an invariant has been broken (explain the violation)
-- **NEW (UNSPECCED)** — new behavior exists in code but not in spec
+One line per affected spec:
 
-Also note any spec items that reference code/artifacts which no longer exist.
-
-### 2. Proposed Spec Update
-
-If drift is detected, output the **exact YAML changes** needed to update the spec. Use diff format:
-
-```yaml
-# BEFORE
-- name: example_behavior
-  given: 'old condition'
-  then: 'old outcome'
-
-# AFTER
-- name: example_behavior
-  given: 'new condition'
-  then: 'new outcome'
+```
+spec-name.spec.yaml — N behaviors · M constraints · K invariants · [✓ clean | X issue(s)]
 ```
 
-If an invariant was violated, flag it prominently and ask whether the violation is intentional (in which case the invariant should be removed/updated) or a bug (in which case the code should be reverted).
+### Issues (only if present)
 
-### 3. Proposed Doc Update
+List each deviation compactly under the spec header:
 
-For each doc artifact listed in the affected spec's `artifacts.docs`, output the **exact changes** needed to bring it in sync with the new code state. Use a before/after format showing the relevant sections.
+- `DRIFT: <name>` — what changed and how it diverges from the spec
+- `VIOLATED: <name>` — what invariant was broken (**ask whether intentional or a bug**)
+- `UNSPECCED: <description>` — behavior present in code with no spec coverage
+- `STALE REF: <path>` — spec references an artifact that no longer exists
 
-### 4. Ambiguities
+### Proposed changes (only if issues found)
 
-List anything you're unsure about:
+**Spec updates** — exact YAML diffs (BEFORE/AFTER blocks) for drifted or new items.
 
-- Changes where intent is unclear
-- Cases where the code change could be interpreted multiple ways
-- Potential unintended side effects
+**Doc updates** — before/after for doc artifacts that need updating; omit if none.
+
+**Ambiguities** — only if genuinely unclear; omit if none.
 
 ---
 
@@ -103,6 +58,5 @@ List anything you're unsure about:
 
 - Be precise. Quote line numbers and file paths.
 - Don't hallucinate behaviors — only report what you can verify from the code.
-- For the control case (pure refactoring with no behavior change), the correct answer is "all behaviors IN SYNC" with artifact path updates only.
-- Pay special attention to **invariants** — these are the highest-priority items. A violated invariant should be called out loudly.
+- Pay special attention to **invariants** — flag violations loudly and ask before proceeding.
 - The spec schema is at `.claude/notarai.spec.json` (project-local, kept current by `notarai init`) or `notarai.spec.json` in the NotarAI package root if you need to validate proposed changes.
