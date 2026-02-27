@@ -16,13 +16,13 @@ NotarAI is a continuous intent reconciliation tool that keeps your specs, code, 
 
 ## Getting started
 
-The docsite has detailed [docs for getting started](https://davidroeca.github.io/NotarAI/docs/getting-started/installation/).
+The docsite has detailed [docs for getting started](https://davidroeca.github.io/NotarAI/docs/getting-started/installation.html).
 
 ## Spec: complementary, not competing
 
 NotarAI can work downstream of any SDD tool. Use Kiro or Spec Kit to generate your initial specs and code, then let NotarAI maintain alignment as the project evolves. The `.notarai/` spec format captures the same intent, behaviors, and constraints that SDD workflows produce. It just keeps watching after the initial generation is done.
 
-For the full reference, check [here](https://davidroeca.github.io/NotarAI/docs/guides/spec-format/).
+For the full reference, check [here](https://davidroeca.github.io/NotarAI/docs/guides/spec-format.html).
 
 ## Coverage Model
 
@@ -51,7 +51,7 @@ Future goals include:
 
 ## Inspirations
 
-NotarAI draws from Cucumber/Gherkin, IaC tools like Terraform, JSON Schema, Design by Contract, and Architecture Decision Records. See the [Inspirations page](https://davidroeca.github.io/NotarAI/docs/background/inspirations/) for details.
+NotarAI draws from Cucumber/Gherkin, IaC tools like Terraform, JSON Schema, Design by Contract, and Architecture Decision Records. See the [Inspirations page](https://davidroeca.github.io/NotarAI/docs/background/inspirations.html) for details.
 
 ## Contributing
 
