@@ -55,6 +55,8 @@ exclude:
   - 'img/**'
   - '.claude/**'
   - 'docs/book/**'
+  - 'docs/mermaid-init.js'
+  - 'docs/mermaid.min.js'
   - '.notarai/.cache/**'
 
 artifacts:

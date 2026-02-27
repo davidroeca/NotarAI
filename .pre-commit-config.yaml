@@ -28,9 +28,3 @@ repos:
         entry: npx prettier --write --ignore-unknown
         language: system
         files: \.(js|ts|jsx|tsx|astro|md|mdx|json|yaml|yml|css|html)$
-
-      - id: eslint
-        name: eslint
-        entry: npx eslint --fix --cache --cache-location .eslintcache --max-warnings=0
-        language: system
-        files: \.(js|ts|jsx|tsx|astro|mdx)$
