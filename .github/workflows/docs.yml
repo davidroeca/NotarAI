@@ -34,9 +34,27 @@ jobs:
           mkdir -p docs/book/schema/0.5
           cp notarai.spec.json docs/book/schema/0.5/spec.schema.json
 
+      - name: Prepare artifact with redirect
+        run: |
+          mkdir -p public/docs
+          cp -r docs/book/* public/docs/
+
+          cat <<EOF > public/index.html
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta http-equiv="refresh" content="0; url=./docs/" />
+              <link rel="canonical" href="./docs/" />
+            </head>
+            <body>
+              <p>Redirecting to <a href="./docs/">docs</a>...</p>
+            </body>
+          </html>
+          EOF
+
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: docs/book
+          path: public
 
   deploy:
     needs: build
