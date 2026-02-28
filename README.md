@@ -20,7 +20,7 @@ The docsite has detailed [docs for getting started](https://davidroeca.github.io
 
 ## Spec: complementary, not competing
 
-NotarAI can work downstream of any SDD tool. Use Kiro or Spec Kit to generate your initial specs and code, then let NotarAI maintain alignment as the project evolves. The `.notarai/` spec format captures the same intent, behaviors, and constraints that SDD workflows produce. It just keeps watching after the initial generation is done.
+Use whatever tools you would like to create your code base, then let NotarAI track alignment as the project evolves. The `.notarai/` spec format captures the same intent, behaviors, and constraints that Spec Driven Development (SDD) workflows produce. It just keeps watching after the initial generation is done. NotarAI can work downstream of any SDD tool.
 
 For the full reference, check [here](https://davidroeca.github.io/NotarAI/docs/guides/spec-format.html).
 
