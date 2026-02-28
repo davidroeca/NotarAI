@@ -49,7 +49,12 @@ pub fn run() -> i32 {
             Ok(r) => r,
             Err(e) => {
                 let resp = error_response(None, -32700, format!("Parse error: {e}"));
-                writeln!(out, "{}", serde_json::to_string(&resp).unwrap()).ok();
+                writeln!(
+                    out,
+                    "{}",
+                    serde_json::to_string(&resp).expect("JSON serialization")
+                )
+                .ok();
                 continue;
             }
         };
@@ -60,7 +65,12 @@ pub fn run() -> i32 {
         }
 
         let resp = dispatch(&req, &root);
-        writeln!(out, "{}", serde_json::to_string(&resp).unwrap()).ok();
+        writeln!(
+            out,
+            "{}",
+            serde_json::to_string(&resp).expect("JSON serialization")
+        )
+        .ok();
     }
 
     0

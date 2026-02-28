@@ -93,6 +93,7 @@ constraints:
   - 'Order by cost -- when a function tries multiple strategies, the cheapest must come first (e.g. check a known path before scanning a directory)'
   - 'Binary crate visibility -- pub means cross-module only (no external consumers); test-only helpers must be gated with #[cfg(test)]'
   - 'Avoid needless allocations -- prefer borrowing (&str, &Value) over .to_string() / .cloned() when the owned value is not needed'
+  - 'Avoid .unwrap() in production code -- use ?, .expect("reason"), or combinators; .unwrap() is acceptable in #[test] functions and #[cfg(test)] modules'
 
 invariants:
   - 'A valid spec file must never be reported as FAIL'
