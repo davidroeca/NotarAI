@@ -1,7 +1,7 @@
 schema_version: '0.5'
 
 intent: >
-  Maintain consistent American English dialect and ASCII-safe encoding
+  Maintain consistent American English dialect and keyboard-typable characters
   across all project artifacts -- code, comments, and documentation.
 
 behaviors:
@@ -9,13 +9,18 @@ behaviors:
     given: 'documentation contains British English spellings (e.g. "initialise", "behaviour")'
     then: 'reconciliation flags the drift and suggests American English alternatives'
 
-  - name: ascii_code_comments
-    given: 'source code or comments contain non-ASCII characters (e.g. em-dashes, curly quotes)'
-    then: 'reconciliation flags the violation and suggests ASCII equivalents (-- for em-dash, etc.)'
+  - name: american_english_identifiers
+    given: 'source code contains identifiers (variable names, function names, type names, module names) using British English spellings (e.g. "initialise", "colour", "serialise")'
+    then: 'reconciliation flags the drift and suggests American English alternatives (e.g. "initialize", "color", "serialize")'
+
+  - name: keyboard_typable_code_comments
+    given: 'source code or comments contain characters not typable on a standard QWERTY keyboard (e.g. em-dashes, curly quotes, ellipses)'
+    then: 'reconciliation flags the violation and suggests typable equivalents (-- for em-dash, straight quotes, etc.)'
 
 invariants:
-  - 'No non-ASCII characters in source code or inline code comments'
+  - 'Source code and inline comments use only characters typable on a standard QWERTY keyboard (printable ASCII, U+0020-U+007E)'
   - 'All documentation uses American English spellings throughout'
+  - 'All source code identifiers use American English spellings throughout'
 
 artifacts:
   code:
@@ -28,3 +33,6 @@ artifacts:
       role: 'slash command prompts'
     - path: 'templates/*.md'
       role: 'bundled templates'
+  configs:
+    - path: '.claude/rules/style.md'
+      role: 'Claude rule equivalent -- proactive prevention of style violations during generation'

@@ -45,12 +45,11 @@ pub fn hash_file(path: &Path) -> Result<String, String> {
     Ok(blake3::hash(&bytes).to_hex().to_string())
 }
 
-/// Insert or replace a file's hash record in the cache.
+/// Insert or replace a single file's hash record in the cache.
 ///
-/// `rel_path` is the cache key -- always a relative path from the project
-/// root (e.g., `"src/main.rs"`). Stores the current Unix timestamp as
-/// `updated_at`.
-pub fn upsert(conn: &Connection, rel_path: &str, hash: &str) -> Result<(), String> {
+/// Production code uses `upsert_batch` instead. This is retained for unit tests.
+#[cfg(test)]
+fn upsert(conn: &Connection, rel_path: &str, hash: &str) -> Result<(), String> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -63,16 +62,12 @@ pub fn upsert(conn: &Connection, rel_path: &str, hash: &str) -> Result<(), Strin
     Ok(())
 }
 
-/// Check whether a file's content has changed since it was last cached.
+/// Check whether a single file's content has changed since it was last cached.
 ///
-/// Returns `Ok(None)` if the file's current hash matches the cached hash
-/// (unchanged). Returns `Ok(Some(hash))` if the file is new, modified, or
-/// absent (absent is treated as changed with an empty hash string). Returns
-/// `Err` only on I/O or database failure.
-///
-/// Cache keys use relative paths (`rel_path`); the absolute path (`abs_path`)
-/// is used only to read file content for hashing.
-pub fn check_changed(
+/// Production code uses `check_changed_batch` instead. This is retained for
+/// unit tests.
+#[cfg(test)]
+fn check_changed(
     conn: &Connection,
     rel_path: &str,
     abs_path: &Path,
@@ -93,6 +88,75 @@ pub fn check_changed(
         Some(h) if h == current_hash => Ok(None),
         _ => Ok(Some(current_hash)),
     }
+}
+
+/// Partition files into changed/unchanged using a single transaction and
+/// prepared statement.
+///
+/// Each entry in `files` is `(rel_path, abs_path)`. Returns `(changed, unchanged)`
+/// where `changed` contains the relative paths of files whose current hash differs
+/// from (or is absent from) the cache, and `unchanged` contains paths that match.
+pub fn check_changed_batch(
+    conn: &Connection,
+    files: &[(String, PathBuf)],
+) -> Result<(Vec<String>, Vec<String>), String> {
+    let tx = conn
+        .unchecked_transaction()
+        .map_err(|e| format!("transaction error: {e}"))?;
+    let mut stmt = tx
+        .prepare("SELECT blake3_hash FROM file_cache WHERE path = ?1")
+        .map_err(|e| format!("prepare error: {e}"))?;
+
+    let mut changed = Vec::new();
+    let mut unchanged = Vec::new();
+
+    for (rel_path, abs_path) in files {
+        if !abs_path.exists() {
+            changed.push(rel_path.clone());
+            continue;
+        }
+        let current_hash = hash_file(abs_path)?;
+        let cached: Option<String> = stmt.query_row(params![rel_path], |row| row.get(0)).ok();
+        match cached {
+            Some(h) if h == current_hash => unchanged.push(rel_path.clone()),
+            _ => changed.push(rel_path.clone()),
+        }
+    }
+
+    drop(stmt);
+    tx.commit().map_err(|e| format!("commit error: {e}"))?;
+    Ok((changed, unchanged))
+}
+
+/// Batch upsert files in a single transaction with a prepared statement.
+///
+/// Each entry in `files` is `(rel_path, hash)`. Returns the number of
+/// successfully upserted rows.
+pub fn upsert_batch(conn: &Connection, files: &[(String, String)]) -> Result<usize, String> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+
+    let tx = conn
+        .unchecked_transaction()
+        .map_err(|e| format!("transaction error: {e}"))?;
+    let mut stmt = tx
+        .prepare(
+            "INSERT OR REPLACE INTO file_cache (path, blake3_hash, updated_at) VALUES (?1, ?2, ?3)",
+        )
+        .map_err(|e| format!("prepare error: {e}"))?;
+
+    let mut count = 0;
+    for (rel_path, hash) in files {
+        stmt.execute(params![rel_path, hash, now])
+            .map_err(|e| format!("upsert failed: {e}"))?;
+        count += 1;
+    }
+
+    drop(stmt);
+    tx.commit().map_err(|e| format!("commit error: {e}"))?;
+    Ok(count)
 }
 
 /// Return the number of cached entries and the most recent `updated_at` timestamp.

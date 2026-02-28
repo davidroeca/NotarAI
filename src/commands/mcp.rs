@@ -40,16 +40,21 @@ pub fn run() -> i32 {
             Ok(l) => l,
             Err(_) => break,
         };
-        let line = line.trim().to_string();
+        let line = line.trim();
         if line.is_empty() {
             continue;
         }
 
-        let req: JsonRpcRequest = match serde_json::from_str(&line) {
+        let req: JsonRpcRequest = match serde_json::from_str(line) {
             Ok(r) => r,
             Err(e) => {
                 let resp = error_response(None, -32700, format!("Parse error: {e}"));
-                writeln!(out, "{}", serde_json::to_string(&resp).unwrap()).ok();
+                writeln!(
+                    out,
+                    "{}",
+                    serde_json::to_string(&resp).expect("JSON serialization")
+                )
+                .ok();
                 continue;
             }
         };
@@ -60,7 +65,12 @@ pub fn run() -> i32 {
         }
 
         let resp = dispatch(&req, &root);
-        writeln!(out, "{}", serde_json::to_string(&resp).unwrap()).ok();
+        writeln!(
+            out,
+            "{}",
+            serde_json::to_string(&resp).expect("JSON serialization")
+        )
+        .ok();
     }
 
     0
@@ -186,10 +196,8 @@ fn handle_tools_call(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcRes
         return error_response(req.id.clone(), -32602, "Missing tool name".to_string());
     };
 
-    let args = params
-        .get("arguments")
-        .cloned()
-        .unwrap_or(serde_json::json!({}));
+    let empty = serde_json::json!({});
+    let args = params.get("arguments").unwrap_or(&empty);
 
     let result = match tool_name {
         "list_affected_specs" => {

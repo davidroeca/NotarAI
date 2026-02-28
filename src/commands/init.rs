@@ -160,11 +160,11 @@ pub fn run(project_root: Option<&Path>) -> i32 {
 
         settings["hooks"]["PostToolUse"]
             .as_array_mut()
-            .unwrap()
+            .expect("PostToolUse must be an array")
             .push(hook_entry);
 
         let settings_path = claude_dir.join("settings.json");
-        let content = serde_json::to_string_pretty(&settings).unwrap() + "\n";
+        let content = serde_json::to_string_pretty(&settings).expect("JSON serialization") + "\n";
         if let Err(e) = fs::write(&settings_path, content) {
             eprintln!("Error: could not write .claude/settings.json: {e}");
             return 1;
@@ -345,7 +345,7 @@ fn setup_mcp_json(project_root: &Path) {
         }
         json["mcpServers"]["notarai"] = notarai_entry;
 
-        let out = serde_json::to_string_pretty(&json).unwrap() + "\n";
+        let out = serde_json::to_string_pretty(&json).expect("JSON serialization") + "\n";
         if let Err(e) = fs::write(&mcp_path, out) {
             eprintln!("Warning: could not update .mcp.json: {e}");
             return;
@@ -357,7 +357,7 @@ fn setup_mcp_json(project_root: &Path) {
                 "notarai": notarai_entry
             }
         }))
-        .unwrap()
+        .expect("JSON serialization")
             + "\n";
 
         if let Err(e) = fs::write(&mcp_path, content) {
