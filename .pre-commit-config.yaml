@@ -20,11 +20,11 @@ repos:
         language: system
         pass_filenames: false
 
-  # NodeJS formatting
+  # Biome formatting
   - repo: local
     hooks:
-      - id: prettier
-        name: prettier
-        entry: npx prettier --write --ignore-unknown
+      - id: biome
+        name: biome
+        entry: biome format --write
         language: system
-        files: \.(js|ts|jsx|tsx|astro|md|mdx|json|yaml|yml|css|html)$
+        files: \.(js|ts|jsx|tsx|md|mdx|json|css)$

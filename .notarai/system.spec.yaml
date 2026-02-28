@@ -76,10 +76,8 @@ artifacts:
   configs:
     - path: 'Cargo.toml'
       role: 'Rust package manifest -- dependencies, build metadata, and binary target'
-    - path: 'package.json'
-      role: 'npm root -- provides prettier for formatting hooks'
-    - path: 'prettier.config.mjs'
-      role: 'Prettier formatting config -- applies to non-Rust source files'
+    - path: 'biome.json'
+      role: 'Biome formatting config -- applies to non-Rust source files (JSON, Markdown, JS/TS)'
     - path: 'scripts/install.sh'
       role: 'Shell install script -- detects OS/arch, downloads appropriate binary from GitHub Releases'
     - path: 'scripts/install.ps1'
@@ -116,6 +114,9 @@ decisions:
   - date: '2026-02-24'
     choice: 'Hash cache + MCP server for proportional context usage in reconciliation'
     rationale: 'Full git diffs and unconditional artifact reads would flood the context window as repos grow. The hash cache skips unchanged files; the MCP server pre-filters diffs to only files a given spec governs. Together they make reconciliation context proportional to what actually changed.'
+  - date: '2026-02-28'
+    choice: 'Migrate from prettier (npm) to biome (cargo install biome) for non-Rust formatting'
+    rationale: 'Eliminates the Node.js runtime dependency entirely; biome is written in Rust and installable via cargo, consistent with the project toolchain; YAML formatting dropped as biome does not support it'
   - date: '2026-02-26'
     choice: 'Remove sync_policy from schema (v0.5)'
     rationale: >

@@ -11,8 +11,7 @@ acquainted with the tool and make sure your contributions stay in sync.
 
 ## Development Setup
 
-Install [Rust](https://www.rust-lang.org/tools/install) (stable toolchain) and
-[Node.js](https://nodejs.org/) (for prettier). Install
+Install [Rust](https://www.rust-lang.org/tools/install) (stable toolchain). Install
 [pre-commit](https://pre-commit.com/) for pre-commit hooks.
 
 Setup clippy and rustfmt via:
@@ -27,7 +26,7 @@ Then setup the repo:
 git clone https://github.com/davidroeca/NotarAI.git
 cd NotarAI
 cargo build
-npm ci
+cargo install biome
 cargo install --path .
 pre-commit install
 ```
@@ -52,7 +51,7 @@ want the installed binary to reflect your latest local changes.
 - Rust 2024 edition
 - `cargo fmt` for Rust formatting
 - `cargo clippy` for Rust lints
-- `npx prettier --check .` for non-Rust file formatting (markdown, JSON, etc.)
+- `biome format --check` for non-Rust file formatting (markdown, JSON, etc.)
 - Functional style preferred over excessive use of structs with methods
 - Core library lives in `src/core/` (not `src/lib/` due to Rust's reserved
   module name)
