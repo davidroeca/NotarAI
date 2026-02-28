@@ -55,7 +55,7 @@ NotarAI draws from Cucumber/Gherkin, IaC tools like Terraform, JSON Schema, Desi
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR workflow.
+See [CONTRIBUTING.md](https://davidroeca.github.io/NotarAI/docs/contributing.html) for development setup, code style, and PR workflow.
 
 ## License
 
