@@ -85,7 +85,9 @@ artifacts:
     - path: 'scripts/install.ps1'
       role: 'PowerShell install script for Windows'
     - path: 'CLAUDE.md'
-      role: 'Claude Code context file -- architectural constraints, build workflow, and conventions for AI-assisted development on this project'
+      role: 'Claude Code context file -- project description and NotarAI imports for AI-assisted development'
+    - path: '.claude/rules/*.md'
+      role: 'Modular Claude rules -- style, testing, and schema version conventions split from CLAUDE.md'
     - path: '.pre-commit-config.yaml'
       role: 'pre-commit hook configuration -- runs code formatters and linters before each commit'
 

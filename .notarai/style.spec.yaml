@@ -33,3 +33,6 @@ artifacts:
       role: 'slash command prompts'
     - path: 'templates/*.md'
       role: 'bundled templates'
+  configs:
+    - path: '.claude/rules/style.md'
+      role: 'Claude rule equivalent -- proactive prevention of style violations during generation'

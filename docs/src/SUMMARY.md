@@ -11,6 +11,7 @@
 
 - [Spec Format](./guides/spec-format.md)
 - [Reconciliation](./guides/reconciliation.md)
+- [Specs vs Claude Rules](./guides/specs-vs-claude-rules.md)
 
 # Reference
 
