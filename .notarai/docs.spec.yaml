@@ -56,6 +56,8 @@ artifacts:
       role: 'Complete spec YAML format reference -- all fields, types, and examples'
     - path: 'docs/src/guides/reconciliation.md'
       role: 'Guide to the reconciliation engine -- how drift is detected, automatic validation'
+    - path: 'docs/src/guides/specs-vs-claude-rules.md'
+      role: 'Guide explaining when to use specs vs Claude rules, and when to use both'
     - path: 'docs/src/reference/cli.md'
       role: 'CLI command reference -- all subcommands, flags, and exit codes'
     - path: 'docs/src/reference/mcp-server.md'
