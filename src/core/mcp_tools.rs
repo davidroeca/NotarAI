@@ -143,22 +143,35 @@ pub fn get_spec_diff(
     } else {
         match crate::core::cache::open_cache_db(project_root) {
             Ok(conn) => {
-                let (s_show, _s_skip): (Vec<String>, Vec<String>) =
-                    spec_files.into_iter().partition(|rel| {
-                        let abs = project_root.join(rel);
-                        !matches!(
-                            crate::core::cache::check_changed(&conn, rel, &abs),
-                            Ok(None)
-                        )
+                let spec_pairs: Vec<(String, std::path::PathBuf)> = spec_files
+                    .into_iter()
+                    .map(|rel| {
+                        let abs = project_root.join(&rel);
+                        (rel, abs)
+                    })
+                    .collect();
+                let (s_show, _s_skip) = crate::core::cache::check_changed_batch(&conn, &spec_pairs)
+                    .unwrap_or_else(|_| {
+                        let all: Vec<String> = spec_pairs.into_iter().map(|(r, _)| r).collect();
+                        (all, vec![])
                     });
-                let (a_diff, a_skip): (Vec<String>, Vec<String>) =
-                    artifact_files.into_iter().partition(|rel| {
-                        let abs = project_root.join(rel);
-                        !matches!(
-                            crate::core::cache::check_changed(&conn, rel, &abs),
-                            Ok(None)
-                        )
-                    });
+
+                let artifact_pairs: Vec<(String, std::path::PathBuf)> = artifact_files
+                    .into_iter()
+                    .map(|rel| {
+                        let abs = project_root.join(&rel);
+                        (rel, abs)
+                    })
+                    .collect();
+                let (a_diff, a_skip) = crate::core::cache::check_changed_batch(
+                    &conn,
+                    &artifact_pairs,
+                )
+                .unwrap_or_else(|_| {
+                    let all: Vec<String> = artifact_pairs.into_iter().map(|(r, _)| r).collect();
+                    (all, vec![])
+                });
+
                 (s_show, a_diff, a_skip)
             }
             Err(_) => (spec_files, artifact_files, vec![]), // cache unavailable: include everything
@@ -273,15 +286,19 @@ pub fn get_changed_artifacts(
         message: e,
     })?;
 
-    let mut changed = Vec::new();
-    for rel_file in &files {
-        let abs_file = project_root.join(rel_file);
-        match crate::core::cache::check_changed(&conn, rel_file, &abs_file) {
-            Ok(Some(_)) => changed.push(rel_file.clone()),
-            Ok(None) => {}
-            Err(e) => eprintln!("Warning: {e}"),
-        }
-    }
+    let pairs: Vec<(String, std::path::PathBuf)> = files
+        .into_iter()
+        .map(|rel| {
+            let abs = project_root.join(&rel);
+            (rel, abs)
+        })
+        .collect();
+
+    let (changed, _unchanged) =
+        crate::core::cache::check_changed_batch(&conn, &pairs).map_err(|e| McpError {
+            code: -32603,
+            message: e,
+        })?;
 
     Ok(serde_json::json!({"changed_artifacts": changed}))
 }
@@ -301,22 +318,21 @@ pub fn mark_reconciled(files: &[String], project_root: &Path) -> McpResult {
         message: e,
     })?;
 
-    let mut count = 0;
+    let mut to_upsert = Vec::new();
     for f in files {
         let abs = project_root.join(f);
         if abs.exists() {
             match crate::core::cache::hash_file(&abs) {
-                Ok(hash) => {
-                    crate::core::cache::upsert(&conn, f, &hash).map_err(|e| McpError {
-                        code: -32603,
-                        message: e,
-                    })?;
-                    count += 1;
-                }
+                Ok(hash) => to_upsert.push((f.clone(), hash)),
                 Err(e) => eprintln!("Warning: {e}"),
             }
         }
     }
+
+    let count = crate::core::cache::upsert_batch(&conn, &to_upsert).map_err(|e| McpError {
+        code: -32603,
+        message: e,
+    })?;
 
     Ok(serde_json::json!({"updated": count}))
 }
@@ -341,8 +357,21 @@ fn find_system_spec(
 
     let mut system_spec_rel: Option<String> = None;
 
-    // Scan .notarai/ (non-recursive) for a spec with a `subsystems` key.
-    if let Ok(entries) = std::fs::read_dir(&notarai_dir) {
+    // Fast path: check for .notarai/system.spec.yaml by convention name first.
+    let candidate = notarai_dir.join("system.spec.yaml");
+    if candidate.exists()
+        && let Ok(content) = std::fs::read_to_string(&candidate)
+        && let Ok(value) = crate::core::yaml::parse_yaml(&content)
+        && value.get("subsystems").is_some()
+        && let Ok(rel) = candidate.strip_prefix(project_root)
+    {
+        system_spec_rel = Some(rel.to_string_lossy().to_string());
+    }
+
+    // Fallback: scan .notarai/ (non-recursive) for a spec with a `subsystems` key.
+    if system_spec_rel.is_none()
+        && let Ok(entries) = std::fs::read_dir(&notarai_dir)
+    {
         for entry in entries.flatten() {
             let path = entry.path();
             if !path.is_file() {
@@ -360,16 +389,6 @@ fn find_system_spec(
                 system_spec_rel = Some(rel.to_string_lossy().to_string());
                 break;
             }
-        }
-    }
-
-    // Fallback: check for .notarai/system.spec.yaml by name.
-    if system_spec_rel.is_none() {
-        let candidate = notarai_dir.join("system.spec.yaml");
-        if candidate.exists()
-            && let Ok(rel) = candidate.strip_prefix(project_root)
-        {
-            system_spec_rel = Some(rel.to_string_lossy().to_string());
         }
     }
 
