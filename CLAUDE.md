@@ -18,8 +18,8 @@ Tests use `cargo test`. Unit tests are inline `#[cfg(test)]` modules in source f
 
 ## Style
 
-- **American English** throughout — code, comments, docs, and specs (e.g. "initialize" not "initialise").
-- **ASCII in code and comments** — use `-` for dashes, `->` for arrows, plain quotes. Non-ASCII is fine in user-facing printed strings where it aids readability.
+- **American English** throughout — variable names, function names, type names, comments, docs, and specs (e.g. "initialize" not "initialise", "color" not "colour").
+- **QWERTY-typable characters in code and comments** — no em-dashes, curly quotes, or other characters requiring special input. Use `--` for em-dash, `->` for arrows, straight quotes. Non-typable characters are fine in user-facing printed strings where they aid readability.
 
 ## NotarAI
 
