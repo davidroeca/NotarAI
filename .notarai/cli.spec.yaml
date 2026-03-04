@@ -170,7 +170,7 @@ artifacts:
     - path: 'src/main.rs'
       role: 'CLI entry point -- clap definition and command dispatch'
     - path: 'src/commands/*.rs'
-      role: 'Command implementations (validate, init, hook_validate, cache, mcp, schema_bump)'
+      role: 'Command implementations (validate, init, hook_validate, cache, mcp, schema_bump, state)'
     - path: 'src/core/*.rs'
       role: 'Core library (schema embedding, YAML parsing, jsonschema validation, hash cache, MCP tool implementations)'
   configs:

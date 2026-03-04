@@ -78,7 +78,7 @@ artifacts:
     - path: 'Cargo.toml'
       role: 'Rust package manifest -- dependencies, build metadata, and binary target'
     - path: 'biome.json'
-      role: 'Biome formatting config -- applies to non-Rust source files (JSON, Markdown, JS/TS)'
+      role: 'Biome formatting config -- applies to non-Rust source files (JSON, JS/TS, CSS); excludes Markdown (handled by prettier pending biomejs/biome#3718)'
     - path: 'scripts/install.sh'
       role: 'Shell install script -- detects OS/arch, downloads appropriate binary from GitHub Releases'
     - path: 'scripts/install.ps1'
@@ -118,6 +118,14 @@ decisions:
   - date: '2026-02-28'
     choice: 'Migrate from prettier (npm) to biome (cargo install biome) for non-Rust formatting'
     rationale: 'Eliminates the Node.js runtime dependency entirely; biome is written in Rust and installable via cargo, consistent with the project toolchain; YAML formatting dropped as biome does not support it'
+  - date: '2026-03-04'
+    choice: 'Prettier re-introduced for Markdown formatting alongside biome'
+    rationale: >
+      Biome does not yet support Markdown formatting (biomejs/biome#3718).
+      Prettier handles .md files as a temporary measure; biome covers all other
+      non-Rust formats. The 2026-02-28 biome migration decision is still in
+      effect for everything except Markdown.
+
   - date: '2026-02-26'
     choice: 'Remove sync_policy from schema (v0.5)'
     rationale: >

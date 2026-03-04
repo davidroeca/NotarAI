@@ -53,7 +53,8 @@ want the installed binary to reflect your latest local changes.
 - Rust 2024 edition
 - `cargo fmt` for Rust formatting
 - `cargo clippy` for Rust lints
-- `biome format --check` for non-Rust file formatting (markdown, JSON, etc.)
+- `biome format --check` for non-Rust file formatting (JSON, JS/TS, CSS, etc.)
+- `prettier --check` for Markdown formatting (temporary until [biome#3718](https://github.com/biomejs/biome/issues/3718) is resolved)
 - Functional style preferred over excessive use of structs with methods
 - Core library lives in `src/core/` (not `src/lib/` due to Rust's reserved
   module name)
