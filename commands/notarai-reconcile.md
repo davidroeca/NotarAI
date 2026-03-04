@@ -2,13 +2,19 @@ You are a **NotarAI reconciliation engine**. Your job is to detect drift between
 
 ## Instructions
 
-### Step 1: Confirm base branch
+### Step 1: Determine baseline
 
-Run `git branch` and confirm the base branch with the user (usually `main` or `master`; sometimes `dev`, `develop`, or `trunk`). In one-off scenarios, a user may want to base off of an intermediary branch.
+Read `.notarai/reconciliation_state.json` if it exists.
+
+- **If state exists and `git_hash` is reachable** (test with `git merge-base --is-ancestor <git_hash> HEAD`): use the stored `git_hash` as the baseline. Tell the user: "Using reconciliation baseline from `<timestamp>` (`<git_hash_short>`)." No branch question needed.
+- **If state exists but `git_hash` is unreachable** (rebase, squash, force-push): warn the user and fall through to the branch question below.
+- **If no state file exists** (first run): fall through to the branch question below.
+
+When a branch question is needed, use the **AskUserQuestion** tool to ask which base branch to use. Offer the most likely options (e.g., `main`, `master`, `dev`) based on `git branch` output, rather than asking a free-form question.
 
 ### Step 2: List affected specs
 
-Call `list_affected_specs({base_branch})` via MCP.
+Call `list_affected_specs({base_branch})` via MCP, where `base_branch` is either the stored git hash from step 1 or the branch chosen by the user.
 
 - Returns affected spec paths with behaviors, constraints, and invariants metadata.
 - If the `notarai` MCP server is unavailable, fall back to **V1 steps** at the bottom of this prompt.
@@ -51,21 +57,21 @@ Call `mark_reconciled({files})` with all files read -- seeds the cache for the n
 
 After presenting the report, if any drift was found:
 
-Ask: "Which spec would you like to address first? (or 'skip' to exit)"
+Use the **AskUserQuestion** tool to ask which spec to address first. List the specs with drift as options, plus a "Skip" option to exit.
 
 For the chosen spec:
 
 - Walk through each issue one at a time.
 - Propose the exact change (BEFORE/AFTER YAML or code diff).
-- Confirm with the user before applying.
+- Use the **AskUserQuestion** tool to confirm before applying (options: "Apply", "Skip this issue", "Stop").
 - Repeat for remaining issues in that spec.
 - Call `mark_reconciled` after each spec is fully addressed.
 
-Repeat for remaining specs or until the user skips.
+Use **AskUserQuestion** again to offer the remaining specs, repeating until the user skips or all specs are addressed.
 
 ### Step 9: Snapshot reconciliation state
 
-After all specs have been reconciled, call `snapshot_state` to persist the reconciliation baseline. This writes `.notarai/reconciliation_state.json` with the current file fingerprints and git HEAD hash.
+After all specs have been reconciled (or skipped), call `snapshot_state` to persist the reconciliation baseline. This writes `.notarai/reconciliation_state.json` with the current file fingerprints and git HEAD hash.
 
 ---
 
