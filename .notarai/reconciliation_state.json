@@ -1,9 +1,9 @@
 {
   "schema_version": "1",
   "last_reconciliation": {
-    "timestamp": "1772656506Z",
-    "git_hash": "9a04fa8fc460dd57081c886344d2156bec3da203",
-    "branch": "better-reconciliation-hashing"
+    "timestamp": "1772656931Z",
+    "git_hash": "975f57d7c01108b6fb00f2ddcf7233e11fd37804",
+    "branch": "main"
   },
   "file_fingerprints": {
     ".claude/commands/notarai-reconcile.md": {
@@ -39,6 +39,9 @@
     ".notarai/README.md": {
       "blake3": "22562d80f67709190fe2f601876105fc5735b19489d13e580c25d4ecb4889d05"
     },
+    ".notarai/reconciliation_state.json": {
+      "blake3": "ea510353f8b8e450c38fd332c58d41a01cb9f8b02c42ef91e7d2cc5ef08904f9"
+    },
     ".pre-commit-config.yaml": {
       "blake3": "fe6c5477a972693b5fa47e114a2cf5b57d0457570e3f46894afc4775f6c52786"
     },
@@ -48,8 +51,11 @@
     "CONTRIBUTING.md": {
       "blake3": "759af9d3150d42a75cc843ab039ee0df003efa726717ebdc6e27e587d29d2d6a"
     },
+    "Cargo.lock": {
+      "blake3": "cb47d356ef9faae1b21da4581313148a81d0d2ee04d7b4748d81750253ebffe0"
+    },
     "Cargo.toml": {
-      "blake3": "33602e4b17f78c493c29facaf21163041f09faa1cc4cffaffca2256c7aaa954d"
+      "blake3": "34a038ead3f11b16f19bf884d358c81a481c2567537e6c7282b63a62dbe4408e"
     },
     "README.md": {
       "blake3": "d5779324274727aa16eeb84791f22a98db58b62b1ce6d4c900dc380bef3a6175"
