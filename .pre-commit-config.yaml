@@ -27,4 +27,14 @@ repos:
         name: biome
         entry: biome format --write
         language: system
-        files: \.(js|ts|jsx|tsx|md|mdx|json|css)$
+        files: \.(js|ts|jsx|tsx|json|css)$
+
+  # Prettier formatting for markdown
+  # Waiting on https://github.com/biomejs/biome/issues/3718
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: prettier --write
+        language: system
+        files: \.md$

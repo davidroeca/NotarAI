@@ -552,3 +552,62 @@ fn get_spec_diff_cache_filtering_applies_to_spec_files() {
         // child spec is cached -> must NOT appear in spec_changes content
         .stdout(predicate::str::contains("Child spec v2").not());
 }
+
+// -- snapshot_state MCP tool --------------------------------------------------
+
+#[test]
+fn test_snapshot_state_tool() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "hello").unwrap();
+    git_commit_all(root, "base");
+
+    // Seed cache, then snapshot.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":["alpha.txt"]}}}"#;
+    let snap_msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"snapshot_state","arguments":{}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n{snap_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("state_path"))
+        .stdout(predicate::str::contains("files"))
+        .stdout(predicate::str::contains("specs"))
+        .stdout(predicate::str::contains("git_hash"));
+}
+
+#[test]
+fn test_snapshot_state_creates_file() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "hello").unwrap();
+    git_commit_all(root, "base");
+
+    let snap_msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"snapshot_state","arguments":{}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{snap_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success();
+
+    let state_file = root.join(".notarai/reconciliation_state.json");
+    assert!(
+        state_file.exists(),
+        "reconciliation_state.json must be created"
+    );
+    let content = fs::read_to_string(&state_file).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+    assert_eq!(parsed["schema_version"], "1");
+}

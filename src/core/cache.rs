@@ -159,6 +159,23 @@ pub fn upsert_batch(conn: &Connection, files: &[(String, String)]) -> Result<usi
     Ok(count)
 }
 
+/// Read all cached entries as (rel_path, blake3_hash) pairs.
+///
+/// Used by state snapshotting -- not for hot-path reconciliation.
+pub fn read_all(conn: &Connection) -> Result<Vec<(String, String)>, String> {
+    let mut stmt = conn
+        .prepare("SELECT path, blake3_hash FROM file_cache ORDER BY path")
+        .map_err(|e| format!("prepare error: {e}"))?;
+    let rows = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+        .map_err(|e| format!("query error: {e}"))?;
+    let mut result = Vec::new();
+    for row in rows {
+        result.push(row.map_err(|e| format!("row error: {e}"))?);
+    }
+    Ok(result)
+}
+
 /// Return the number of cached entries and the most recent `updated_at` timestamp.
 ///
 /// The timestamp is `None` when the cache is empty.
@@ -222,5 +239,20 @@ mod tests {
         let missing = tmp.path().join("nonexistent.txt");
         let result = check_changed(&conn, missing.to_str().unwrap(), &missing).unwrap();
         assert!(result.is_some(), "expected Some for missing file");
+    }
+
+    #[test]
+    fn test_read_all() {
+        let tmp = TempDir::new().unwrap();
+        let conn = open_cache_db(tmp.path()).unwrap();
+        upsert(&conn, "a.txt", "hash_a").unwrap();
+        upsert(&conn, "b.txt", "hash_b").unwrap();
+        upsert(&conn, "c.txt", "hash_c").unwrap();
+        let rows = read_all(&conn).unwrap();
+        assert_eq!(rows.len(), 3);
+        // BTreeMap ordering not required here (SQLite ORDER BY path)
+        assert!(rows.iter().any(|(p, h)| p == "a.txt" && h == "hash_a"));
+        assert!(rows.iter().any(|(p, h)| p == "b.txt" && h == "hash_b"));
+        assert!(rows.iter().any(|(p, h)| p == "c.txt" && h == "hash_c"));
     }
 }

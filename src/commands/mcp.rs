@@ -183,6 +183,15 @@ fn tools_list() -> serde_json::Value {
                 "type": "object",
                 "properties": {}
             }
+        },
+        {
+            "name": "snapshot_state",
+            "description": "Snapshot the current reconciliation cache into .notarai/reconciliation_state.json. Call this at the end of a successful reconciliation pass.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
         }
     ])
 }
@@ -248,6 +257,7 @@ fn handle_tools_call(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcRes
             mcp_tools::mark_reconciled(&files, root)
         }
         "clear_cache" => mcp_tools::clear_cache(root),
+        "snapshot_state" => mcp_tools::snapshot_state(root),
         _ => Err(mcp_tools::McpError {
             code: -32601,
             message: format!("Unknown tool: {tool_name}"),
