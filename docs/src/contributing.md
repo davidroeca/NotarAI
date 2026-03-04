@@ -14,6 +14,8 @@ acquainted with the tool and make sure your contributions stay in sync.
 Install [Rust](https://www.rust-lang.org/tools/install) (stable toolchain). Install
 [pre-commit](https://pre-commit.com/) for pre-commit hooks.
 
+Temporarily (until biome supports markdown), install [prettier](https://prettier.io/docs/install).
+
 Setup clippy and rustfmt via:
 
 ```sh

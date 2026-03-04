@@ -38,6 +38,11 @@ enum Commands {
     Mcp,
     /// Update schema version across all specs in the project
     SchemaBump,
+    /// Manage reconciliation state
+    State {
+        #[command(subcommand)]
+        action: commands::state::StateAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -58,6 +63,7 @@ fn main() {
         Some(Commands::Cache { action }) => commands::cache::run(action),
         Some(Commands::Mcp) => commands::mcp::run(),
         Some(Commands::SchemaBump) => commands::schema_bump::run(None),
+        Some(Commands::State { action }) => commands::state::run(action),
         None => {
             // Print help when no command given
             use clap::CommandFactory;

@@ -337,6 +337,36 @@ pub fn mark_reconciled(files: &[String], project_root: &Path) -> McpResult {
     Ok(serde_json::json!({"updated": count}))
 }
 
+/// Snapshot the current cache + git state into reconciliation_state.json.
+///
+/// Called at the end of a reconciliation pass to persist the baseline.
+/// Returns `{"state_path": "...", "files": N, "specs": N, "git_hash": "..."}`.
+pub fn snapshot_state(project_root: &Path) -> McpResult {
+    let state = crate::core::state::snapshot_from_cache(project_root).map_err(|e| McpError {
+        code: -32603,
+        message: e,
+    })?;
+    crate::core::state::save_state(project_root, &state).map_err(|e| McpError {
+        code: -32603,
+        message: e,
+    })?;
+    let state_path = crate::core::state::state_path(project_root)
+        .to_string_lossy()
+        .to_string();
+    let git_hash = state
+        .last_reconciliation
+        .git_hash
+        .as_deref()
+        .unwrap_or("")
+        .to_string();
+    Ok(serde_json::json!({
+        "state_path": state_path,
+        "files": state.file_fingerprints.len(),
+        "specs": state.spec_fingerprints.len(),
+        "git_hash": git_hash,
+    }))
+}
+
 fn is_spec_file(path: &str) -> bool {
     path.starts_with(".notarai/") && path.ends_with(".spec.yaml")
 }

@@ -58,6 +58,7 @@ exclude:
   - 'docs/mermaid-init.js'
   - 'docs/mermaid.min.js'
   - '.notarai/.cache/**'
+  - '.notarai/reconciliation_state.json'
 
 artifacts:
   docs:

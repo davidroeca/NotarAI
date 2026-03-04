@@ -63,6 +63,10 @@ For the chosen spec:
 
 Repeat for remaining specs or until the user skips.
 
+### Step 9: Snapshot reconciliation state
+
+After all specs have been reconciled, call `snapshot_state` to persist the reconciliation baseline. This writes `.notarai/reconciliation_state.json` with the current file fingerprints and git HEAD hash.
+
 ---
 
 ## Report Format
