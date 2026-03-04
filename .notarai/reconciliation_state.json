@@ -1,13 +1,13 @@
 {
   "schema_version": "1",
   "last_reconciliation": {
-    "timestamp": "1772655732Z",
-    "git_hash": "1c78a0291e73973bdcc87c17e293a6ca46819a3d",
+    "timestamp": "1772656506Z",
+    "git_hash": "9a04fa8fc460dd57081c886344d2156bec3da203",
     "branch": "better-reconciliation-hashing"
   },
   "file_fingerprints": {
     ".claude/commands/notarai-reconcile.md": {
-      "blake3": "fe331d318d626243531b4bea7644640e203845c99c909b96541c6c686b00e7c3"
+      "blake3": "78bbb66fa1cdbd21d5baa11775a6aa238762bf9a5c4c353cb13af100401f0efa"
     },
     ".claude/rules/rust.md": {
       "blake3": "cf9636b27d939cdeeb2aab6b0e4ee953f28343f062154c935473d8f4ac746844"
@@ -49,7 +49,7 @@
       "blake3": "759af9d3150d42a75cc843ab039ee0df003efa726717ebdc6e27e587d29d2d6a"
     },
     "Cargo.toml": {
-      "blake3": "9b326c44a38f4e80fb48fd1da5158f30a67f3bec8d564609c3ced26a06ed356c"
+      "blake3": "33602e4b17f78c493c29facaf21163041f09faa1cc4cffaffca2256c7aaa954d"
     },
     "README.md": {
       "blake3": "d5779324274727aa16eeb84791f22a98db58b62b1ce6d4c900dc380bef3a6175"
@@ -61,7 +61,7 @@
       "blake3": "45d27091bf52bd553c381db48b60066b68011b6f08489c10ef9d487536f1b569"
     },
     "commands/notarai-reconcile.md": {
-      "blake3": "fe331d318d626243531b4bea7644640e203845c99c909b96541c6c686b00e7c3"
+      "blake3": "78bbb66fa1cdbd21d5baa11775a6aa238762bf9a5c4c353cb13af100401f0efa"
     },
     "docs-site/README.md": {
       "blake3": "f4e6940b4b753763fbf8565765b0baaf7e99331c549c352eeb264019cbdc466f"
@@ -150,6 +150,9 @@
     "docs/src/reference/mcp-server.md": {
       "blake3": "f8215d4613043f09f957a40a1ef2c84815cd02e8ff5312d6e8ff4b6e9c228a05"
     },
+    "notarai.spec.json": {
+      "blake3": "6c2ef2234669e859dafcddc3b1d5106e4a3a2a24ff98e7630773e22de1b9d77d"
+    },
     "package.json": {
       "blake3": "a65b8e5fd84b685641d3c5d28c7aa604d7d5de9465b40b5a9946260867b03f60"
     },
@@ -162,6 +165,12 @@
     "scripts/install.sh": {
       "blake3": "493163c6256ad8ca815dd114dc609851ea93c2130205648999b96b96945fcb6a"
     },
+    "src/commands/cache.rs": {
+      "blake3": "8029043cbfa390ddbf9a6995f964a3432839c74536ec70e586299e49e8384756"
+    },
+    "src/commands/hook_validate.rs": {
+      "blake3": "2dd660143c1a4ae6a6784e2755ac7efecb996047925d39202a5876cec451055e"
+    },
     "src/commands/init.rs": {
       "blake3": "dd163a41304b1ff4e6bd252b6c717a29bfc569ab38aa42f87e54fc12f13c2c02"
     },
@@ -171,8 +180,14 @@
     "src/commands/mod.rs": {
       "blake3": "5749b9000211cf1f2c233a94459d1fc58eefdf89c891ddf049ec451c772bc9bd"
     },
+    "src/commands/schema_bump.rs": {
+      "blake3": "1f739e3d3addcaaa67b80238f2a344f3cbe716af0df45f252c28fc29d66623d5"
+    },
     "src/commands/state.rs": {
       "blake3": "015985206a3b4999c2bd969daf67d5048095ea3053bca7ec7cbd923dea187669"
+    },
+    "src/commands/validate.rs": {
+      "blake3": "119667f17226717c9bb29dfe27a51f9c027a41682335658888319d5b437f7a4d"
     },
     "src/core/cache.rs": {
       "blake3": "e2b2c563b331266a315c88bccf412704f3d2c16eec02beaaa26497a4a5096b0a"
@@ -183,14 +198,32 @@
     "src/core/mod.rs": {
       "blake3": "da92f06a17e7dd641fe552f89b055eb8798592c47c7201eb8202e5f469e79346"
     },
+    "src/core/schema.rs": {
+      "blake3": "de5e0fadba38843fb80fd24e60b94420769e267548cb105a13c5919e51b6b685"
+    },
     "src/core/state.rs": {
       "blake3": "e5399cf47a3a07df44fa8a8f54255b3fc812ad5a0cdb06c7f1a9ee8799368305"
+    },
+    "src/core/validator.rs": {
+      "blake3": "1773d92f1ed20fdcd1b2454692ef336a0e10953de4d8b83bcc33b46dcf5bcda3"
+    },
+    "src/core/yaml.rs": {
+      "blake3": "4698c54c4c9c692d0003d4e3a61f3b9d7727f27d982e9b54da6dbd0f8beb38dc"
     },
     "src/main.rs": {
       "blake3": "a7702cd8e248319a3696480e8785fd279af4d9043dfd83a8d19cb43ea3668d71"
     },
     "templates/notarai-readme.md": {
       "blake3": "b6c98d644e6f78a428e113aba5bf5fec1b3bb44905b5d804bdca4820580516c6"
+    },
+    "tests/bin_test.rs": {
+      "blake3": "efb85d6ad0653c880b6871bdccc9d50a6e1196a731f5ab6726095a9157c8315c"
+    },
+    "tests/cache_test.rs": {
+      "blake3": "3b6ea49234d4d7254cdba52d3332bb2622ea6a1597acdedde4b68014e00ece33"
+    },
+    "tests/init_test.rs": {
+      "blake3": "0c8cbad98f2d2012b2be36264fbd9307fe3b37eefd2595c9381b740ffec21a7e"
     },
     "tests/mcp_test.rs": {
       "blake3": "6298427b0772b970559e1e5d85269341ed154a1cf99369bb90ae86de8f9fa0f4"
