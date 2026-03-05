@@ -2,8 +2,8 @@ schema_version: '0.6'
 
 intent: >
   An mdBook documentation site published to GitHub Pages at
-  https://davidroeca.github.io/NotarAI/docs/. All documentation routes live
-  under /docs, the root / redirects to /docs, and /schema/0.5/spec.schema.json
+  https://notarai.dev. All documentation routes live
+  under /docs, the root / redirects to /docs, and /schema/0.6/spec.schema.json
   serves the JSON Schema directly (matching the $id URL). Covers installation,
   quick-start, spec format reference, and reconciliation guides. Background/concept
   docs (motivation, design diagrams, comparison to SDD) are governed by the system
@@ -19,11 +19,11 @@ behaviors:
     then: 'the sidebar presents Getting Started, Guides, Reference, and Background sections (with pages nested under each), then a top-level Contributing entry -- driven by SUMMARY.md'
 
   - name: base_path
-    given: 'the site is deployed to GitHub Pages under a project sub-path'
-    then: 'all internal links and assets use the /NotarAI/docs site-url defined in book.toml'
+    given: 'the site is deployed to notarai.dev/docs/'
+    then: 'all internal links and assets use the /docs/ site-url defined in book.toml'
 
   - name: schema_hosting
-    given: 'a client requests /NotarAI/schema/0.5/spec.schema.json'
+    given: 'a client requests /schema/0.6/spec.schema.json'
     then: 'the server returns the JSON Schema file matching the $id in notarai.spec.json, copied from the repo root during the CI build step'
 
   - name: mermaid_diagrams
@@ -32,7 +32,7 @@ behaviors:
 
 constraints:
   - 'Every new content page must be registered in docs/src/SUMMARY.md'
-  - 'The mdBook site-url must match the GitHub Pages deployment path (/NotarAI/docs/)'
+  - 'The mdBook site-url must match the deployment path (/docs/)'
   - 'The repo root notarai.spec.json is the single source of truth for the schema; the hosted copy is produced by a CI step, never maintained by hand'
   - 'Background concept pages (background/**) are edited for content by the system spec; docs spec only controls their presentation'
   - 'Docs should be accessible to new programmers'

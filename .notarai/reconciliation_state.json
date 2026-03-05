@@ -1,8 +1,8 @@
 {
   "schema_version": "1",
   "last_reconciliation": {
-    "timestamp": "1772677979Z",
-    "git_hash": "8325624afe45d44966509d65926917732a8c9233",
+    "timestamp": "1772680567Z",
+    "git_hash": "2206100cd229592b626ee71e0cea658b49e73c39",
     "branch": "main"
   },
   "file_fingerprints": {
@@ -64,7 +64,7 @@
       "blake3": "200e52de865bc21f5879a56de27088e37a29be6b02de1bd8e2fc7c94225dc73c"
     },
     "commands/notarai-bootstrap.md": {
-      "blake3": "45d27091bf52bd553c381db48b60066b68011b6f08489c10ef9d487536f1b569"
+      "blake3": "678eb55571dec5f98e158dcf48bff7857c3f9daa10d2a18fd90d697e3c489b06"
     },
     "commands/notarai-reconcile.md": {
       "blake3": "78bbb66fa1cdbd21d5baa11775a6aa238762bf9a5c4c353cb13af100401f0efa"
@@ -112,7 +112,7 @@
       "blake3": "5bd0a6e6b1f9282d47ecdeadca1c98add4f8347a9eb81ed66c410f4b9bdd8928"
     },
     "docs/book.toml": {
-      "blake3": "139a9d4b10b1f6ba150363917c3d38d7fdb7c415afe612ec1ac2068dff76b7a7"
+      "blake3": "d5df1c1b015e6e8dca52f918a05fda9fdc50d8aeff91c094a0005e3c54616110"
     },
     "docs/src/SUMMARY.md": {
       "blake3": "7eb6ac0e12d6adfbe75581b6a5dd52714c02b3233d624b78fc27e721e0f1b528"
@@ -240,10 +240,10 @@
   },
   "spec_fingerprints": {
     ".notarai/ci.spec.yaml": "65654acd819fb0c629b5765a0569cec37718e6829d7b000cd9816cb43063436b",
-    ".notarai/cli.spec.yaml": "d57a8b897b90ef7f9f42d61946c4440134951b87a0490ccda2b1ee06ae5b6560",
+    ".notarai/cli.spec.yaml": "a3ed723355787de8e2294c2f0c98ee3feb95296d28272a436de9b3c81e422c7c",
     ".notarai/docs-site.spec.yaml": "319ad566ececed817928c1642f8c33eee6bd2ecd6093efcc6325b25b7229c22a",
-    ".notarai/docs.spec.yaml": "e546d4d12b4dcd05b61d8c5e1f63c5151a243df87b2253e4b6da514fef5f712a",
-    ".notarai/style.spec.yaml": "97ec94cacb580ac04d1427a0b112a02a03464403435d833d8ca0294bbbe7f37d",
+    ".notarai/docs.spec.yaml": "60b858f31eeaf9680852dc29a90f593a47e1c57c6005bc0dc81fca91f5d05fec",
+    ".notarai/style.spec.yaml": "40fe8e6900c21114cfb0f86ce035b4a8fd5a5c2fadd844182867e4266c771e08",
     ".notarai/system.spec.yaml": "1f126ff1e5701b31400de16665f84c49607f0cbb657c80ce676553ba859016ea"
   }
 }

@@ -4,7 +4,7 @@ language = "en"
 src = "src"
 
 [output.html]
-site-url = "/NotarAI/docs/"
+site-url = "/docs/"
 git-repository-url = "https://github.com/davidroeca/NotarAI"
 edit-url-template = "https://github.com/davidroeca/NotarAI/edit/main/docs/src/{path}"
 additional-js = ["mermaid.min.js", "mermaid-init.js"]
