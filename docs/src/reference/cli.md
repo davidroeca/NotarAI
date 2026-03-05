@@ -129,6 +129,48 @@ Prints `Cache cleared` or `Cache not initialized` (if the DB didn't exist). No-o
 
 ---
 
+## notarai state
+
+Manage the persistent reconciliation state file (`.notarai/reconciliation_state.json`). The state file records the last reconciliation timestamp, git hash, branch, and BLAKE3 fingerprints for all governed files and specs. It can be committed to the repo to give collaborators a baseline.
+
+### notarai state show
+
+Display the current reconciliation state.
+
+```sh
+notarai state show
+```
+
+Prints the timestamp, git hash, branch, and counts of tracked files and specs. Prints `No reconciliation state found.` if no state file exists.
+
+**Exit codes:** `0` success, `1` error.
+
+### notarai state reset
+
+Delete the reconciliation state file, forcing the next reconciliation to treat everything as changed.
+
+```sh
+notarai state reset
+```
+
+Prints `Reconciliation state reset.` or `No reconciliation state to reset.` (if the file didn't exist).
+
+**Exit codes:** `0` success, `1` error.
+
+### notarai state snapshot
+
+Build a new state snapshot from the current SQLite cache and save it to `.notarai/reconciliation_state.json`.
+
+```sh
+notarai state snapshot
+```
+
+Reads all entries from the cache, partitions them into file fingerprints and spec fingerprints, captures the current git HEAD and branch, and writes the result. This is the CLI equivalent of the [`snapshot_state` MCP tool](./mcp-server.md#snapshot_state).
+
+**Exit codes:** `0` success, `1` error.
+
+---
+
 ## notarai mcp
 
 Start a synchronous JSON-RPC 2.0 MCP server over stdio. Typically configured automatically by `notarai init` rather than invoked manually.
