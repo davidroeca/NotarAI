@@ -41,7 +41,7 @@ Here's a minimal spec:
 
 ```yaml
 # .notarai/auth.spec.yaml
-schema_version: '0.5'
+schema_version: '0.6'
 
 intent: |
   Users can sign up, log in, and reset passwords.

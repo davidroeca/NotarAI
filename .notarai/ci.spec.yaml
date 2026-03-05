@@ -1,4 +1,4 @@
-schema_version: '0.5'
+schema_version: '0.6'
 
 intent: >
   GitHub Actions workflows and Dependabot configuration for NotarAI. CI runs
@@ -15,7 +15,7 @@ behaviors:
 
   - name: docs_deploy_on_push
     given: 'a push to main that touches any file under docs/ or notarai.spec.json'
-    then: 'the docs workflow installs mdbook and mdbook-mermaid via cargo, builds the book, copies notarai.spec.json to docs/book/schema/0.5/spec.schema.json, and deploys the output to GitHub Pages; only one deploy runs at a time (cancel-in-progress)'
+    then: 'the docs workflow installs mdbook and mdbook-mermaid via cargo, builds the book, copies each schemas/<version>/spec.schema.json to docs/book/schema/<version>/spec.schema.json (frozen snapshots) and copies notarai.spec.json to docs/book/schema/<current_version>/spec.schema.json, and deploys the output to GitHub Pages; only one deploy runs at a time (cancel-in-progress)'
 
   - name: init_sync_check
     given: 'the test job passes on a push to main or a PR targeting main'

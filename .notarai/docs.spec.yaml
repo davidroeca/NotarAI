@@ -1,4 +1,4 @@
-schema_version: '0.5'
+schema_version: '0.6'
 
 intent: >
   An mdBook documentation site published to GitHub Pages at

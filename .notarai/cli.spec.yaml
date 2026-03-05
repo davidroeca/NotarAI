@@ -1,4 +1,4 @@
-schema_version: '0.5'
+schema_version: '0.6'
 
 intent: >
   A CLI tool that validates NotarAI spec files against the JSON Schema
@@ -62,6 +62,15 @@ behaviors:
       schema, updates the schema_version field in all .notarai/*.spec.yaml files, validates all
       updated specs, and prints a summary; exits 0 on success, 1 on validation failure
 
+  - name: schema_version_archive
+    given: 'a developer bumps the schema version in notarai.spec.json'
+    then: >
+      before editing notarai.spec.json, copies the current notarai.spec.json to
+      schemas/<old_version>/spec.schema.json to create a frozen snapshot; the docs workflow
+      then copies each schemas/<version>/spec.schema.json to its corresponding
+      docs/book/schema/<version>/ path, so every version URL serves the correct schema;
+      notarai.spec.json always reflects the current (newest) version only
+
   - name: cache_status
     given: 'notarai cache status is invoked'
     then: 'prints the DB file path, the number of cached entries, and the newest entry timestamp; creates an empty DB if none exists'
@@ -98,6 +107,10 @@ behaviors:
     given: 'the snapshot_state MCP tool is called'
     then: 'snapshots cache + git state into reconciliation_state.json; returns summary with file/spec counts and git hash'
 
+  - name: validate_v06_schema
+    given: 'a spec file with schema_version 0.6 using any new optional block (output, content, states, design, audience, variants, pipeline, feedback) or extended features (tier: derived, artifact tier, behavior interaction/state_transition)'
+    then: 'validates successfully; all new fields are optional and additive'
+
 constraints:
   - 'Exit codes: 0 for success/no-op, 1 for validation failure or errors'
   - 'CLI uses clap 4.x derive API for argument parsing and help generation'
@@ -110,6 +123,8 @@ constraints:
   - 'Binary crate visibility -- pub means cross-module only (no external consumers); test-only helpers must be gated with #[cfg(test)]'
   - 'Avoid needless allocations -- prefer borrowing (&str, &Value) over .to_string() / .cloned() when the owned value is not needed'
   - 'Avoid .unwrap() in production code -- use ?, .expect("reason"), or combinators; .unwrap() is acceptable in #[test] functions and #[cfg(test)] modules'
+  - 'Schema version enum must include all supported versions for backward compatibility (currently 0.6 and 0.5)'
+  - 'Before bumping the schema version: copy notarai.spec.json to schemas/<old_version>/spec.schema.json first; the docs workflow reads each version from its snapshot, not from notarai.spec.json'
 
 invariants:
   - 'A valid spec file must never be reported as FAIL'
@@ -165,6 +180,23 @@ decisions:
       git context, enabling cross-run delta detection and shared baselines across
       collaborators. Using BTreeMap ensures deterministic output for clean diffs.
 
+  - date: '2026-03-04'
+    choice: 'Schema 0.6 consolidates all enhancement phases into a single bump'
+    rationale: >
+      Four design phases (output/content, interactions/states, design/audience/variants,
+      pipeline/feedback) are all additive optional fields with the same implementation
+      pattern. A single version bump avoids four near-identical release cycles.
+
+  - date: '2026-03-04'
+    choice: 'Versioned schema snapshots in schemas/<version>/spec.schema.json; notarai.spec.json is always current'
+    rationale: >
+      The docs site serves each schema version at its canonical $id URL
+      (notarai.dev/schema/<version>/spec.schema.json). notarai.spec.json can only
+      represent one version at a time, so old versions must be frozen as static
+      snapshots in the repo. The schemas/ directory holds these snapshots; the docs
+      workflow copies each independently. Pre-bump procedure: copy notarai.spec.json
+      to schemas/<old_version>/spec.schema.json before editing it.
+
 artifacts:
   code:
     - path: 'src/main.rs'
@@ -177,7 +209,9 @@ artifacts:
     - path: 'Cargo.toml'
       role: 'Rust package manifest -- dependencies, build metadata, and binary target'
     - path: 'notarai.spec.json'
-      role: 'JSON Schema that spec files are validated against'
+      role: 'JSON Schema for the current schema version; always reflects the newest version'
+    - path: 'schemas/*/spec.schema.json'
+      role: 'Frozen snapshots of old schema versions; copied by the docs workflow to serve each version at its canonical $id URL'
     - path: 'commands/notarai-reconcile.md'
       role: 'Bundled Claude Code slash command copied by init'
     - path: 'commands/notarai-bootstrap.md'

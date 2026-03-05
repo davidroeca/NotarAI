@@ -9,7 +9,7 @@ const NOTARAI_README_TEMPLATE: &str = include_str!("../../templates/notarai-read
 const SCHEMA_JSON: &str = include_str!("../../notarai.spec.json");
 
 /// The section written to / replaced in CLAUDE.md. Exactly 3 lines plus trailing newline.
-const NOTARAI_SECTION: &str = "## NotarAI\n@.notarai/README.md\n@.notarai/notarai.spec.json\n";
+const NOTARAI_SECTION: &str = "## NotarAI\n\n@.notarai/README.md\n@.notarai/notarai.spec.json\n";
 
 fn has_notarai_hook(matchers: &[serde_json::Value]) -> bool {
     matchers.iter().any(|m| {

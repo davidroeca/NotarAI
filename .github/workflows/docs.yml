@@ -32,7 +32,9 @@ jobs:
         run: |
           mdbook build docs/
           mkdir -p docs/book/schema/0.5
-          cp notarai.spec.json docs/book/schema/0.5/spec.schema.json
+          cp schemas/0.5/spec.schema.json docs/book/schema/0.5/spec.schema.json
+          mkdir -p docs/book/schema/0.6
+          cp notarai.spec.json docs/book/schema/0.6/spec.schema.json
 
       - name: Prepare artifact with redirect
         run: |
