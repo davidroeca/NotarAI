@@ -10,11 +10,12 @@ Introduce a **NotarAI spec** -- a structured YAML document governed by a JSON Sc
 
 ## Coverage model
 
-Three tiers ensure every file in the repo is accounted for without over-specifying:
+Four tiers ensure every file in the repo is accounted for without over-specifying:
 
 - **Tier 1 (Full Spec):** Business logic, APIs, user-facing features -- full behaviors and constraints
 - **Tier 2 (Registered):** Utility libs, sidecars, config -- just intent + artifact mapping, no behaviors
 - **Tier 3 (Excluded):** Generated code, vendor deps, editor configs -- explicitly out of scope
+- **Tier 4 (Derived):** Generated outputs tracked for staleness but not authored directly (build artifacts, compiled bundles)
 
 Anything not covered by any tier is flagged as "unspecced" -- a lint warning, not a blocker.
 

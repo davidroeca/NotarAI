@@ -26,11 +26,12 @@ For the full reference, check [here](https://davidroeca.github.io/NotarAI/docs/g
 
 ## Coverage Model
 
-Every file in the repo falls into one of three tiers:
+Every file in the repo falls into one of four tiers:
 
 - **Tier 1 (Full Spec)** -- Business logic, APIs, user-facing features. Full behavioral specification.
 - **Tier 2 (Registered)** -- Utilities, config, sidecars. Intent and artifact mapping only, no behaviors required.
 - **Tier 3 (Excluded)** -- Generated code, vendor deps, editor configs. Explicitly out of scope.
+- **Tier 4 (Derived)** -- Generated outputs tracked for staleness but not authored directly (build artifacts, compiled bundles).
 
 Files not covered by any tier are flagged as "unspecced" -- a lint warning, not a blocker.
 
@@ -38,7 +39,7 @@ Files not covered by any tier are flagged as "unspecced" -- a lint warning, not 
 
 This project is in early development. What's implemented:
 
-- Spec schema v0.5 (`notarai.spec.json`) with validation CLI
+- Spec schema v0.6 (`notarai.spec.json`) with validation CLI — includes optional blocks for `output`, `content`, `states`, `design`, `audience`, `variants`, `pipeline`, and `feedback`; Tier 4 (Derived); per-artifact tier overrides; and extended `behaviors` with `interaction` and `state_transition`
 - `/notarai-reconcile` slash command for drift detection
 - `/notarai-bootstrap` slash command for bootstrapping specs from an existing codebase via developer interview
 - BLAKE3+SQLite hash cache (`notarai cache`) to skip unchanged files during reconciliation
