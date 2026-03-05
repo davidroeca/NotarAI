@@ -78,7 +78,7 @@ pub fn run() -> i32 {
 
 fn dispatch(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcResponse {
     match req.method.as_str() {
-        "initialize" => handle_initialize(req),
+        "initialize" => handle_initialize(req, root),
         "tools/list" => handle_tools_list(req),
         "tools/call" => handle_tools_call(req, root),
         _ => error_response(
@@ -89,19 +89,48 @@ fn dispatch(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcResponse {
     }
 }
 
-fn handle_initialize(req: &JsonRpcRequest) -> JsonRpcResponse {
+fn check_schema_staleness(root: &std::path::Path) -> Option<String> {
+    let local_path = root.join(".notarai/notarai.spec.json");
+    let local_content = std::fs::read_to_string(local_path).ok()?;
+    let local: serde_json::Value = serde_json::from_str(&local_content).ok()?;
+
+    let bundled_id = crate::core::schema::schema_id();
+    let local_id = local.get("$id").and_then(|v| v.as_str());
+
+    if bundled_id != local_id {
+        Some(format!(
+            "Schema is out of date (local: {}, bundled: {}). Run `notarai init` to update.",
+            local_id.unwrap_or("unknown"),
+            bundled_id.unwrap_or("unknown"),
+        ))
+    } else {
+        None
+    }
+}
+
+fn handle_initialize(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcResponse {
+    let mut info = serde_json::json!({
+        "protocolVersion": "2024-11-05",
+        "capabilities": {"tools": {}},
+        "serverInfo": {
+            "name": "notarai",
+            "version": env!("CARGO_PKG_VERSION"),
+        },
+        "tools": tools_list(),
+    });
+
+    if let Some(note) = check_schema_staleness(root) {
+        info["schemaNote"] = serde_json::Value::String(note);
+    }
+
+    if let Some(note) = crate::core::update::check_project_staleness(root) {
+        info["projectNote"] = serde_json::Value::String(note);
+    }
+
     JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
         id: req.id.clone(),
-        result: Some(serde_json::json!({
-            "protocolVersion": "2024-11-05",
-            "capabilities": {"tools": {}},
-            "serverInfo": {
-                "name": "notarai",
-                "version": env!("CARGO_PKG_VERSION"),
-            },
-            "tools": tools_list(),
-        })),
+        result: Some(info),
         error: None,
     }
 }

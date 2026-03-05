@@ -78,6 +78,16 @@ notarai validate .notarai/subsystems/
 
 Output is `PASS <file>` or `FAIL <file>` with an indented error list. Exit code is 0 if all files pass, 1 if any fail.
 
+## Update NotarAI
+
+Check for and install updates:
+
+```sh
+notarai update
+```
+
+NotarAI will also print a hint when a newer version is available during `validate` or `init`.
+
 ## Bump schema version
 
 When you upgrade to a new version of NotarAI, update all spec files with:

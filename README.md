@@ -44,6 +44,7 @@ This project is in early development. What's implemented:
 - `/notarai-bootstrap` slash command for bootstrapping specs from an existing codebase via developer interview
 - BLAKE3+SQLite hash cache (`notarai cache`) to skip unchanged files during reconciliation
 - MCP server (`notarai mcp`) that serves pre-filtered diffs and artifact lists, keeping reconciliation context proportional to what changed
+- Self-update (`notarai update`) with install method detection and passive version hints
 
 Future goals include:
 

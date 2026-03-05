@@ -41,7 +41,7 @@ fn check_schema_freshness() {
 
     if bundled_id != local_id {
         eprintln!(
-            "Warning: .claude/notarai.spec.json is out of date (local: {}, bundled: {}). Run `notarai init` to update.",
+            "Warning: .notarai/notarai.spec.json is out of date (local: {}, bundled: {}). Run `notarai init` to update.",
             local_id.unwrap_or("unknown"),
             bundled_id.unwrap_or("unknown"),
         );
@@ -50,6 +50,12 @@ fn check_schema_freshness() {
 
 pub fn run(path: Option<String>) -> i32 {
     check_schema_freshness();
+
+    if let Some(hint) = crate::core::update::check_project_staleness(
+        &std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
+    ) {
+        eprintln!("{hint}");
+    }
 
     let target = path.unwrap_or_else(|| ".notarai".to_string());
     let resolved = Path::new(&target);
@@ -97,5 +103,7 @@ pub fn run(path: Option<String>) -> i32 {
         }
     }
 
-    if has_failure { 1 } else { 0 }
+    let exit_code = if has_failure { 1 } else { 0 };
+    crate::commands::update::passive_update_hint();
+    exit_code
 }

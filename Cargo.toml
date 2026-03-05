@@ -25,6 +25,9 @@ walkdir = "2"
 rusqlite = { version = "0.38", features = ["bundled"] }
 blake3 = "1"
 glob = "0.3"
+ureq = { version = "3", features = ["json"] }
+semver = "1"
+dirs = "6"
 
 [dev-dependencies]
 assert_cmd = "2"
