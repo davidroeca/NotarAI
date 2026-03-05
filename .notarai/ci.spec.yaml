@@ -1,4 +1,4 @@
-schema_version: '0.5'
+schema_version: '0.6'
 
 intent: >
   GitHub Actions workflows and Dependabot configuration for NotarAI. CI runs

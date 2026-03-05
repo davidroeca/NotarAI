@@ -1,16 +1,16 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://notarai.dev/schema/0.5/spec.schema.json",
+  "$id": "https://notarai.dev/schema/0.6/spec.schema.json",
   "title": "NotarAI Spec File",
   "description": "A structured intent specification that serves as the canonical source of truth for a system, feature, or artifact. The LLM reconciliation engine uses this schema to validate specs, detect drift between spec and implementation, and propose updates.",
   "type": "object",
-  "required": ["schema_version", "intent", "behaviors", "artifacts"],
+  "required": ["schema_version", "intent", "artifacts"],
   "additionalProperties": false,
   "properties": {
     "schema_version": {
       "type": "string",
       "description": "The version of the spec schema this file conforms to. Used for forward compatibility as the schema evolves.",
-      "enum": ["0.5"]
+      "enum": ["0.6", "0.5"]
     },
     "domain": {
       "type": "string",
@@ -20,8 +20,8 @@
     },
     "tier": {
       "type": "string",
-      "description": "The coverage tier for this spec. 'full' specs have behaviors and constraints. 'registered' specs only declare intent and artifact mappings — used for utility libraries, sidecars, and config that should be visible to the system but don't need behavioral specifications.",
-      "enum": ["full", "registered"],
+      "description": "The coverage tier for this spec. 'full' specs have behaviors and constraints. 'registered' specs declare intent and artifact mappings. 'derived' specs govern generated outputs tracked for staleness, not authored directly.",
+      "enum": ["full", "registered", "derived"],
       "default": "full"
     },
     "intent": {
@@ -127,7 +127,7 @@
       },
       "additionalProperties": {
         "type": "array",
-        "description": "Custom artifact types not covered by the standard fields. Keys should be descriptive (e.g., 'helm_charts', 'migrations').",
+        "description": "Custom artifact categories not covered by the standard fields. Keys should be descriptive (e.g., 'assets', 'generated_outputs', 'helm_charts', 'migrations').",
         "items": {
           "$ref": "#/$defs/artifact_ref"
         }
@@ -181,6 +181,227 @@
     "notes": {
       "type": "string",
       "description": "Freeform notes for the LLM about implicit relationships, tribal knowledge, or context that doesn't fit elsewhere. The LLM reads these during reconciliation to make better decisions (e.g., 'If session timeout changes in auth spec, Redis TTL config may need updating')."
+    },
+    "output": {
+      "type": "object",
+      "description": "Describes what this spec ultimately produces. Used by the reconciliation engine to select appropriate drift-detection strategies. Optional — omit for standard software specs.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "The kind of output this spec produces.",
+          "enum": [
+            "app",
+            "presentation",
+            "interactive-doc",
+            "game",
+            "dashboard",
+            "report",
+            "library",
+            "service"
+          ]
+        },
+        "format": {
+          "type": "string",
+          "description": "The output format (e.g., 'pptx', 'html', 'react', 'pdf', 'unity')."
+        },
+        "runtime": {
+          "type": "string",
+          "description": "Where the output runs.",
+          "enum": ["browser", "native", "static-file", "embedded", "server"]
+        },
+        "entry_point": {
+          "type": "string",
+          "description": "Path to the main output file or entry point (e.g., 'dist/presentation.pptx', 'src/index.tsx')."
+        }
+      },
+      "additionalProperties": false
+    },
+    "content": {
+      "type": "object",
+      "description": "Describes the structure of the output in content terms (slides, scenes, sections) rather than file terms. Gives the reconciliation engine semantic targets — not just 'do these files exist' but 'does this section still express the intended message.'",
+      "properties": {
+        "structure": {
+          "type": "string",
+          "description": "How sections relate to each other.",
+          "enum": ["ordered", "hierarchical", "graph", "free-form"],
+          "default": "ordered"
+        },
+        "sections": {
+          "type": "array",
+          "description": "The logical units of the output (slides, chapters, scenes, pages).",
+          "items": {
+            "$ref": "#/$defs/content_section"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "states": {
+      "type": "object",
+      "description": "Top-level state machine definition for interactive artifacts. Useful for games, multi-step forms, interactive documents with navigation.",
+      "properties": {
+        "initial": {
+          "type": "string",
+          "description": "The ID of the starting state."
+        },
+        "definitions": {
+          "type": "array",
+          "description": "The set of states in the state machine.",
+          "items": {
+            "$ref": "#/$defs/state_definition"
+          }
+        }
+      },
+      "required": ["initial", "definitions"],
+      "additionalProperties": false
+    },
+    "design": {
+      "type": "object",
+      "description": "Visual and design specifications. Enables detection of visual drift — a presentation that has gone off-brand, or a UI that no longer matches the design spec.",
+      "properties": {
+        "style_guide": {
+          "type": "array",
+          "description": "References to style guide or brand guideline specs.",
+          "items": {
+            "$ref": "#/$defs/spec_ref"
+          }
+        },
+        "theme": {
+          "type": "object",
+          "description": "Visual theme settings.",
+          "properties": {
+            "palette": {
+              "type": "array",
+              "description": "Color palette as hex values or named colors.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "typography": {
+              "type": "object",
+              "description": "Font families for different text roles.",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "layout": {
+          "type": "object",
+          "description": "Layout constraints for the output.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "The layout paradigm.",
+              "enum": [
+                "slide-deck",
+                "scrolling",
+                "spatial",
+                "grid",
+                "free-form"
+              ]
+            },
+            "dimensions": {
+              "type": "string",
+              "description": "Aspect ratio or dimensions (e.g., '16:9', '1920x1080', 'A4')."
+            }
+          },
+          "additionalProperties": false
+        },
+        "assets": {
+          "type": "array",
+          "description": "Design-specific asset references (images, fonts, icons).",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "audience": {
+      "type": "object",
+      "description": "Context about who the output is for. Enables reconciliation checks like 'this slide uses jargon your audience would not understand.'",
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Who the audience is (e.g., 'Series B investors', 'junior developers')."
+        },
+        "assumed_knowledge": {
+          "type": "string",
+          "description": "What the audience already knows."
+        },
+        "tone": {
+          "type": "string",
+          "description": "Communication tone (e.g., 'formal', 'casual', 'formal-but-engaging')."
+        },
+        "locale": {
+          "type": "string",
+          "description": "Language/locale code (e.g., 'en-US', 'ja-JP')."
+        },
+        "accessibility": {
+          "type": "array",
+          "description": "Accessibility requirements.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "variants": {
+      "type": "array",
+      "description": "Multiple versions of the same artifact with selective overrides. Each variant inherits the full spec and overrides specific fields.",
+      "items": {
+        "$ref": "#/$defs/variant"
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "description": "Describes the build or generation process for the output artifact. Enables the reconciliation engine to detect pipeline drift.",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "description": "Ordered build/generation steps.",
+          "items": {
+            "$ref": "#/$defs/pipeline_step"
+          }
+        },
+        "preview": {
+          "type": "object",
+          "description": "How to preview the output locally.",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Shell command to start a local preview."
+            },
+            "url": {
+              "type": "string",
+              "description": "URL where the preview is accessible."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "feedback": {
+      "type": "object",
+      "description": "Connects output performance metrics back to the spec for reconciliation triggers. Closes the loop from output measurement back to intent.",
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "description": "Performance or quality metrics tracked for this output.",
+          "items": {
+            "$ref": "#/$defs/feedback_metric"
+          }
+        },
+        "reconciliation_trigger": {
+          "type": "string",
+          "description": "When feedback should trigger a reconciliation review."
+        }
+      },
+      "additionalProperties": false
     }
   },
   "$defs": {
@@ -201,6 +422,41 @@
         "then": {
           "type": "string",
           "description": "The expected outcome when the precondition is met (e.g., 'account created, welcome email sent', 'session invalidated')."
+        },
+        "interaction": {
+          "type": "object",
+          "description": "Optional interaction details for behaviors involving user actions, timers, or system events.",
+          "properties": {
+            "trigger": {
+              "type": "string",
+              "description": "What initiates this behavior.",
+              "enum": ["user_action", "timer", "system_event", "data_change"]
+            },
+            "sequence": {
+              "type": "array",
+              "description": "Ordered steps that occur when the behavior is triggered.",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "state_transition": {
+          "type": "object",
+          "description": "Optional state machine transition associated with this behavior.",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "The state before this behavior triggers."
+            },
+            "to": {
+              "type": "string",
+              "description": "The state after this behavior completes."
+            }
+          },
+          "required": ["from", "to"],
+          "additionalProperties": false
         }
       }
     },
@@ -242,6 +498,11 @@
         "source": {
           "type": "string",
           "description": "For artifacts that are not version-controlled local files — an external URL, dataset registry path (e.g., 'hf://datasets/HuggingFaceFW/fineweb'), storage bucket path, or human-readable description of where this artifact comes from. Use when the artifact cannot be expressed as a local glob pattern."
+        },
+        "tier": {
+          "type": "integer",
+          "description": "Override the coverage tier for this specific artifact. 4 = derived output (tracked for staleness, not authored directly).",
+          "enum": [1, 2, 3, 4]
         }
       }
     },
@@ -272,19 +533,148 @@
           "description": "Natural language description of how these specs relate (e.g., 'auth exposes via API', 'billing reads user data from auth')."
         }
       }
+    },
+    "content_section": {
+      "type": "object",
+      "description": "A logical unit within the output's content structure.",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "A unique identifier for this section (e.g., 'intro', 'demo', 'level-3')."
+        },
+        "type": {
+          "type": "string",
+          "description": "The kind of section (e.g., 'slide', 'chapter', 'scene', 'interactive', 'static')."
+        },
+        "intent": {
+          "type": "string",
+          "description": "What this section should accomplish (e.g., 'Hook the audience with the core problem'). Used by the reconciliation engine to detect content drift."
+        },
+        "content_ref": {
+          "type": "string",
+          "description": "Path to the source file for this section's content (e.g., 'slides/01-intro.md')."
+        },
+        "artifacts": {
+          "type": "object",
+          "description": "Artifact references scoped to this section. Keys are artifact categories, values are arrays of glob patterns.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "state_definition": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this state."
+        },
+        "transitions": {
+          "type": "array",
+          "description": "Transitions from this state to other states.",
+          "items": {
+            "$ref": "#/$defs/state_transition_rule"
+          }
+        }
+      }
+    },
+    "state_transition_rule": {
+      "type": "object",
+      "required": ["to", "on"],
+      "additionalProperties": false,
+      "properties": {
+        "to": {
+          "type": "string",
+          "description": "The target state ID."
+        },
+        "on": {
+          "type": "string",
+          "description": "The event that triggers this transition."
+        }
+      }
+    },
+    "variant": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this variant (e.g., 'investor-deck', 'hard-mode')."
+        },
+        "description": {
+          "type": "string",
+          "description": "What this variant is for."
+        },
+        "overrides": {
+          "type": "object",
+          "description": "Dot-path field overrides applied on top of the base spec. Keys use dot notation (e.g., 'audience.role'). Values replace the targeted field.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "pipeline_step": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for this step."
+        },
+        "tool": {
+          "type": "string",
+          "description": "The tool or command that runs this step."
+        },
+        "input": {
+          "type": "string",
+          "description": "Glob pattern or path for the step's input files."
+        },
+        "output": {
+          "type": "string",
+          "description": "Path or glob for the step's output."
+        },
+        "command": {
+          "type": "string",
+          "description": "Explicit shell command, if not implied by tool."
+        }
+      }
+    },
+    "feedback_metric": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Metric name (e.g., 'avg_completion_rate', 'build_time')."
+        },
+        "source": {
+          "type": "string",
+          "description": "Path to data file or API endpoint providing this metric."
+        },
+        "threshold": {
+          "type": "string",
+          "description": "Expected value or range in natural language (e.g., '>= 0.7', '< 5s'). String because thresholds can be qualitative."
+        }
+      }
     }
   },
   "if": {
     "properties": {
-      "tier": { "const": "registered" }
-    }
+      "tier": { "enum": ["registered", "derived"] }
+    },
+    "required": ["tier"]
   },
-  "then": {
-    "required": ["schema_version", "intent", "artifacts"],
-    "properties": {
-      "behaviors": {
-        "description": "Behaviors are optional for registered (Tier 2) specs."
-      }
-    }
+  "else": {
+    "required": ["behaviors"]
   }
 }
