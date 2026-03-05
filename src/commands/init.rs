@@ -188,6 +188,7 @@ pub fn run(project_root: Option<&Path>) -> i32 {
     setup_gitignore(&root);
     setup_mcp_json(&root);
 
+    crate::commands::update::passive_update_hint();
     0
 }
 

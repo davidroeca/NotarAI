@@ -111,6 +111,26 @@ behaviors:
     given: 'a spec file with schema_version 0.6 using any new optional block (output, content, states, design, audience, variants, pipeline, feedback) or extended features (tier: derived, artifact tier, behavior interaction/state_transition)'
     then: 'validates successfully; all new fields are optional and additive'
 
+  - name: update_check
+    given: 'notarai update --check is invoked'
+    then: 'queries GitHub API for latest release, compares semver against current version, prints status (current version, latest version, whether update is available), exits 0'
+
+  - name: update_install_github
+    given: 'notarai update is invoked and install method is GithubRelease'
+    then: 'downloads the platform-appropriate binary from GitHub Releases, atomically replaces the current executable, exits 0 on success or 1 on failure'
+
+  - name: update_install_cargo
+    given: 'notarai update is invoked and install method is CargoInstall'
+    then: 'prints cargo install notarai instruction and exits 0'
+
+  - name: update_install_dev
+    given: 'notarai update is invoked and install method is DevBuild'
+    then: 'prints cargo install --path . instruction and exits 0'
+
+  - name: passive_update_hint
+    given: 'notarai validate or notarai init completes'
+    then: 'checks for updates using a global cache with 24h TTL and 5s timeout; if a newer version is available, prints a stderr hint; silently swallows all errors'
+
   - name: reconcile_parallel_subagents
     given: 'the notarai-reconcile or notarai-bootstrap slash commands are invoked'
     then: >
@@ -136,6 +156,7 @@ constraints:
   - 'Avoid .unwrap() in production code -- use ?, .expect("reason"), or combinators; .unwrap() is acceptable in #[test] functions and #[cfg(test)] modules'
   - 'Schema version enum must include all supported versions for backward compatibility (currently 0.6 and 0.5)'
   - 'Before bumping the schema version: copy notarai.spec.json to schemas/<old_version>/spec.schema.json first; the docs workflow reads each version from its snapshot, not from notarai.spec.json'
+  - 'Update checks use a global cache with 24h TTL; network requests use a 5s timeout for version checks and 120s for binary downloads'
 
 invariants:
   - 'A valid spec file must never be reported as FAIL'
@@ -208,14 +229,18 @@ decisions:
       workflow copies each independently. Pre-bump procedure: copy notarai.spec.json
       to schemas/<old_version>/spec.schema.json before editing it.
 
+  - date: '2026-03-05'
+    choice: 'ureq (blocking) for HTTP in update command'
+    rationale: 'Project is sync throughout with no async runtime; ureq is a minimal blocking HTTP client that fits the existing architecture without pulling in tokio'
+
 artifacts:
   code:
     - path: 'src/main.rs'
       role: 'CLI entry point -- clap definition and command dispatch'
     - path: 'src/commands/*.rs'
-      role: 'Command implementations (validate, init, hook_validate, cache, mcp, schema_bump, state)'
+      role: 'Command implementations (validate, init, hook_validate, cache, mcp, schema_bump, state, update)'
     - path: 'src/core/*.rs'
-      role: 'Core library (schema embedding, YAML parsing, jsonschema validation, hash cache, MCP tool implementations)'
+      role: 'Core library (schema embedding, YAML parsing, jsonschema validation, hash cache, MCP tool implementations, update logic)'
   configs:
     - path: 'Cargo.toml'
       role: 'Rust package manifest -- dependencies, build metadata, and binary target'

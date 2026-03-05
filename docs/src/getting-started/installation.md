@@ -57,6 +57,18 @@ cargo build --release
 # Binary is at target/release/notarai
 ```
 
+## Updating
+
+If NotarAI is already installed, check for and install updates with:
+
+```sh
+notarai update
+```
+
+This detects how NotarAI was installed and acts accordingly — downloading a new binary for GitHub Release installs, or printing the appropriate `cargo install` command for Cargo installs. Use `notarai update --check` to check without installing.
+
+NotarAI also prints a passive update hint on `notarai validate` and `notarai init` when a newer version is available (checked at most once every 24 hours).
+
 ## Requirements
 
 - No runtime dependencies -- NotarAI is a single static binary

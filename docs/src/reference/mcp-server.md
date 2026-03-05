@@ -27,6 +27,18 @@ Claude Code reads this file and starts the server automatically. No manual confi
 - **Execution:** synchronous (no async runtime)
 - **Protocol version:** `2024-11-05`
 
+## Initialize response
+
+The `initialize` response includes standard MCP fields (`protocolVersion`, `capabilities`, `serverInfo`, `tools`). When the local schema (`.notarai/notarai.spec.json`) is out of date relative to the bundled schema, the response includes an additional `schemaNote` field:
+
+```json
+{
+  "schemaNote": "Schema is out of date (local: .../0.5/..., bundled: .../0.6/...). Run `notarai init` to update."
+}
+```
+
+This surfaces schema staleness to Claude at session start without requiring a separate check.
+
 ## Tools
 
 ### list_affected_specs

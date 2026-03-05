@@ -4,4 +4,5 @@ pub mod init;
 pub mod mcp;
 pub mod schema_bump;
 pub mod state;
+pub mod update;
 pub mod validate;

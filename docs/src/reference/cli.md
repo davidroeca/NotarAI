@@ -171,6 +171,42 @@ Reads all entries from the cache, partitions them into file fingerprints and spe
 
 ---
 
+## notarai update
+
+Check for and install updates.
+
+```sh
+# Check if an update is available
+notarai update --check
+
+# Update to the latest version
+notarai update
+```
+
+**Arguments:**
+
+| Flag      | Required | Description               |
+| --------- | -------- | ------------------------- |
+| `--check` | No       | Only check, don't install |
+
+**Behavior:**
+
+The command queries the GitHub API for the latest release, compares its version against the current binary, and prints the result. Without `--check`, it also attempts to install the update:
+
+| Install method     | Detection                                  | Action                                     |
+| ------------------ | ------------------------------------------ | ------------------------------------------ |
+| **GitHub Release** | Binary is not in `.cargo/bin` or `target/` | Downloads and replaces the binary in place |
+| **cargo install**  | Binary path contains `.cargo/bin`          | Prints `cargo install notarai`             |
+| **Dev build**      | Debug build or path contains `target/`     | Prints `cargo install --path .`            |
+
+**Passive update hints:**
+
+`notarai validate` and `notarai init` automatically check for updates in the background using a global cache with a 24-hour TTL and a 5-second network timeout. If a newer version is available, a one-line hint is printed to stderr. All errors are silently swallowed — the hint never interferes with normal output.
+
+**Exit codes:** `0` success or up to date, `1` error or update failure.
+
+---
+
 ## notarai mcp
 
 Start a synchronous JSON-RPC 2.0 MCP server over stdio. Typically configured automatically by `notarai init` rather than invoked manually.

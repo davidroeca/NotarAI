@@ -43,6 +43,12 @@ enum Commands {
         #[command(subcommand)]
         action: commands::state::StateAction,
     },
+    /// Check for and install updates
+    Update {
+        /// Only check, don't install
+        #[arg(long)]
+        check: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -64,6 +70,7 @@ fn main() {
         Some(Commands::Mcp) => commands::mcp::run(),
         Some(Commands::SchemaBump) => commands::schema_bump::run(None),
         Some(Commands::State { action }) => commands::state::run(action),
+        Some(Commands::Update { check }) => commands::update::run(check),
         None => {
             // Print help when no command given
             use clap::CommandFactory;
