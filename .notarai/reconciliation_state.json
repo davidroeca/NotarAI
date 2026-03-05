@@ -1,8 +1,8 @@
 {
   "schema_version": "1",
   "last_reconciliation": {
-    "timestamp": "1772684313Z",
-    "git_hash": "48df6c58ba15a2fe63baf1f539b6646636de5bf1",
+    "timestamp": "1772685189Z",
+    "git_hash": "95f51f63e4f5ac381189eebfa0078f68a21c3ce0",
     "branch": "sub-agents"
   },
   "file_fingerprints": {
@@ -211,7 +211,7 @@
       "blake3": "de5e0fadba38843fb80fd24e60b94420769e267548cb105a13c5919e51b6b685"
     },
     "src/core/state.rs": {
-      "blake3": "e5399cf47a3a07df44fa8a8f54255b3fc812ad5a0cdb06c7f1a9ee8799368305"
+      "blake3": "a71560982faf6dd0d11d3a176b7a624089fb7bd84f83d5dd2b6931730ea9b659"
     },
     "src/core/validator.rs": {
       "blake3": "1773d92f1ed20fdcd1b2454692ef336a0e10953de4d8b83bcc33b46dcf5bcda3"
