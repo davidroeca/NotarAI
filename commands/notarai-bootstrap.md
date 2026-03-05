@@ -35,27 +35,46 @@ Present this report clearly, then proceed to Phase 2.
 
 ---
 
-## Phase 2 — Interview (ask all questions in one block, wait for user to respond)
+## Phase 2 — Interview (two rounds)
 
-Present the following questions **all at once** as a numbered list. Do not ask them one at a time. Wait for the user to answer before proceeding to Phase 3.
+### Round 2a — Structured questions (use the AskUserQuestion tool)
 
-Introduce the questions with: "Here's what I found. Please answer these questions so I can draft your specs:"
+Call the **`AskUserQuestion` tool** with up to 4 questions at once. Do not ask these as plain text — use the tool so the user gets a selection UI.
 
-1. **Domain**: I detected this as a [software/other] project. Is that right, or is this better described as something else — a presentation, report, course, design artifact, or marketing project?
+Include these two questions in the call:
 
-2. **Intent**: Based on my reading, I believe the intent is: _[your one-sentence synthesis]_. Confirm, correct, or restate in your own words.
+**Domain**
 
-3. **Behaviors**: I identified these candidate behaviors (observable outcomes from a user/consumer perspective):
+- Header: `"Domain"` (≤12 chars)
+- multiSelect: false
+- Options (one per schema enum value): Software, Presentation, Report, Course, Marketing
+- Descriptions: briefly say what each domain is for (e.g., "Software — libraries, CLIs, services, apps")
+- Pre-select the option that matches your inference and label it "(inferred)"
+
+**Subsystem decomposition**
+
+- Header: `"Subsystems"` (≤12 chars)
+- multiSelect: true
+- Generate one option per candidate subsystem you identified, plus an option: "Keep as a single spec (no subspecs)"
+- Descriptions: one line per subsystem explaining what it does
+
+Wait for the user's selections before proceeding to Round 2b.
+
+### Round 2b — Open-ended questions (present as a numbered list, wait for response)
+
+After Round 2a answers are received, present these free-form questions **all at once** as a numbered list. Do not ask them one at a time. Introduce with: "A few more questions before I draft your specs:"
+
+1. **Intent**: Based on my reading, I believe the intent is: _[your one-sentence synthesis]_. Confirm, correct, or restate in your own words.
+
+2. **Behaviors**: I identified these candidate behaviors (observable outcomes from a user/consumer perspective):
    _[your bulleted list]_
    What's missing, wrong, or should be reframed?
 
-4. **Constraints**: Are there rules this project must always follow? These vary by domain — for a library it might be API stability guarantees; for a CLI it might be exit code contracts; for a course it might be lesson ordering rules.
+3. **Constraints**: Are there rules this project must always follow? These vary by domain — for a library it might be API stability guarantees; for a CLI it might be exit code contracts; for a course it might be lesson ordering rules.
 
-5. **Invariants**: Are there conditions that must NEVER be true, regardless of any other change? (e.g., a library must never mutate caller state; a CLI must never write to stdout on success when `--quiet` is set)
+4. **Invariants**: Are there conditions that must NEVER be true, regardless of any other change? (e.g., a library must never mutate caller state; a CLI must never write to stdout on success when `--quiet` is set)
 
-6. **Subsystem decomposition**: I identified these candidate subsystems: _[your list]_. Should I create separate subspecs for any of these? Or treat the whole project as a single spec?
-
-7. **Exclusions**: What should be out of scope for spec coverage? (Examples: generated files, vendor dependencies, build output, third-party assets.)
+5. **Exclusions**: What should be out of scope for spec coverage? (Examples: generated files, vendor dependencies, build output, third-party assets.)
 
 ---
 
@@ -65,10 +84,11 @@ After the user answers the interview questions:
 
 1. **Create the `.notarai/` directory** if it doesn't exist.
 
-2. **Write `system.spec.yaml`** with the following structure. Use `schema_version: "0.4"`. Populate all fields from the interview answers:
+2. **Write `system.spec.yaml`** with the following structure. Use `schema_version: "0.6"`. Populate all fields from the interview answers:
 
 ```yaml
-schema_version: '0.5'
+schema_version: '0.6'
+domain: '[software|presentation|report|course|marketing — from Round 2a answer]'
 
 intent: >
   [one or two sentences from the user's answer to question 2]
@@ -84,8 +104,8 @@ constraints:
   # one entry per constraint from question 4
 
 invariants:
-  - '[invariant statement — a condition that must NEVER be true]'
-  # one entry per invariant from question 5
+  - '[invariant statement — a guarantee that must NEVER be violated, e.g. "no plaintext passwords stored"]'
+  # one entry per invariant from question 4
 
 subsystems: # omit this section if no subsystems were chosen
   - $ref: './[subspec-name].spec.yaml'
