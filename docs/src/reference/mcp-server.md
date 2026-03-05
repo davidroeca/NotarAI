@@ -39,6 +39,16 @@ The `initialize` response includes standard MCP fields (`protocolVersion`, `capa
 
 This surfaces schema staleness to Claude at session start without requiring a separate check.
 
+When the project's NotarAI configs are behind the running CLI version (detected via the version in `.notarai/README.md`), the response includes an additional `projectNote` field:
+
+```json
+{
+  "projectNote": "hint: project was initialized with notarai v0.3.1. Run `notarai init` to update project configs to v0.3.2."
+}
+```
+
+This surfaces project config staleness to Claude at session start so reconciliation uses up-to-date slash commands and schema.
+
 ## Tools
 
 ### list_affected_specs

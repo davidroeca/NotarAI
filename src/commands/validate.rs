@@ -51,6 +51,12 @@ fn check_schema_freshness() {
 pub fn run(path: Option<String>) -> i32 {
     check_schema_freshness();
 
+    if let Some(hint) = crate::core::update::check_project_staleness(
+        &std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
+    ) {
+        eprintln!("{hint}");
+    }
+
     let target = path.unwrap_or_else(|| ".notarai".to_string());
     let resolved = Path::new(&target);
 

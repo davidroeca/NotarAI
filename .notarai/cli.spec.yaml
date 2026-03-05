@@ -131,6 +131,10 @@ behaviors:
     given: 'notarai validate or notarai init completes'
     then: 'checks for updates using a global cache with 24h TTL and 5s timeout; if a newer version is available, prints a stderr hint; silently swallows all errors'
 
+  - name: project_staleness_check
+    given: 'notarai validate runs, or MCP server initializes, and .notarai/README.md exists with a version older than the running CLI (or is missing/unparseable)'
+    then: 'prints a stderr hint (validate) or includes a projectNote field in the initialize response (MCP) suggesting notarai init to update project configs'
+
   - name: reconcile_parallel_subagents
     given: 'the notarai-reconcile or notarai-bootstrap slash commands are invoked'
     then: >
@@ -232,6 +236,10 @@ decisions:
   - date: '2026-03-05'
     choice: 'ureq (blocking) for HTTP in update command'
     rationale: 'Project is sync throughout with no async runtime; ureq is a minimal blocking HTTP client that fits the existing architecture without pulling in tokio'
+
+  - date: '2026-03-05'
+    choice: 'Project staleness detected via .notarai/README.md header version'
+    rationale: 'The README is already stamped with the CLI version at init time. Parsing the header is simpler than adding a new metadata file, and if parsing fails, suggesting notarai init is the correct recovery action anyway.'
 
 artifacts:
   code:

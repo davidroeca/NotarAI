@@ -7,6 +7,8 @@ use std::time::SystemTime;
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct ReconciliationState {
     pub schema_version: String, // always "1"
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub cli_version: Option<String>,
     pub last_reconciliation: ReconciliationMeta,
     pub file_fingerprints: BTreeMap<String, FileFingerprint>,
     pub spec_fingerprints: BTreeMap<String, String>,
@@ -85,6 +87,7 @@ pub fn snapshot_from_cache(project_root: &Path) -> Result<ReconciliationState, S
 
     Ok(ReconciliationState {
         schema_version: "1".to_string(),
+        cli_version: Some(env!("CARGO_PKG_VERSION").to_string()),
         last_reconciliation: ReconciliationMeta {
             timestamp: utc_timestamp(),
             git_hash,
@@ -225,6 +228,7 @@ mod tests {
         spec_fingerprints.insert(".notarai/cli.spec.yaml".to_string(), "def456".to_string());
         ReconciliationState {
             schema_version: "1".to_string(),
+            cli_version: Some("0.3.2".to_string()),
             last_reconciliation: ReconciliationMeta {
                 timestamp: "1700000000Z".to_string(),
                 git_hash: Some("deadbeef".to_string()),

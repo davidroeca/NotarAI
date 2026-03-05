@@ -251,6 +251,40 @@ pub fn download_and_replace(version: &Version) -> Result<(), String> {
     Ok(())
 }
 
+/// Parse the NotarAI version from the first line of `.notarai/README.md`.
+/// Expected format: `# NotarAI -- X.Y.Z`
+fn parse_readme_version(content: &str) -> Option<Version> {
+    let first_line = content.lines().next()?;
+    let version_str = first_line.split(" -- ").nth(1)?.trim();
+    Version::parse(version_str).ok()
+}
+
+/// Check if the project's NotarAI configs are behind the running CLI version.
+/// Returns a hint message if stale or unparseable, `None` if up to date.
+pub fn check_project_staleness(project_root: &Path) -> Option<String> {
+    let readme_path = project_root.join(".notarai").join("README.md");
+    let current = current_version();
+
+    let content = match fs::read_to_string(&readme_path) {
+        Ok(c) => c,
+        Err(_) => {
+            return Some(format!(
+                "hint: .notarai/README.md not found. Run `notarai init` to set up project configs (v{current})."
+            ));
+        }
+    };
+
+    match parse_readme_version(&content) {
+        Some(project_version) if project_version >= current => None,
+        Some(project_version) => Some(format!(
+            "hint: project was initialized with notarai v{project_version}. Run `notarai init` to update project configs to v{current}."
+        )),
+        None => Some(format!(
+            "hint: could not parse version from .notarai/README.md. Run `notarai init` to update project configs (v{current})."
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -292,5 +326,48 @@ mod tests {
 
         let v3 = Version::parse("0.3.0").unwrap();
         assert!(!(v3 > v1));
+    }
+
+    #[test]
+    fn parse_readme_version_valid() {
+        let content = "# NotarAI -- 0.3.1\n\nSome content.";
+        let v = parse_readme_version(content).unwrap();
+        assert_eq!(v, Version::parse("0.3.1").unwrap());
+    }
+
+    #[test]
+    fn parse_readme_version_malformed() {
+        assert!(parse_readme_version("# NotarAI").is_none());
+        assert!(parse_readme_version("").is_none());
+        assert!(parse_readme_version("# NotarAI -- notaversion").is_none());
+    }
+
+    #[test]
+    fn project_staleness_missing_readme() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let result = check_project_staleness(tmp.path());
+        assert!(result.is_some());
+        assert!(result.unwrap().contains("not found"));
+    }
+
+    #[test]
+    fn project_staleness_current_version() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let notarai_dir = tmp.path().join(".notarai");
+        std::fs::create_dir_all(&notarai_dir).unwrap();
+        let content = format!("# NotarAI -- {}\n\nContent.", env!("CARGO_PKG_VERSION"));
+        std::fs::write(notarai_dir.join("README.md"), content).unwrap();
+        assert!(check_project_staleness(tmp.path()).is_none());
+    }
+
+    #[test]
+    fn project_staleness_old_version() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let notarai_dir = tmp.path().join(".notarai");
+        std::fs::create_dir_all(&notarai_dir).unwrap();
+        std::fs::write(notarai_dir.join("README.md"), "# NotarAI -- 0.0.1\n").unwrap();
+        let result = check_project_staleness(tmp.path());
+        assert!(result.is_some());
+        assert!(result.unwrap().contains("notarai init"));
     }
 }

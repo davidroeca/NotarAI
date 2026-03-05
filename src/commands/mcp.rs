@@ -78,7 +78,7 @@ pub fn run() -> i32 {
 
 fn dispatch(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcResponse {
     match req.method.as_str() {
-        "initialize" => handle_initialize(req),
+        "initialize" => handle_initialize(req, root),
         "tools/list" => handle_tools_list(req),
         "tools/call" => handle_tools_call(req, root),
         _ => error_response(
@@ -89,8 +89,8 @@ fn dispatch(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcResponse {
     }
 }
 
-fn check_schema_staleness() -> Option<String> {
-    let local_path = std::path::Path::new(".notarai/notarai.spec.json");
+fn check_schema_staleness(root: &std::path::Path) -> Option<String> {
+    let local_path = root.join(".notarai/notarai.spec.json");
     let local_content = std::fs::read_to_string(local_path).ok()?;
     let local: serde_json::Value = serde_json::from_str(&local_content).ok()?;
 
@@ -108,7 +108,7 @@ fn check_schema_staleness() -> Option<String> {
     }
 }
 
-fn handle_initialize(req: &JsonRpcRequest) -> JsonRpcResponse {
+fn handle_initialize(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcResponse {
     let mut info = serde_json::json!({
         "protocolVersion": "2024-11-05",
         "capabilities": {"tools": {}},
@@ -119,8 +119,12 @@ fn handle_initialize(req: &JsonRpcRequest) -> JsonRpcResponse {
         "tools": tools_list(),
     });
 
-    if let Some(note) = check_schema_staleness() {
+    if let Some(note) = check_schema_staleness(root) {
         info["schemaNote"] = serde_json::Value::String(note);
+    }
+
+    if let Some(note) = crate::core::update::check_project_staleness(root) {
+        info["projectNote"] = serde_json::Value::String(note);
     }
 
     JsonRpcResponse {
