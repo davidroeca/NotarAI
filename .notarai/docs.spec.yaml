@@ -12,7 +12,7 @@ intent: >
 behaviors:
   - name: static_build
     given: 'mdbook build docs/'
-    then: 'mdBook compiles all content pages to static HTML in docs/book/; the CI workflow then copies the schema to docs/book/schema/0.5/spec.schema.json before deploying'
+    then: 'mdBook compiles all content pages to static HTML in docs/book/; the CI workflow then copies frozen schema snapshots for each version to public/schema/<version>/spec.schema.json as a separate step before deploying'
 
   - name: sidebar_navigation
     given: 'a visitor opens the docs site'

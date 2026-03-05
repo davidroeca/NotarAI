@@ -31,10 +31,6 @@ jobs:
       - name: Build docs
         run: |
           mdbook build docs/
-          mkdir -p docs/book/schema/0.5
-          cp schemas/0.5/spec.schema.json docs/book/schema/0.5/spec.schema.json
-          mkdir -p docs/book/schema/0.6
-          cp notarai.spec.json docs/book/schema/0.6/spec.schema.json
 
       - name: Prepare artifact with redirect
         run: |
@@ -53,6 +49,13 @@ jobs:
             </body>
           </html>
           EOF
+
+      - name: Add schemas to public path
+        run: |
+          mkdir -p public/schema/0.5
+          cp schemas/0.5/spec.schema.json public/schema/0.5/spec.schema.json
+          mkdir -p public/schema/0.6
+          cp notarai.spec.json public/schema/0.6/spec.schema.json
 
       - uses: actions/upload-pages-artifact@v4
         with:

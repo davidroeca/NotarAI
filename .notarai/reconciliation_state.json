@@ -1,9 +1,9 @@
 {
   "schema_version": "1",
   "last_reconciliation": {
-    "timestamp": "1772674686Z",
-    "git_hash": "c00d8491daa74113050db89de45eb173746813aa",
-    "branch": "schema-updates"
+    "timestamp": "1772677979Z",
+    "git_hash": "8325624afe45d44966509d65926917732a8c9233",
+    "branch": "main"
   },
   "file_fingerprints": {
     ".claude/commands/notarai-reconcile.md": {
@@ -31,13 +31,13 @@
       "blake3": "3e6d5cb69fdd7efec2061a981d13a24abcc697b8f1c6b701450a9900ed26cce1"
     },
     ".github/workflows/docs.yml": {
-      "blake3": "8d14046ba0e65563da3981a2373fac9acbd5a57544a58977b8f09983e4111a26"
+      "blake3": "1a5294594a56a744c68bdd4c866d736962d2e3841c797c0f88053e493f77151d"
     },
     ".github/workflows/release.yml": {
       "blake3": "621d25827b1775c3af716f86c53b80fa18db1903bfe21ed06b20a293e3b83cb7"
     },
     ".notarai/README.md": {
-      "blake3": "22562d80f67709190fe2f601876105fc5735b19489d13e580c25d4ecb4889d05"
+      "blake3": "0ff5dd10a2f40aded6dde037b868590489254d8e2b122928c10fcda0e46b9a73"
     },
     ".notarai/reconciliation_state.json": {
       "blake3": "ea510353f8b8e450c38fd332c58d41a01cb9f8b02c42ef91e7d2cc5ef08904f9"
@@ -49,16 +49,16 @@
       "blake3": "04c362980e1961ac98bf86a0370a1630641ace770022b0c22b6051a835e5ace6"
     },
     "CONTRIBUTING.md": {
-      "blake3": "759af9d3150d42a75cc843ab039ee0df003efa726717ebdc6e27e587d29d2d6a"
+      "blake3": "409b092203febc8c5e923faf69aab3adcc7a55a0c235678e450386bf4d8527e0"
     },
     "Cargo.lock": {
       "blake3": "cb47d356ef9faae1b21da4581313148a81d0d2ee04d7b4748d81750253ebffe0"
     },
     "Cargo.toml": {
-      "blake3": "34a038ead3f11b16f19bf884d358c81a481c2567537e6c7282b63a62dbe4408e"
+      "blake3": "404494ad3cc3e4f1232d64fa363c9a5753cf353b272578e0beec106fecf9362d"
     },
     "README.md": {
-      "blake3": "2c6d1070267b1887b4616e6ca1e1ffe1fbecbcef0bda7a9c99702e33372dedea"
+      "blake3": "d95c011cc7e8cdfedc3a34976258b8ba6ac0841479c1f5ae35b363f12c53aed0"
     },
     "biome.json": {
       "blake3": "200e52de865bc21f5879a56de27088e37a29be6b02de1bd8e2fc7c94225dc73c"
@@ -148,7 +148,7 @@
       "blake3": "e0756c8edd810d0ee8eb981e7b7717fb1e8b3d73aacf0ab46fcdc510367e6206"
     },
     "docs/src/index.md": {
-      "blake3": "8ab3525b97a80cd918f7024596c5c90d8040efb2f098d4d7647928bbbdb814c5"
+      "blake3": "a9f5249bba61112da086cc03469de079982d865f0817bf8984035d996681c38f"
     },
     "docs/src/reference/cli.md": {
       "blake3": "f0fe71cfff14bbd10570dd0517ca28c2363bbc8da073a8298b34b8338c232211"
@@ -239,10 +239,10 @@
     }
   },
   "spec_fingerprints": {
-    ".notarai/ci.spec.yaml": "8de54b32004c490dd2f78257d64c295ba09eba253a8c1fac773ba147394234ed",
+    ".notarai/ci.spec.yaml": "65654acd819fb0c629b5765a0569cec37718e6829d7b000cd9816cb43063436b",
     ".notarai/cli.spec.yaml": "d57a8b897b90ef7f9f42d61946c4440134951b87a0490ccda2b1ee06ae5b6560",
     ".notarai/docs-site.spec.yaml": "319ad566ececed817928c1642f8c33eee6bd2ecd6093efcc6325b25b7229c22a",
-    ".notarai/docs.spec.yaml": "57fda5881a3ff7ddda26d91f22678b0d86aaa4b1725c08079ad34b0a83fc2663",
+    ".notarai/docs.spec.yaml": "e546d4d12b4dcd05b61d8c5e1f63c5151a243df87b2253e4b6da514fef5f712a",
     ".notarai/style.spec.yaml": "97ec94cacb580ac04d1427a0b112a02a03464403435d833d8ca0294bbbe7f37d",
     ".notarai/system.spec.yaml": "1f126ff1e5701b31400de16665f84c49607f0cbb657c80ce676553ba859016ea"
   }
