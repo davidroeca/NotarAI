@@ -4,7 +4,7 @@
 
 <img src="https://raw.githubusercontent.com/davidroeca/NotarAI/main/img/NotarAI.png" alt="NotarAI logo" width="300" height="300">
 
-_Intent captured. Drift witnessed._
+_Intent captured. Drift reconciled._
 
 [![crates.io](https://img.shields.io/crates/v/notarai)](https://crates.io/crates/notarai)
 [![CI](https://github.com/davidroeca/NotarAI/actions/workflows/ci.yml/badge.svg)](https://github.com/davidroeca/NotarAI/actions/workflows/ci.yml)
