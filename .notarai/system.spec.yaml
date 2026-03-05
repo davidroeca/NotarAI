@@ -24,7 +24,7 @@ behaviors:
 
   - name: coverage_model
     given: 'a file exists in the repository'
-    then: 'it is classified as Tier 1 (fully specced), Tier 2 (registered), or Tier 3 (excluded); any file not in one of these tiers is flagged as an unspecced artifact lint warning'
+    then: 'it is classified as Tier 1 (fully specced), Tier 2 (registered), Tier 3 (excluded), or Tier 4 (derived); any file not in one of these tiers is flagged as an unspecced artifact lint warning'
 
   - name: spec_composition
     given: 'a system contains subsystems or cross-cutting concerns'
@@ -133,6 +133,14 @@ decisions:
       engine always uses propose-and-approve. Removed to reduce schema
       surface and set honest expectations. Users who need custom workflow
       behavior should encode it in their LLM workflow conventions.
+
+  - date: '2026-03-04'
+    choice: 'Add Tier 4 (Derived) to the coverage model'
+    rationale: >
+      Generated outputs (build artifacts, compiled bundles) need staleness
+      tracking without being authored directly. Tier 4 fills this gap without
+      conflating derived files with Tier 3 (excluded). Use tier: derived on
+      the spec or tier: 4 on individual artifact refs.
 
   - date: '2026-03-04'
     choice: 'Schema 0.6: all schema enhancements in a single bump'
