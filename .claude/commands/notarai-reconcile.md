@@ -19,15 +19,48 @@ Call `list_affected_specs({base_branch})` via MCP, where `base_branch` is either
 - Returns affected spec paths with behaviors, constraints, and invariants metadata.
 - If the `notarai` MCP server is unavailable, fall back to **V1 steps** at the bottom of this prompt.
 
-### Step 3: Gather context for each affected spec
+### Step 3: Gather context per spec (parallel sub-agents)
 
-For each affected spec:
+For each affected spec from Step 2, use the **Agent** tool to spawn a sub-agent. Run all sub-agents in parallel (make all Agent tool calls in the same response).
 
-**a.** Call `get_spec_diff({spec_path, base_branch})` -- returns a filtered diff containing only files governed by this spec. Note any files listed in `skipped` (already reconciled, no re-read needed). Note `spec_changes` (full content of changed spec files) and `system_spec` (full content of the system spec, if applicable).
+Each sub-agent task description must be self-contained and include:
 
-**b.** Call `get_changed_artifacts({spec_path, artifact_type: "docs"})` -- returns only doc artifacts changed since the last reconciliation run.
+- The spec path
+- The base branch or git hash
+- The spec's behaviors, constraints, and invariants (from Step 2 metadata)
 
-**c.** Read only the changed doc files returned in step (b).
+Each sub-agent should:
+
+**a.** Call `get_spec_diff({spec_path, base_branch})` via MCP. Note any files listed in `skipped` (already reconciled), `spec_changes` (changed spec file content), and `system_spec` (system spec content if applicable).
+
+**b.** Call `get_changed_artifacts({spec_path, artifact_type: "docs"})` via MCP.
+
+**c.** Read only the changed doc files returned in (b).
+
+**d.** For each behavior in the spec, check whether the diff supports or contradicts it. For each constraint and invariant, check for violations.
+
+**e.** Return a structured report in this format:
+
+```
+SPEC: <spec_path>
+SKIPPED: <list of files already reconciled>
+
+ISSUES:
+- DRIFT: <name> -- <description>
+- VIOLATED: <name> -- <description>
+- UNSPECCED: <description>
+- STALE REF: <path> -- <description>
+
+DEPENDENCY_REFS: <list of $ref paths from this spec's dependencies array, if any>
+APPLIES_REFS: <list of $ref paths from this spec's applies array, if any>
+FILES_READ: <list of all files read, for mark_reconciled>
+```
+
+If no issues found, return `ISSUES: none`.
+
+After all sub-agents return, collect their reports and proceed to Step 4.
+
+> Use the sub-agent reports to identify which specs have `APPLIES_REFS` or `DEPENDENCY_REFS`. Only read cross-cutting specs and check dependencies for specs that reported them. If a cross-cutting spec's invariants are violated by the sub-agent's diff findings, add a VIOLATED issue to that spec's report before producing the final report in Step 6.
 
 ### Step 4: Load cross-cutting specs (`applies`)
 
@@ -51,7 +84,7 @@ Produce the report described in the **Report Format** section below. Apply `appl
 
 ### Step 7: Update cache
 
-Call `mark_reconciled({files})` with all files read -- seeds the cache for the next run.
+Collect all `FILES_READ` lists from the sub-agent reports. Call `mark_reconciled({files})` with the combined list.
 
 ### Step 8: Interactive resolution (if drift found)
 
