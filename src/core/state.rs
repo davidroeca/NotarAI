@@ -52,8 +52,9 @@ pub fn save_state(project_root: &Path, state: &ReconciliationState) -> Result<()
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("could not create .notarai directory: {e}"))?;
     }
-    let json = serde_json::to_string_pretty(state)
+    let mut json = serde_json::to_string_pretty(state)
         .map_err(|e| format!("could not serialize state: {e}"))?;
+    json.push('\n');
     std::fs::write(&path, json).map_err(|e| format!("could not write state file: {e}"))?;
     Ok(())
 }
@@ -273,6 +274,23 @@ mod tests {
         let mut sorted = keys.clone();
         sorted.sort();
         assert_eq!(keys, sorted, "BTreeMap keys must be in sorted order");
+    }
+
+    #[test]
+    fn test_save_state_trailing_newline() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+        let state = make_state();
+        save_state(tmp.path(), &state).unwrap();
+        let content = std::fs::read_to_string(state_path(tmp.path())).unwrap();
+        assert!(
+            content.ends_with("}\n"),
+            "file must end with exactly one trailing newline"
+        );
+        assert!(
+            !content.ends_with("}\n\n"),
+            "file must not end with two trailing newlines"
+        );
     }
 
     #[test]
