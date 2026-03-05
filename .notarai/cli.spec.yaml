@@ -111,6 +111,17 @@ behaviors:
     given: 'a spec file with schema_version 0.6 using any new optional block (output, content, states, design, audience, variants, pipeline, feedback) or extended features (tier: derived, artifact tier, behavior interaction/state_transition)'
     then: 'validates successfully; all new fields are optional and additive'
 
+  - name: reconcile_parallel_subagents
+    given: 'the notarai-reconcile or notarai-bootstrap slash commands are invoked'
+    then: >
+      the orchestrating agent calls get_spec_diff per affected spec to gather all diffs
+      upfront; for small changesets (<=10 changed files and <=500 diff lines total) it
+      analyzes all specs inline; for larger changesets it spawns one sub-agent per
+      affected spec in parallel using the Agent tool, passing pre-gathered diff data so
+      sub-agents do not call get_spec_diff again; sub-agents call get_changed_artifacts,
+      read their governed files, and return a structured report; the orchestrating agent
+      collects all reports before producing the final reconciliation output
+
 constraints:
   - 'Exit codes: 0 for success/no-op, 1 for validation failure or errors'
   - 'CLI uses clap 4.x derive API for argument parsing and help generation'

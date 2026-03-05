@@ -177,6 +177,34 @@ Delete the reconciliation cache database, forcing the next `get_spec_diff` call 
 
 Returns `true` if the database was deleted, `false` if it didn't exist.
 
+---
+
+### snapshot_state
+
+Persist the current reconciliation cache as a state snapshot at `.notarai/reconciliation_state.json`. Call this at the end of a successful reconciliation pass.
+
+**Parameters:** None.
+
+**Returns:**
+
+```json
+{
+  "state_path": ".notarai/reconciliation_state.json",
+  "files": 42,
+  "specs": 5,
+  "git_hash": "a1b2c3d..."
+}
+```
+
+| Field        | Description                                               |
+| ------------ | --------------------------------------------------------- |
+| `state_path` | Absolute path where the state file was written            |
+| `files`      | Number of non-spec file fingerprints stored               |
+| `specs`      | Number of spec fingerprints stored                        |
+| `git_hash`   | git HEAD at snapshot time (empty string if not in a repo) |
+
+The state file is pretty-printed JSON and safe to commit. It gives collaborators a baseline so subsequent `get_spec_diff` calls can skip files that haven't changed since the last reconciliation. Use `notarai state show` / `notarai state reset` to inspect or clear state from the CLI.
+
 ## Cache semantics
 
 The cache is a SQLite database at `.notarai/.cache/notarai.db` with a single table:

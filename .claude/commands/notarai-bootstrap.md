@@ -4,34 +4,52 @@ Work through three phases in order. Do not skip phases or combine them.
 
 ---
 
-## Phase 1 — Discover (automated, no user input needed)
+## Phase 1 — Discover (sub-agent)
 
-Run all of the following without pausing for user input:
+Use the **Agent** tool to spawn a sub-agent with the following task:
 
-1. **Check for existing specs** — glob `.notarai/**/*.spec.yaml`. If any files are found, stop immediately and tell the user: "A `.notarai/` directory with specs already exists. Use `/notarai-reconcile` to update existing specs instead of bootstrapping from scratch."
+---
 
-2. **Read project metadata** (read whichever exist):
+You are analyzing a codebase to prepare for NotarAI spec bootstrapping.
+
+1. Glob `.notarai/**/*.spec.yaml`. If any files exist, return ONLY:
+   `EXISTING_SPECS_FOUND: true`
+
+2. Read project metadata (whichever exist):
    - `README.md`, `README.rst`, `README.txt`
    - `CONTRIBUTING.md`, `CONTRIBUTING.rst`
-   - Any files under `docs/`
    - `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `composer.json`
-   - Any files matching `**/ADR*.md`, `docs/adr/**`, `docs/decisions/**`
+   - Glob `**/ADR*.md`, `docs/adr/**`, `docs/decisions/**`
 
-3. **Inspect top-level structure** — glob `*` to list top-level entries; glob `src/**` or `lib/**` if present. Identify the tech stack and likely project type.
+3. Glob `*` for top-level structure. Glob `src/**` and `lib/**` if present.
 
-4. **Read recent git history** — run `git log --oneline -20` to understand recent intent and active areas.
+4. Run `git log --oneline -20`.
 
-5. **Identify candidate subsystems** — based on top-level source directories or clearly distinct modules, list what might become separate subspecs.
+5. Return a structured report:
 
-6. **Synthesize your discoveries** into a structured report covering:
-   - Project type and tech stack (inferred)
-   - Apparent intent (one sentence)
-   - Candidate behaviors (things a user/consumer would observe)
-   - Candidate constraints (rules implied by the code or docs)
-   - Candidate invariants (conditions that must never be true)
-   - Candidate subsystems (modules that might deserve their own spec)
+```
+PROJECT_TYPE: <type>
+TECH_STACK: <languages, frameworks>
+APPARENT_INTENT: <one sentence>
 
-Present this report clearly, then proceed to Phase 2.
+CANDIDATE_BEHAVIORS:
+- <name>: given <precondition>, then <outcome>
+
+CANDIDATE_CONSTRAINTS:
+- <constraint>
+
+CANDIDATE_INVARIANTS:
+- <invariant>
+
+CANDIDATE_SUBSYSTEMS:
+- <name>: <description> (files: <glob pattern>)
+```
+
+---
+
+If the sub-agent returns `EXISTING_SPECS_FOUND: true`, stop and tell the user: "A `.notarai/` directory with specs already exists. Use `/notarai-reconcile` to update existing specs instead of bootstrapping from scratch."
+
+Otherwise, present the sub-agent's discovery report to the user and proceed to Phase 2.
 
 ---
 
