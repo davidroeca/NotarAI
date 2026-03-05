@@ -19,27 +19,77 @@ Call `list_affected_specs({base_branch})` via MCP, where `base_branch` is either
 - Returns affected spec paths with behaviors, constraints, and invariants metadata.
 - If the `notarai` MCP server is unavailable, fall back to **V1 steps** at the bottom of this prompt.
 
-### Step 3: Gather context per spec (parallel sub-agents)
+### Step 3: Triage — gather diffs and decide inline vs sub-agents
 
-For each affected spec from Step 2, use the **Agent** tool to spawn a sub-agent. Run all sub-agents in parallel (make all Agent tool calls in the same response).
+For each affected spec from Step 2, call `get_spec_diff({spec_path, base_branch})` via MCP. This is cheap and gives you:
+
+- `files`: list of changed artifact files
+- `diff`: the actual diff text
+- `skipped`: files already reconciled (cached)
+- `spec_changes`: changed spec file content
+- `system_spec`: system spec content if applicable
+
+**Compute totals across all specs:**
+
+- `total_changed_files` = sum of `files` array lengths (deduplicated across specs)
+- `total_diff_lines` = sum of line counts in each `diff` string
+
+**Decision:**
+
+- **Inline** (total_changed_files ≤ 10 AND total_diff_lines ≤ 500): analyze all specs in the main agent. Skip to Step 3a.
+- **Fan out** (above thresholds): spawn parallel sub-agents. Skip to Step 3b.
+
+#### Step 3a: Inline analysis
+
+For each affected spec, using the diff data already gathered in Step 3:
+
+**a.** Call `get_changed_artifacts({spec_path, artifact_type: "docs"})` via MCP.
+
+**b.** Read only the changed doc files returned in (a).
+
+**c.** For each behavior in the spec, check whether the diff supports or contradicts it. For each constraint and invariant, check for violations.
+
+**d.** Build the report data for this spec:
+
+```
+SPEC: <spec_path>
+SKIPPED: <list of files already reconciled>
+
+ISSUES:
+- DRIFT: <name> -- <description>
+- VIOLATED: <name> -- <description>
+- UNSPECCED: <description>
+- STALE REF: <path> -- <description>
+
+DEPENDENCY_REFS: <list of $ref paths from this spec's dependencies array, if any>
+APPLIES_REFS: <list of $ref paths from this spec's applies array, if any>
+FILES_READ: <list of all files read, for mark_reconciled>
+```
+
+If no issues found, set `ISSUES: none`.
+
+Proceed to Step 4.
+
+#### Step 3b: Parallel sub-agents
+
+For each affected spec, use the **Agent** tool to spawn a sub-agent. Run all sub-agents in parallel (make all Agent tool calls in the same response).
 
 Each sub-agent task description must be self-contained and include:
 
 - The spec path
 - The base branch or git hash
 - The spec's behaviors, constraints, and invariants (from Step 2 metadata)
+- **The diff data already gathered** (pass `diff`, `files`, `skipped`, `spec_changes`, and `system_spec` directly so the sub-agent does NOT call `get_spec_diff` again)
 
 Each sub-agent should:
 
-**a.** Call `get_spec_diff({spec_path, base_branch})` via MCP. Note any files listed in `skipped` (already reconciled), `spec_changes` (changed spec file content), and `system_spec` (system spec content if applicable).
+**a.** Call `get_changed_artifacts({spec_path, artifact_type: "docs"})` via MCP.
 
-**b.** Call `get_changed_artifacts({spec_path, artifact_type: "docs"})` via MCP.
+**b.** Read only the changed doc files returned in (a).
 
-**c.** Read only the changed doc files returned in (b).
+**c.** For each behavior in the spec, check whether the diff supports or contradicts it. For each constraint and invariant, check for violations.
 
-**d.** For each behavior in the spec, check whether the diff supports or contradicts it. For each constraint and invariant, check for violations.
-
-**e.** Return a structured report in this format:
+**d.** Return a structured report in this format:
 
 ```
 SPEC: <spec_path>
@@ -84,7 +134,7 @@ Produce the report described in the **Report Format** section below. Apply `appl
 
 ### Step 7: Update cache
 
-Collect all `FILES_READ` lists from the sub-agent reports. Call `mark_reconciled({files})` with the combined list.
+Collect all `FILES_READ` lists from the spec reports (whether inline or from sub-agents). Call `mark_reconciled({files})` with the combined list.
 
 ### Step 8: Interactive resolution (if drift found)
 
