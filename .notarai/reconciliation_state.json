@@ -1,8 +1,8 @@
 {
   "schema_version": "1",
   "last_reconciliation": {
-    "timestamp": "1772687391Z",
-    "git_hash": "6c6bf53258b7a5d257a085c27374d31dbb6bc0d0",
+    "timestamp": "1772687709Z",
+    "git_hash": "a01e6b500caaa6194b540508a9e93c18286a6883",
     "branch": "sub-agents"
   },
   "file_fingerprints": {
@@ -154,10 +154,10 @@
       "blake3": "a9f5249bba61112da086cc03469de079982d865f0817bf8984035d996681c38f"
     },
     "docs/src/reference/cli.md": {
-      "blake3": "f0fe71cfff14bbd10570dd0517ca28c2363bbc8da073a8298b34b8338c232211"
+      "blake3": "7cc405d03604d20ef88d099334fc1ba6595d7fa0d9a10aa8b7514e1d997017e3"
     },
     "docs/src/reference/mcp-server.md": {
-      "blake3": "f8215d4613043f09f957a40a1ef2c84815cd02e8ff5312d6e8ff4b6e9c228a05"
+      "blake3": "f8289c757cb5251802fa2e84c5c534dc739c3e2a69f96867303e61ad5a677828"
     },
     "notarai.spec.json": {
       "blake3": "6c2ef2234669e859dafcddc3b1d5106e4a3a2a24ff98e7630773e22de1b9d77d"
