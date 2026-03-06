@@ -641,3 +641,317 @@ content:
         .assert()
         .code(1);
 }
+
+// -- v0.7 schema validation tests ---------------------------------------------
+
+#[test]
+fn validate_accepts_v07_spec_with_compliance_and_section_extensions() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.7\"
+domain: legal
+intent: \"Legal contract with compliance mapping\"
+behaviors:
+  - name: dpa_clause
+    given: customer data is processed
+    then: DPA clause governs processing per GDPR Article 28
+artifacts:
+  docs:
+    - path: \"contracts/**\"
+compliance:
+  frameworks:
+    - name: GDPR
+      controls:
+        - id: Art28
+          satisfied_by:
+            invariants:
+              - 'DPA clause must never be removed'
+  audit_trail: true
+content:
+  structure: ordered
+  sections:
+    - id: intro
+      type: clause
+      intent: Define terms
+      duration:
+        value: 5
+        unit: minutes
+      connections:
+        - to: body
+          label: next
+      depends_on: []
+      evidence:
+        - type: citation
+          ref: 'GDPR 2016/679'
+          claim: 'Processing obligations per GDPR Article 28'
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PASS"));
+}
+
+#[test]
+fn validate_accepts_v07_spec_with_design_extensions() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.7\"
+intent: \"Report with print and responsive design\"
+behaviors:
+  - name: b1
+    given: \"x\"
+    then: \"y\"
+artifacts:
+  docs:
+    - path: \"report/**\"
+design:
+  theme:
+    palette:
+      - \"#1a1a2e\"
+    modes:
+      light:
+        palette:
+          - \"#ffffff\"
+      dark:
+        palette:
+          - \"#1a1a2e\"
+  layout:
+    type: paginated
+    dimensions: letter
+  print:
+    margins:
+      top: '1in'
+      bottom: '1in'
+    headers: true
+    footers: true
+    page_numbers: true
+    bleed: '0.125in'
+  responsive:
+    breakpoints:
+      - name: mobile
+        max_width: 768
+        layout_override: scrolling
+      - name: desktop
+        min_width: 769
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PASS"));
+}
+
+#[test]
+fn validate_accepts_v07_spec_with_pipeline_extensions() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.7\"
+intent: \"Spec with extended pipeline\"
+behaviors:
+  - name: b1
+    given: \"x\"
+    then: \"y\"
+artifacts:
+  code:
+    - path: \"src/**\"
+pipeline:
+  env:
+    NODE_ENV: production
+  steps:
+    - name: compile
+      tool: tsc
+      input: \"src/**/*.ts\"
+      output: dist/
+      condition: \"output.format == 'web'\"
+    - name: export_pdf
+      command: pandoc input.md -o output.pdf
+      condition: \"output.format == 'pdf'\"
+      on_failure: skip
+      depends_on:
+        - compile
+      env:
+        PANDOC_DATA_DIR: ./templates
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PASS"));
+}
+
+#[test]
+fn validate_accepts_v07_spec_with_state_guard_and_action() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.7\"
+intent: \"Spec with state guards and actions\"
+behaviors:
+  - name: b1
+    given: \"x\"
+    then: \"y\"
+artifacts:
+  code:
+    - path: \"src/**\"
+states:
+  initial: idle
+  definitions:
+    - id: idle
+      transitions:
+        - to: running
+          on: start
+          guard: 'all required fields are populated'
+          action: 'initialize timer, log start event'
+    - id: running
+      transitions:
+        - to: idle
+          on: stop
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PASS"));
+}
+
+#[test]
+fn validate_accepts_v07_spec_with_feedback_triggers() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.7\"
+intent: \"Spec with structured feedback triggers\"
+behaviors:
+  - name: b1
+    given: \"x\"
+    then: \"y\"
+artifacts:
+  code:
+    - path: \"src/**\"
+feedback:
+  metrics:
+    - name: avg_completion_rate
+      source: analytics/completion.csv
+      threshold: \">= 0.7\"
+  triggers:
+    - condition:
+        metric: avg_completion_rate
+        operator: below_threshold
+        duration:
+          value: 3
+          unit: days
+      action: reconcile
+      priority: high
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PASS"));
+}
+
+#[test]
+fn validate_accepts_v06_spec_unchanged_backward_compat() {
+    // A valid v0.6 spec with no new fields must still pass under v0.7 schema.
+    let tmp = TempDir::new().unwrap();
+    write_spec(&tmp, VALID_SPEC_V06);
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PASS"));
+}
+
+#[test]
+fn validate_accepts_variants_resolved_flag() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.7\"
+intent: \"Spec with variants_resolved\"
+behaviors:
+  - name: b1
+    given: \"x\"
+    then: \"y\"
+artifacts:
+  code:
+    - path: \"src/**\"
+variants:
+  - id: investor
+    description: Investor version
+variants_resolved: true
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PASS"));
+}
+
+#[test]
+fn validate_accepts_new_output_types() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.7\"
+intent: \"Legal document spec\"
+behaviors:
+  - name: b1
+    given: \"x\"
+    then: \"y\"
+artifacts:
+  docs:
+    - path: \"docs/**\"
+output:
+  type: document
+  format: pdf
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PASS"));
+}
+
+#[test]
+fn validate_accepts_new_domain_values() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.7\"
+domain: research
+intent: \"Research report spec\"
+behaviors:
+  - name: b1
+    given: \"x\"
+    then: \"y\"
+artifacts:
+  docs:
+    - path: \"sections/**\"
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PASS"));
+}

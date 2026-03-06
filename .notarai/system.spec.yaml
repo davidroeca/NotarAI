@@ -1,4 +1,4 @@
-schema_version: '0.6'
+schema_version: '0.7'
 
 intent: >
   NotarAI is a continuous intent reconciliation platform. It represents a shift
@@ -150,3 +150,13 @@ decisions:
       tier to include derived (Tier 4). Extends behavior with interaction and
       state_transition. All additions are optional -- existing specs validate
       without modification.
+
+  - date: '2026-03-05'
+    choice: 'Schema 0.7: multi-artifact platform expansion'
+    rationale: >
+      Extends the schema with optional fields for non-software domains:
+      compliance frameworks, content section connections/evidence/duration,
+      print/responsive design, structured feedback triggers, pipeline
+      conditionals, state transition guards/actions, and extended enums for
+      output types, layout types, interaction triggers, and domains. All
+      additions are backward-compatible -- v0.6 specs validate without changes.

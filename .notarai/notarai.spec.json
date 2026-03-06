@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://notarai.dev/schema/0.6/spec.schema.json",
+  "$id": "https://notarai.dev/schema/0.7/spec.schema.json",
   "title": "NotarAI Spec File",
   "description": "A structured intent specification that serves as the canonical source of truth for a system, feature, or artifact. The LLM reconciliation engine uses this schema to validate specs, detect drift between spec and implementation, and propose updates.",
   "type": "object",
@@ -10,12 +10,22 @@
     "schema_version": {
       "type": "string",
       "description": "The version of the spec schema this file conforms to. Used for forward compatibility as the schema evolves.",
-      "enum": ["0.6", "0.5"]
+      "enum": ["0.7", "0.6", "0.5"]
     },
     "domain": {
       "type": "string",
-      "description": "The domain this spec applies to. Determines which optional extensions are available. Defaults to 'software' if omitted.",
-      "enum": ["software", "presentation", "report", "course", "marketing"],
+      "description": "The domain this spec applies to. Determines which optional extensions are relevant. Defaults to 'software' if omitted.",
+      "enum": [
+        "software",
+        "presentation",
+        "report",
+        "course",
+        "marketing",
+        "legal",
+        "education",
+        "infrastructure",
+        "research"
+      ],
       "default": "software"
     },
     "tier": {
@@ -30,7 +40,7 @@
     },
     "behaviors": {
       "type": "array",
-      "description": "Structured descriptions of expected behaviors using Given/Then language. These are BDD-adjacent but remain in natural language — not formal Gherkin syntax. Each behavior describes a scenario the system should handle.",
+      "description": "Structured descriptions of expected behaviors using Given/Then language. These are BDD-adjacent but remain in natural language -- not formal Gherkin syntax. Each behavior describes a scenario the system or artifact should handle.",
       "items": {
         "$ref": "#/$defs/behavior"
       },
@@ -38,14 +48,14 @@
     },
     "constraints": {
       "type": "array",
-      "description": "Rules the system must follow. These are positive statements about boundaries and limits (e.g., 'passwords >= 12 characters', 'rate limit: 5 attempts per minute'). Unlike invariants, constraints describe what the system actively enforces.",
+      "description": "Rules the system or artifact must follow. These are positive statements about boundaries and limits (e.g., 'passwords >= 12 characters', 'rate limit: 5 attempts per minute'). Unlike invariants, constraints describe what the system actively enforces.",
       "items": {
         "type": "string"
       }
     },
     "invariants": {
       "type": "array",
-      "description": "Conditions that must NEVER be violated under any circumstances. These are stronger than constraints — they represent security, data integrity, or architectural guarantees (e.g., 'no plaintext passwords stored anywhere', 'no direct DB access across service boundaries'). The LLM should flag any code change that could violate an invariant, even indirectly.",
+      "description": "Conditions that must NEVER be violated under any circumstances. These are stronger than constraints -- they represent security, data integrity, or architectural guarantees (e.g., 'no plaintext passwords stored anywhere', 'no direct DB access across service boundaries'). The LLM should flag any change that could violate an invariant, even indirectly.",
       "items": {
         "type": "string"
       }
@@ -66,7 +76,7 @@
     },
     "artifacts": {
       "type": "object",
-      "description": "Maps this spec to the files it governs. Uses glob patterns for stability — the LLM resolves globs to actual file lists at reconciliation time. The artifact mapping tells the CI hook which specs are affected by which file changes.",
+      "description": "Maps this spec to the files it governs. Uses glob patterns for stability -- the LLM resolves globs to actual file lists at reconciliation time. The artifact mapping tells the CI hook which specs are affected by which file changes.",
       "properties": {
         "code": {
           "type": "array",
@@ -127,7 +137,7 @@
       },
       "additionalProperties": {
         "type": "array",
-        "description": "Custom artifact categories not covered by the standard fields. Keys should be descriptive (e.g., 'assets', 'generated_outputs', 'helm_charts', 'migrations').",
+        "description": "Custom artifact categories not covered by the standard fields. Keys should be descriptive (e.g., 'assets', 'generated_outputs', 'helm_charts', 'migrations', 'templates', 'schemas').",
         "items": {
           "$ref": "#/$defs/artifact_ref"
         }
@@ -184,7 +194,7 @@
     },
     "output": {
       "type": "object",
-      "description": "Describes what this spec ultimately produces. Used by the reconciliation engine to select appropriate drift-detection strategies. Optional — omit for standard software specs.",
+      "description": "Describes what this spec ultimately produces. Used by the reconciliation engine to select appropriate drift-detection strategies. Optional -- omit for standard software specs.",
       "properties": {
         "type": {
           "type": "string",
@@ -197,7 +207,15 @@
             "dashboard",
             "report",
             "library",
-            "service"
+            "service",
+            "document",
+            "course",
+            "api",
+            "infrastructure",
+            "dataset",
+            "design-system",
+            "campaign",
+            "template"
           ]
         },
         "format": {
@@ -218,7 +236,7 @@
     },
     "content": {
       "type": "object",
-      "description": "Describes the structure of the output in content terms (slides, scenes, sections) rather than file terms. Gives the reconciliation engine semantic targets — not just 'do these files exist' but 'does this section still express the intended message.'",
+      "description": "Describes the structure of the output in content terms (slides, scenes, sections) rather than file terms. Gives the reconciliation engine semantic targets -- not just 'do these files exist' but 'does this section still express the intended message.'",
       "properties": {
         "structure": {
           "type": "string",
@@ -257,7 +275,7 @@
     },
     "design": {
       "type": "object",
-      "description": "Visual and design specifications. Enables detection of visual drift — a presentation that has gone off-brand, or a UI that no longer matches the design spec.",
+      "description": "Visual and design specifications. Enables detection of visual drift -- a presentation that has gone off-brand, or a UI that no longer matches the design spec.",
       "properties": {
         "style_guide": {
           "type": "array",
@@ -283,6 +301,17 @@
               "additionalProperties": {
                 "type": "string"
               }
+            },
+            "modes": {
+              "type": "object",
+              "description": "Named visual modes (e.g., light/dark) with palette overrides.",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "palette": { "type": "array", "items": { "type": "string" } }
+                },
+                "additionalProperties": false
+              }
             }
           },
           "additionalProperties": false
@@ -299,7 +328,11 @@
                 "scrolling",
                 "spatial",
                 "grid",
-                "free-form"
+                "free-form",
+                "paginated",
+                "canvas",
+                "timeline",
+                "tabbed"
               ]
             },
             "dimensions": {
@@ -314,6 +347,48 @@
           "description": "Design-specific asset references (images, fonts, icons).",
           "items": {
             "$ref": "#/$defs/artifact_ref"
+          }
+        },
+        "print": {
+          "type": "object",
+          "description": "Print-specific layout settings for paginated documents (legal, academic, reports).",
+          "additionalProperties": false,
+          "properties": {
+            "margins": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            },
+            "headers": { "type": "boolean" },
+            "footers": { "type": "boolean" },
+            "page_numbers": { "type": "boolean" },
+            "bleed": {
+              "type": "string",
+              "description": "Bleed area for print production (e.g., '0.125in')."
+            }
+          }
+        },
+        "responsive": {
+          "type": "object",
+          "description": "Responsive design breakpoints for web-based outputs (dashboards, interactive docs).",
+          "additionalProperties": false,
+          "properties": {
+            "breakpoints": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name"],
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string" },
+                  "min_width": { "type": "integer" },
+                  "max_width": { "type": "integer" },
+                  "layout_override": {
+                    "type": "string",
+                    "description": "Layout type to use at this breakpoint (references design.layout.type values)."
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -356,6 +431,11 @@
         "$ref": "#/$defs/variant"
       }
     },
+    "variants_resolved": {
+      "type": "boolean",
+      "description": "Opt-in flag for programmatic variant override resolution. When false or omitted, variants are declarative metadata only -- the engine reads them but does not resolve overrides. When true, the engine applies override rules: scalars are replaced, arrays are replaced (prefix key with '+' to append), objects are deep-merged, null clears a field.",
+      "default": false
+    },
     "pipeline": {
       "type": "object",
       "description": "Describes the build or generation process for the output artifact. Enables the reconciliation engine to detect pipeline drift.",
@@ -381,6 +461,11 @@
             }
           },
           "additionalProperties": false
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Environment variables shared across all pipeline steps."
         }
       },
       "additionalProperties": false
@@ -398,7 +483,127 @@
         },
         "reconciliation_trigger": {
           "type": "string",
-          "description": "When feedback should trigger a reconciliation review."
+          "description": "Deprecated -- use triggers instead. When feedback should trigger a reconciliation review (free-form string)."
+        },
+        "triggers": {
+          "type": "array",
+          "description": "Structured trigger conditions that replace the free-form reconciliation_trigger string. Each trigger links a metric condition to an action.",
+          "items": {
+            "type": "object",
+            "required": ["condition"],
+            "additionalProperties": false,
+            "properties": {
+              "condition": {
+                "type": "object",
+                "required": ["metric", "operator"],
+                "additionalProperties": false,
+                "properties": {
+                  "metric": {
+                    "type": "string",
+                    "description": "References a metric name from feedback.metrics."
+                  },
+                  "operator": {
+                    "type": "string",
+                    "enum": [
+                      "below_threshold",
+                      "above_threshold",
+                      "changed",
+                      "stale"
+                    ]
+                  },
+                  "duration": {
+                    "type": "object",
+                    "required": ["value", "unit"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "value": { "type": "number" },
+                      "unit": { "type": "string" }
+                    }
+                  }
+                }
+              },
+              "action": {
+                "type": "string",
+                "enum": ["reconcile", "warn", "notify"]
+              },
+              "priority": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "compliance": {
+      "type": "object",
+      "description": "Maps invariants and constraints to regulatory or standards frameworks. The reconciliation engine verifies that framework-required invariants are still present in the spec. Removing an invariant that satisfies a compliance control is a high-priority drift event.",
+      "properties": {
+        "frameworks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Framework name (e.g., 'SOC2', 'WCAG', 'HIPAA', 'GDPR')."
+              },
+              "level": {
+                "type": "string",
+                "description": "Compliance level if applicable (e.g., 'AA' for WCAG)."
+              },
+              "controls": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["id"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Control identifier (e.g., 'CC6.1' for SOC2)."
+                    },
+                    "satisfied_by": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "invariants": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        },
+                        "constraints": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "satisfied_by": {
+                "type": "object",
+                "description": "Framework-level satisfaction mapping (when individual control IDs are not needed).",
+                "additionalProperties": false,
+                "properties": {
+                  "invariants": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "constraints": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "audit_trail": {
+          "type": "boolean",
+          "description": "Whether changes to compliance-mapped invariants/constraints should be flagged for audit."
         }
       },
       "additionalProperties": false
@@ -430,7 +635,17 @@
             "trigger": {
               "type": "string",
               "description": "What initiates this behavior.",
-              "enum": ["user_action", "timer", "system_event", "data_change"]
+              "enum": [
+                "user_action",
+                "timer",
+                "system_event",
+                "data_change",
+                "schedule",
+                "external_signal",
+                "threshold",
+                "manual",
+                "lifecycle"
+              ]
             },
             "sequence": {
               "type": "array",
@@ -497,7 +712,7 @@
         },
         "source": {
           "type": "string",
-          "description": "For artifacts that are not version-controlled local files — an external URL, dataset registry path (e.g., 'hf://datasets/HuggingFaceFW/fineweb'), storage bucket path, or human-readable description of where this artifact comes from. Use when the artifact cannot be expressed as a local glob pattern."
+          "description": "For artifacts that are not version-controlled local files -- an external URL, dataset registry path (e.g., 'hf://datasets/HuggingFaceFW/fineweb'), storage bucket path, or human-readable description of where this artifact comes from. Use when the artifact cannot be expressed as a local glob pattern."
         },
         "tier": {
           "type": "integer",
@@ -546,7 +761,7 @@
         },
         "type": {
           "type": "string",
-          "description": "The kind of section (e.g., 'slide', 'chapter', 'scene', 'interactive', 'static')."
+          "description": "The kind of section (e.g., 'slide', 'chapter', 'scene', 'clause', 'interactive', 'static'). Free-form string -- no enum validation to allow domain-specific section types."
         },
         "intent": {
           "type": "string",
@@ -563,6 +778,96 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          }
+        },
+        "connections": {
+          "type": "array",
+          "description": "Directed edges to other section IDs. Used for graph-structured content (game levels, branching narratives, knowledge bases) so the reconciliation engine can traverse the graph and detect downstream impact when a node changes.",
+          "items": {
+            "type": "object",
+            "required": ["to"],
+            "additionalProperties": false,
+            "properties": {
+              "to": {
+                "type": "string",
+                "description": "The ID of the target section."
+              },
+              "label": {
+                "type": "string",
+                "description": "A label for this edge (e.g., 'completion', 'player_death')."
+              },
+              "condition": {
+                "type": "string",
+                "description": "Natural language condition under which this edge is followed."
+              }
+            }
+          }
+        },
+        "duration": {
+          "type": "object",
+          "description": "Expected time for this section. Used to detect temporal drift (e.g., a 30-minute presentation that now has 45 minutes of content).",
+          "required": ["value", "unit"],
+          "additionalProperties": false,
+          "properties": {
+            "value": { "type": "number" },
+            "unit": {
+              "type": "string",
+              "description": "Time unit (e.g., 'seconds', 'minutes', 'hours', 'weeks'). Free-form string to allow domain-specific granularity."
+            }
+          }
+        },
+        "depends_on": {
+          "type": "array",
+          "description": "Content prerequisites: sections whose concepts must be understood before this section. When a prerequisite section changes, this section is flagged for review.",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "The ID of the prerequisite section."
+              },
+              "relationship": {
+                "type": "string",
+                "description": "How this section depends on the prerequisite (e.g., 'must complete before this section unlocks')."
+              }
+            }
+          }
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Ordering weight for free-form structures where array order is meaningless. Lower values indicate higher priority (P0 > P1 > P2)."
+        },
+        "evidence": {
+          "type": "array",
+          "description": "Links claims in this section to supporting data sources or citations. When a source artifact changes, the reconciliation engine flags the associated claim for review.",
+          "items": {
+            "type": "object",
+            "required": ["type", "claim"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["data", "citation", "reference"]
+              },
+              "source": {
+                "type": "string",
+                "description": "Path to data file or artifact backing this claim."
+              },
+              "ref": {
+                "type": "string",
+                "description": "Citation reference (e.g., 'Smith et al. 2024')."
+              },
+              "claim": {
+                "type": "string",
+                "description": "The specific claim this evidence supports."
+              },
+              "relationship": {
+                "type": "string",
+                "description": "How this evidence relates to the claim (e.g., 'supports methodology choice')."
+              }
             }
           }
         }
@@ -598,6 +903,14 @@
         "on": {
           "type": "string",
           "description": "The event that triggers this transition."
+        },
+        "guard": {
+          "type": "string",
+          "description": "Natural language condition that must be true for the transition to fire (e.g., 'health <= 0'). Interpreted by the LLM during reconciliation, not parsed by NotarAI."
+        },
+        "action": {
+          "type": "string",
+          "description": "Natural language side effect that occurs during the transition (e.g., 'initialize timer, log start event'). Interpreted by the LLM during reconciliation, not parsed by NotarAI."
         }
       }
     },
@@ -645,6 +958,25 @@
         "command": {
           "type": "string",
           "description": "Explicit shell command, if not implied by tool."
+        },
+        "condition": {
+          "type": "string",
+          "description": "Expression referencing spec fields. Step runs only if true (e.g., \"output.format == 'pdf'\"). Interpreted by the build system or LLM, not parsed by NotarAI."
+        },
+        "on_failure": {
+          "type": "string",
+          "enum": ["skip", "abort", "retry"],
+          "description": "Error handling strategy if this step fails. Defaults to 'abort'."
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Step names that must complete before this step runs."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Per-step environment variables."
         }
       }
     },

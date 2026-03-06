@@ -1,4 +1,4 @@
-schema_version: '0.6'
+schema_version: '0.7'
 
 intent: >
   A CLI tool that validates NotarAI spec files against the JSON Schema
@@ -89,11 +89,15 @@ behaviors:
 
   - name: mcp_spec_aware_splitting
     given: 'get_spec_diff is called and the diff includes .notarai/*.spec.yaml files'
-    then: 'spec files are returned in a separate spec_changes field with full file content (not diff hunks); the system spec is always included in system_spec when any spec changed (with full content if it did not change, or just the path reference if it appears in spec_changes); the diff field contains only non-spec artifact diffs'
+    then: 'spec files are returned in a separate spec_changes field with full file content (not diff hunks); the system spec is always included in system_spec when any spec changed (with full content if it did not change, or just the path reference if it appears in spec_changes); the diff field contains only non-spec, non-binary artifact diffs'
+
+  - name: mcp_binary_file_handling
+    given: 'get_spec_diff is called and governed files include binary files (detected by extension: .png, .jpg, .pptx, .pdf, etc., or by "Binary files ... differ" in the git diff output)'
+    then: 'binary files are excluded from diff and listed by path in binary_changes; file_categories maps each changed artifact file path to its artifact category from the spec (e.g. "code", "docs", "assets"); both fields are always present in the response'
 
   - name: mcp_server
     given: 'notarai mcp is invoked and JSON-RPC 2.0 messages are sent on stdin'
-    then: 'responds to initialize with serverInfo and 6 tool definitions (list_affected_specs, get_spec_diff, get_changed_artifacts, mark_reconciled, clear_cache, snapshot_state); dispatches tools/call to the appropriate implementation; exits 0 on stdin EOF; get_spec_diff accepts an optional exclude_patterns array of glob strings passed as git :(exclude) pathspecs to suppress noisy files from the diff output; cache-filtering semantics are described by the mcp_cache_filtering behavior; spec-aware splitting semantics are described by the mcp_spec_aware_splitting behavior; schema-staleness semantics are described by the mcp_schema_staleness_note behavior'
+    then: 'responds to initialize with serverInfo and 6 tool definitions (list_affected_specs, get_spec_diff, get_changed_artifacts, mark_reconciled, clear_cache, snapshot_state); dispatches tools/call to the appropriate implementation; exits 0 on stdin EOF; get_spec_diff accepts an optional exclude_patterns array of glob strings passed as git :(exclude) pathspecs to suppress noisy files from the diff output; cache-filtering semantics are described by the mcp_cache_filtering behavior; spec-aware splitting semantics are described by the mcp_spec_aware_splitting behavior; binary file handling semantics are described by the mcp_binary_file_handling behavior; schema-staleness semantics are described by the mcp_schema_staleness_note behavior'
 
   - name: state_show
     given: 'notarai state show is invoked'
@@ -111,8 +115,8 @@ behaviors:
     given: 'the snapshot_state MCP tool is called'
     then: 'snapshots cache + git state into reconciliation_state.json; returns summary with file/spec counts and git hash'
 
-  - name: validate_v06_schema
-    given: 'a spec file with schema_version 0.6 using any new optional block (output, content, states, design, audience, variants, pipeline, feedback) or extended features (tier: derived, artifact tier, behavior interaction/state_transition)'
+  - name: validate_v07_schema
+    given: 'a spec file with schema_version 0.7 using any new optional block (compliance, feedback triggers, pipeline env/condition/on_failure/depends_on, design print/responsive/modes, content connections/duration/depends_on/evidence, state guard/action, variants_resolved) or extended enum values (domain: legal/education/infrastructure/research, output type: document/course/api/infrastructure/dataset/design-system/campaign/template, layout: paginated/canvas/timeline/tabbed, interaction trigger: schedule/external_signal/threshold/manual/lifecycle)'
     then: 'validates successfully; all new fields are optional and additive'
 
   - name: update_check
@@ -162,7 +166,7 @@ constraints:
   - 'Binary crate visibility -- pub means cross-module only (no external consumers); test-only helpers must be gated with #[cfg(test)]'
   - 'Avoid needless allocations -- prefer borrowing (&str, &Value) over .to_string() / .cloned() when the owned value is not needed'
   - 'Avoid .unwrap() in production code -- use ?, .expect("reason"), or combinators; .unwrap() is acceptable in #[test] functions and #[cfg(test)] modules'
-  - 'Schema version enum must include all supported versions for backward compatibility (currently 0.6 and 0.5)'
+  - 'Schema version enum must include all supported versions for backward compatibility (currently 0.7, 0.6, and 0.5)'
   - 'Before bumping the schema version: copy notarai.spec.json to schemas/<old_version>/spec.schema.json first; the docs workflow reads each version from its snapshot, not from notarai.spec.json'
   - 'Update checks use a global cache with 24h TTL; network requests use a 5s timeout for version checks and 120s for binary downloads'
 
@@ -244,6 +248,14 @@ decisions:
   - date: '2026-03-05'
     choice: 'Project staleness detected via .notarai/README.md header version'
     rationale: 'The README is already stamped with the CLI version at init time. Parsing the header is simpler than adding a new metadata file, and if parsing fails, suggesting notarai init is the correct recovery action anyway.'
+
+  - date: '2026-03-05'
+    choice: 'MCP get_spec_diff returns file_categories and binary_changes'
+    rationale: >
+      Non-software artifacts include binary files (images, PPTX, PDF) that
+      produce unusable unified diffs. binary_changes lists them separately;
+      file_categories maps each changed file to its spec artifact category
+      for category-aware reconciliation.
 
 artifacts:
   code:

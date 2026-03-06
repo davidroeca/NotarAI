@@ -6,10 +6,10 @@ Specs are YAML files validated against a JSON Schema (`notarai.spec.json`). The 
 
 ### `schema_version`
 
-Pins the JSON Schema version. Current version: `"0.6"`. Version `"0.5"` is also accepted for backward compatibility.
+Pins the JSON Schema version. Current version: `"0.7"`. Versions `"0.6"` and `"0.5"` are also accepted for backward compatibility.
 
 ```yaml
-schema_version: '0.6'
+schema_version: '0.7'
 ```
 
 ### `intent`
@@ -44,7 +44,7 @@ behaviors:
     given: 'user submits a valid form'
     then: 'data saved, confirmation shown'
     interaction:
-      trigger: user_action # user_action | timer | system_event | data_change
+      trigger: user_action # user_action | timer | system_event | data_change | schedule | external_signal | threshold | manual | lifecycle
       sequence:
         - validate fields
         - post to API
@@ -56,7 +56,20 @@ behaviors:
 
 ### `artifacts`
 
-Glob patterns mapping the spec to the files it governs. Organized by category (`code`, `docs`, `tests`, etc.).
+Glob patterns mapping the spec to the files it governs. The schema accepts any string as a category key. Convention categories:
+
+| Category    | When to use             |
+| ----------- | ----------------------- |
+| `code`      | Source code             |
+| `docs`      | Documentation           |
+| `tests`     | Test files              |
+| `slides`    | Presentation files      |
+| `data`      | Data files, CSVs        |
+| `configs`   | Configuration, IaC      |
+| `notebooks` | Jupyter/R notebooks     |
+| `assets`    | Media, images, fonts    |
+| `templates` | Reusable templates      |
+| `schemas`   | Data schemas, API specs |
 
 ```yaml
 artifacts:
@@ -69,7 +82,7 @@ artifacts:
     - path: 'tests/auth/**'
 ```
 
-Each artifact ref may include an optional integer `tier` override (1–4) for files that belong to a different tier than the spec itself:
+Each artifact ref may include an optional integer `tier` override (1-4) for files that belong to a different tier than the spec itself:
 
 ```yaml
 artifacts:
@@ -149,7 +162,7 @@ Describes what the spec ultimately produces. Useful for non-software artifacts l
 
 ```yaml
 output:
-  type: presentation # app | presentation | interactive-doc | game | dashboard | report | library | service
+  type: presentation # app | presentation | interactive-doc | game | dashboard | report | library | service | document | course | api | infrastructure | dataset | design-system | campaign | template
   format: pptx
   runtime: static-file # browser | native | static-file | embedded | server
   entry_point: dist/deck.pptx
@@ -161,14 +174,24 @@ Describes the output's logical structure in content terms (slides, scenes, secti
 
 ```yaml
 content:
-  structure: ordered # ordered | hierarchical | graph | free-form
+  structure: graph # ordered | hierarchical | graph | free-form
   sections:
-    - id: intro
-      type: slide
-      intent: 'Hook the audience with the core problem'
-    - id: demo
-      type: interactive
-      content_ref: slides/02-demo.md
+    - id: level_1
+      type: scene
+      intent: 'Tutorial level introducing movement mechanics'
+      duration: { value: 5, unit: minutes }
+      connections:
+        - to: level_2
+          label: completion
+        - to: game_over
+          label: player_death
+      depends_on:
+        - id: intro_cutscene
+          relationship: 'must complete before this section unlocks'
+      evidence:
+        - type: data
+          source: playtests/run_3.csv
+          claim: '85% of players complete within 5 minutes'
 ```
 
 ### `states`
@@ -183,6 +206,8 @@ states:
       transitions:
         - to: running
           on: start
+          guard: 'all required fields are populated'
+          action: 'initialize timer, log start event'
     - id: running
       transitions:
         - to: idle
@@ -200,9 +225,24 @@ design:
     typography:
       heading: Inter
       body: Roboto
+    modes:
+      light: { palette: ['#ffffff', '#f0f0f0'] }
+      dark: { palette: ['#1a1a2e', '#16213e'] }
   layout:
-    type: slide-deck # slide-deck | scrolling | spatial | grid | free-form
-    dimensions: '16:9'
+    type: paginated # slide-deck | scrolling | spatial | grid | free-form | paginated | canvas | timeline | tabbed
+    dimensions: letter
+  print:
+    margins: { top: '1in', right: '1in', bottom: '1in', left: '1in' }
+    headers: true
+    footers: true
+    page_numbers: true
+  responsive:
+    breakpoints:
+      - name: mobile
+        max_width: 768
+        layout_override: scrolling
+      - name: desktop
+        min_width: 769
 ```
 
 ### `audience`
@@ -234,7 +274,7 @@ variants:
     description: 'Full technical version for the eng team'
 ```
 
-Variants are declarative metadata — the reconciliation engine reads them but does not resolve overrides programmatically.
+Variants are declarative metadata by default. Set `variants_resolved: true` at the spec top level to opt in to programmatic override resolution (scalar replacement, array replacement with `+` prefix for append, deep merge for objects, `null` to clear).
 
 ### `pipeline`
 
@@ -242,13 +282,21 @@ Describes the build or generation process for the output artifact.
 
 ```yaml
 pipeline:
+  env:
+    NODE_ENV: production
   steps:
     - name: compile
       tool: tsc
       input: 'src/**/*.ts'
       output: dist/
-    - name: bundle
-      command: esbuild dist/index.js --bundle --outfile=out.js
+      condition: "output.format == 'web'"
+    - name: export_pdf
+      command: 'pandoc input.md -o output.pdf'
+      condition: "output.format == 'pdf'"
+      on_failure: skip
+      depends_on: [compile]
+      env:
+        PANDOC_DATA_DIR: ./templates
   preview:
     command: npx serve dist/
     url: 'http://localhost:3000'
@@ -266,7 +314,35 @@ feedback:
       threshold: '>= 0.7'
     - name: build_time
       threshold: '< 5s'
-  reconciliation_trigger: 'when avg_completion_rate drops below threshold for 3 consecutive days'
+  triggers:
+    - condition:
+        metric: avg_completion_rate
+        operator: below_threshold
+        duration: { value: 3, unit: days }
+      action: reconcile
+      priority: high
+```
+
+Note: `reconciliation_trigger` (free-form string) is deprecated in favor of `triggers` but still accepted.
+
+### `compliance`
+
+Maps invariants and constraints to regulatory or standards frameworks. The reconciliation engine verifies that framework-required invariants still exist in the spec.
+
+```yaml
+compliance:
+  frameworks:
+    - name: SOC2
+      controls:
+        - id: CC6.1
+          satisfied_by:
+            invariants: ['no plaintext passwords stored anywhere']
+            constraints: ['rate limit: 5 login attempts per minute per IP']
+    - name: WCAG
+      level: AA
+      satisfied_by:
+        invariants: ['all interactive elements have visible focus indicators']
+  audit_trail: true
 ```
 
 ---
