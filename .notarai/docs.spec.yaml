@@ -1,9 +1,9 @@
-schema_version: '0.6'
+schema_version: '0.7'
 
 intent: >
   An mdBook documentation site published to GitHub Pages at
   https://notarai.dev. All documentation routes live
-  under /docs, the root / redirects to /docs, and /schema/0.6/spec.schema.json
+  under /docs, the root / redirects to /docs, and /schema/0.7/spec.schema.json
   serves the JSON Schema directly (matching the $id URL). Covers installation,
   quick-start, spec format reference, and reconciliation guides. Background/concept
   docs (motivation, design diagrams, comparison to SDD) are governed by the system
@@ -23,7 +23,7 @@ behaviors:
     then: 'all internal links and assets use the /docs/ site-url defined in book.toml'
 
   - name: schema_hosting
-    given: 'a client requests /schema/0.6/spec.schema.json'
+    given: 'a client requests /schema/0.7/spec.schema.json'
     then: 'the server returns the JSON Schema file matching the $id in notarai.spec.json, copied from the repo root during the CI build step'
 
   - name: mermaid_diagrams

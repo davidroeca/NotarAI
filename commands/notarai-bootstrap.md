@@ -102,11 +102,11 @@ After the user answers the interview questions:
 
 1. **Create the `.notarai/` directory** if it doesn't exist.
 
-2. **Write `system.spec.yaml`** with the following structure. Use `schema_version: "0.6"`. Populate all fields from the interview answers:
+2. **Write `system.spec.yaml`** with the following structure. Use `schema_version: "0.7"`. Populate all fields from the interview answers:
 
 ```yaml
-schema_version: '0.6'
-domain: '[software|presentation|report|course|marketing — from Round 2a answer]'
+schema_version: '0.7'
+domain: '[software|presentation|report|course|marketing|legal|education|infrastructure|research -- from Round 2a answer]'
 
 intent: >
   [one or two sentences from the user's answer to question 2]

@@ -199,10 +199,16 @@ pub fn get_spec_diff(
         find_system_spec(project_root, &spec_to_show)?
     };
 
+    // Partition artifact files into binary (known extension) and non-binary.
+    let (binary_by_ext, non_binary): (Vec<String>, Vec<String>) = artifact_to_diff
+        .iter()
+        .cloned()
+        .partition(|f| is_binary_by_extension(f));
+
     // Build :(exclude) pathspecs from caller-supplied patterns.
     // Git resolves these as globs, so patterns like "Cargo.lock" or "*.lock"
     // work without pre-expansion.
-    let diff = if artifact_to_diff.is_empty() {
+    let diff = if non_binary.is_empty() {
         String::new()
     } else {
         let exclude_args: Vec<String> = exclude_patterns
@@ -211,7 +217,7 @@ pub fn get_spec_diff(
             .collect();
 
         let mut args: Vec<&str> = vec!["diff", base_branch, "--"];
-        args.extend(artifact_to_diff.iter().map(String::as_str));
+        args.extend(non_binary.iter().map(String::as_str));
         args.extend(exclude_args.iter().map(String::as_str));
 
         let output = std::process::Command::new("git")
@@ -226,6 +232,26 @@ pub fn get_spec_diff(
         String::from_utf8_lossy(&output.stdout).to_string()
     };
 
+    // Collect additional binary files detected from "Binary files ... differ" in the diff.
+    let mut binary_changes: Vec<String> = binary_by_ext;
+    for line in diff.lines() {
+        if line.starts_with("Binary files") && line.contains("differ") {
+            // Extract the file path from the git diff binary header.
+            // Format: "Binary files a/<path> and b/<path> differ"
+            if let Some(rest) = line.strip_prefix("Binary files a/")
+                && let Some(path) = rest.split(" and b/").next()
+            {
+                let path_str = path.to_string();
+                if !binary_changes.contains(&path_str) {
+                    binary_changes.push(path_str);
+                }
+            }
+        }
+    }
+
+    // Build file_categories: map each changed artifact file to its spec category.
+    let file_categories = build_file_categories(&spec_value, &artifact_to_diff, project_root);
+
     Ok(serde_json::json!({
         "diff": diff,
         "files": artifact_to_diff,
@@ -233,6 +259,8 @@ pub fn get_spec_diff(
         "excluded": exclude_patterns,
         "spec_changes": spec_changes,
         "system_spec": system_spec,
+        "binary_changes": binary_changes,
+        "file_categories": file_categories,
     }))
 }
 
@@ -365,6 +393,60 @@ pub fn snapshot_state(project_root: &Path) -> McpResult {
         "specs": state.spec_fingerprints.len(),
         "git_hash": git_hash,
     }))
+}
+
+/// Known binary file extensions whose unified diffs are uninformative noise.
+const BINARY_EXTENSIONS: &[&str] = &[
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".pptx", ".docx", ".xlsx", ".pdf",
+    ".zip", ".tar", ".gz", ".wasm", ".exe", ".dll", ".so", ".dylib",
+];
+
+fn is_binary_by_extension(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    BINARY_EXTENSIONS.iter().any(|ext| lower.ends_with(ext))
+}
+
+/// Build a map from file path -> artifact category name based on the spec's artifacts globs.
+///
+/// Each file in `files` is matched against every category's glob patterns. The first
+/// matching category wins. Files that match no category are omitted.
+fn build_file_categories(
+    spec: &serde_json::Value,
+    files: &[String],
+    project_root: &Path,
+) -> serde_json::Map<String, serde_json::Value> {
+    let mut map = serde_json::Map::new();
+    let Some(artifacts) = spec.get("artifacts").and_then(|a| a.as_object()) else {
+        return map;
+    };
+
+    // Pre-expand all category globs once.
+    let category_files: Vec<(String, Vec<String>)> = artifacts
+        .iter()
+        .map(|(cat, refs)| {
+            let expanded = refs
+                .as_array()
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|item| item.get("path").and_then(|p| p.as_str()))
+                        .flat_map(|pattern| expand_glob(pattern, project_root))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            (cat.clone(), expanded)
+        })
+        .collect();
+
+    for file in files {
+        for (cat, cat_files) in &category_files {
+            if cat_files.contains(file) {
+                map.insert(file.clone(), serde_json::Value::String(cat.clone()));
+                break;
+            }
+        }
+    }
+
+    map
 }
 
 fn is_spec_file(path: &str) -> bool {

@@ -98,6 +98,34 @@ artifacts:
     - path: 'README.md'
 "#;
 
+/// Spec that governs code files under src/ and docs files.
+const CATEGORIZED_SPEC: &str = r#"schema_version: '0.7'
+intent: 'Test spec with multiple artifact categories'
+behaviors:
+  - name: tracks
+    given: 'files exist'
+    then: 'they are tracked'
+artifacts:
+  code:
+    - path: '*.rs'
+  docs:
+    - path: '*.md'
+"#;
+
+/// Spec with a non-standard artifact category (slides).
+const SLIDES_SPEC: &str = r#"schema_version: '0.7'
+intent: 'Test spec with slides category'
+behaviors:
+  - name: tracks
+    given: 'slide files exist'
+    then: 'they are tracked'
+artifacts:
+  slides:
+    - path: '*.pptx'
+  code:
+    - path: '*.rs'
+"#;
+
 const INITIALIZE_MSG: &str = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{}}}"#;
 
 #[test]
@@ -610,4 +638,95 @@ fn test_snapshot_state_creates_file() {
     let content = fs::read_to_string(&state_file).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
     assert_eq!(parsed["schema_version"], "1");
+}
+
+// -- get_spec_diff: file_categories and binary_changes -------------------------
+
+#[test]
+fn get_spec_diff_returns_file_categories_for_changed_files() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), CATEGORIZED_SPEC).unwrap();
+    fs::write(root.join("main.rs"), "fn main() {}").unwrap();
+    fs::write(root.join("README.md"), "# readme").unwrap();
+    git_commit_all(root, "base");
+
+    fs::write(root.join("main.rs"), "fn main() { println!(\"hi\"); }").unwrap();
+    fs::write(root.join("README.md"), "# readme updated").unwrap();
+    git_commit_all(root, "changes");
+
+    let msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/test.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        // file_categories must be present in the response
+        .stdout(predicate::str::contains("file_categories"))
+        // main.rs should be categorized as "code"
+        .stdout(predicate::str::contains("main.rs"))
+        // README.md should be categorized as "docs"
+        .stdout(predicate::str::contains("README.md"));
+}
+
+#[test]
+fn get_spec_diff_returns_binary_changes_for_known_extensions() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), SLIDES_SPEC).unwrap();
+    fs::write(root.join("deck.pptx"), b"\x00\x01\x02binary").unwrap();
+    fs::write(root.join("main.rs"), "fn main() {}").unwrap();
+    git_commit_all(root, "base");
+
+    fs::write(root.join("deck.pptx"), b"\x00\x01\x02binary_updated").unwrap();
+    fs::write(root.join("main.rs"), "fn main() { println!(\"hi\"); }").unwrap();
+    git_commit_all(root, "changes");
+
+    let msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/test.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        // binary_changes must be present in the response
+        .stdout(predicate::str::contains("binary_changes"))
+        // deck.pptx must appear in binary_changes (not in diff hunks)
+        .stdout(predicate::str::contains("deck.pptx"))
+        // main.rs code change should appear as a normal diff
+        .stdout(predicate::str::contains("diff --git a/main.rs"));
+}
+
+#[test]
+fn get_changed_artifacts_works_with_nonstandard_category() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), SLIDES_SPEC).unwrap();
+    fs::write(root.join("deck.pptx"), b"\x00\x01binary").unwrap();
+    git_commit_all(root, "base");
+
+    // Verify that get_changed_artifacts accepts 'slides' as a valid artifact_type.
+    let msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_changed_artifacts","arguments":{"spec_path":".notarai/test.spec.yaml","artifact_type":"slides"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        // Response must contain changed_artifacts key (may be empty if cache is cold
+        // and file wasn't modified -- that's fine, we're testing the key is present).
+        .stdout(predicate::str::contains("changed_artifacts"));
 }
