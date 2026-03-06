@@ -2,8 +2,8 @@
   "schema_version": "1",
   "cli_version": "0.3.3",
   "last_reconciliation": {
-    "timestamp": "1772773794Z",
-    "git_hash": "ed84bb25f57030ff708588502fc9ef29ecc51079",
+    "timestamp": "1772774633Z",
+    "git_hash": "b022952d01d1e037df2568ea792803aa0a680535",
     "branch": "evolve-schema"
   },
   "file_fingerprints": {
@@ -215,7 +215,7 @@
       "blake3": "e2b2c563b331266a315c88bccf412704f3d2c16eec02beaaa26497a4a5096b0a"
     },
     "src/core/mcp_tools.rs": {
-      "blake3": "3fd89b3e34547a1fdea56a7de14a6876fdd34851fd7fd664b22e96c183bf09eb"
+      "blake3": "8de7d67fbd7e475d2a6805584b4ed82f0f1a28829eef0208a123aeb94a11c889"
     },
     "src/core/mod.rs": {
       "blake3": "dc1c0ac8247b0268b670f9ea9a95e9bb973e67d4e46951b3cc439fa3a92f1140"
