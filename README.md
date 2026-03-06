@@ -39,7 +39,7 @@ Files not covered by any tier are flagged as "unspecced" -- a lint warning, not 
 
 This project is in early development. What's implemented:
 
-- Spec schema v0.6 (`notarai.spec.json`) with validation CLI — includes optional blocks for `output`, `content`, `states`, `design`, `audience`, `variants`, `pipeline`, and `feedback`; Tier 4 (Derived); per-artifact tier overrides; and extended `behaviors` with `interaction` and `state_transition`
+- Spec schema v0.7 (`notarai.spec.json`) with validation CLI — includes optional blocks for `output`, `content`, `states`, `design`, `audience`, `variants`, `pipeline`, `feedback`, and `compliance`; Tier 4 (Derived); per-artifact tier overrides; and extended `behaviors` with `interaction` and `state_transition`
 - `/notarai-reconcile` slash command for drift detection
 - `/notarai-bootstrap` slash command for bootstrapping specs from an existing codebase via developer interview
 - BLAKE3+SQLite hash cache (`notarai cache`) to skip unchanged files during reconciliation
