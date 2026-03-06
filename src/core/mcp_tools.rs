@@ -232,22 +232,24 @@ pub fn get_spec_diff(
         String::from_utf8_lossy(&output.stdout).to_string()
     };
 
-    // Collect additional binary files detected from "Binary files ... differ" in the diff.
+    // Collect additional binary files detected from "Binary files ... differ" in the diff,
+    // and strip those lines so the returned diff stays clean.
     let mut binary_changes: Vec<String> = binary_by_ext;
+    let mut clean_lines: Vec<&str> = Vec::new();
     for line in diff.lines() {
         if line.starts_with("Binary files") && line.contains("differ") {
-            // Extract the file path from the git diff binary header.
-            // Format: "Binary files a/<path> and b/<path> differ"
             if let Some(rest) = line.strip_prefix("Binary files a/")
                 && let Some(path) = rest.split(" and b/").next()
+                && !binary_changes.iter().any(|b| b == path)
             {
-                let path_str = path.to_string();
-                if !binary_changes.contains(&path_str) {
-                    binary_changes.push(path_str);
-                }
+                binary_changes.push(path.to_string());
             }
+            // Drop this line from the clean diff output.
+        } else {
+            clean_lines.push(line);
         }
     }
+    let diff = clean_lines.join("\n");
 
     // Build file_categories: map each changed artifact file to its spec category.
     let file_categories = build_file_categories(&spec_value, &artifact_to_diff, project_root);
@@ -397,8 +399,8 @@ pub fn snapshot_state(project_root: &Path) -> McpResult {
 
 /// Known binary file extensions whose unified diffs are uninformative noise.
 const BINARY_EXTENSIONS: &[&str] = &[
-    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".pptx", ".docx", ".xlsx", ".pdf",
-    ".zip", ".tar", ".gz", ".wasm", ".exe", ".dll", ".so", ".dylib",
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".pptx", ".docx", ".xlsx", ".pdf", ".zip",
+    ".tar", ".gz", ".wasm", ".exe", ".dll", ".so", ".dylib",
 ];
 
 fn is_binary_by_extension(path: &str) -> bool {
@@ -415,22 +417,24 @@ fn build_file_categories(
     files: &[String],
     project_root: &Path,
 ) -> serde_json::Map<String, serde_json::Value> {
+    use std::collections::HashSet;
+
     let mut map = serde_json::Map::new();
     let Some(artifacts) = spec.get("artifacts").and_then(|a| a.as_object()) else {
         return map;
     };
 
-    // Pre-expand all category globs once.
-    let category_files: Vec<(String, Vec<String>)> = artifacts
+    // Pre-expand all category globs once into HashSets for O(1) lookup.
+    let category_files: Vec<(String, HashSet<String>)> = artifacts
         .iter()
         .map(|(cat, refs)| {
-            let expanded = refs
+            let expanded: HashSet<String> = refs
                 .as_array()
                 .map(|arr| {
                     arr.iter()
                         .filter_map(|item| item.get("path").and_then(|p| p.as_str()))
                         .flat_map(|pattern| expand_glob(pattern, project_root))
-                        .collect::<Vec<_>>()
+                        .collect()
                 })
                 .unwrap_or_default();
             (cat.clone(), expanded)
