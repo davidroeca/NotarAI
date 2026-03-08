@@ -11,15 +11,15 @@ notarai init
 This does several things:
 
 1. Adds a **PostToolUse hook** to `.claude/settings.json` so spec files are automatically validated when Claude Code writes or edits them.
-2. Copies the `/notarai-reconcile` slash command to `.claude/commands/` for drift detection.
-3. Copies the `/notarai-bootstrap` slash command to `.claude/commands/` for bootstrapping specs from an existing codebase.
-4. Copies `notarai.spec.json` to `.notarai/notarai.spec.json` so Claude has the schema available in every session.
+2. Copies the `/notarai-reconcile` skill to `.claude/skills/` for drift detection.
+3. Copies the `/notarai-bootstrap` skill to `.claude/skills/` for bootstrapping specs from an existing codebase.
+4. Copies `notarai.spec.json` to `.notarai/notarai.spec.json` so the schema is available for validation.
 5. Writes `.notarai/README.md` with workflow instructions.
-6. Replaces the `## NotarAI` section in `CLAUDE.md` with `@`-imports of the schema and README.
+6. Replaces the `## NotarAI` section in `CLAUDE.md` with a concise description of the workflow.
 7. Appends `.notarai/.cache/` to `.gitignore` so the hash cache DB is never committed.
 8. Writes `.mcp.json` registering `notarai mcp` as a local MCP server, so [MCP-accelerated reconciliation](../reference/mcp-server.md) works out of the box.
 
-Running `init` again is safe: it always refreshes slash commands and the schema copy, and replaces the `## NotarAI` section in CLAUDE.md with the current content.
+Running `init` again is safe: it always refreshes skills and the schema copy, and replaces the `## NotarAI` section in CLAUDE.md with the current content.
 
 ## Create your first spec
 

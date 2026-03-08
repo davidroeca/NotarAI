@@ -19,7 +19,7 @@ behaviors:
 
   - name: init_sync_check
     given: 'the test job passes on a push to main or a PR targeting main'
-    then: 'the init-sync job builds the release binary, runs notarai init, then checks git diff --exit-code .claude/commands/ to ensure the installed commands match the binary-embedded content; fails if any drift is detected'
+    then: 'the init-sync job builds the release binary, runs notarai init, then checks git diff --exit-code .claude/skills/ to ensure the installed skills match the binary-embedded content; fails if any drift is detected'
 
   - name: release_on_tag
     given: 'a GitHub release is published'
@@ -62,3 +62,6 @@ decisions:
   - date: '2026-02-26'
     choice: 'Migrate docs from Astro/Starlight to mdBook'
     rationale: 'mdBook is simpler and lighter -- no Node.js ecosystem, no build pipeline, no workspace dependencies. The CI docs job is now a single cargo install + mdbook build step instead of a multi-step npm/Astro pipeline'
+  - date: '2026-03-08'
+    choice: 'Migrate init-sync drift check from .claude/commands/ to .claude/skills/'
+    rationale: 'Claude Code promotes .claude/skills/<name>/SKILL.md as the recommended location over .claude/commands/<name>.md; skills support additional capabilities including frontmatter, context: fork for subagents, and directory structure for supporting files'

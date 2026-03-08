@@ -3,13 +3,13 @@ use std::path::Path;
 
 const HOOK_COMMAND: &str = "notarai hook validate";
 
-const RECONCILE_MD: &str = include_str!("../../commands/notarai-reconcile.md");
-const BOOTSTRAP_MD: &str = include_str!("../../commands/notarai-bootstrap.md");
+const RECONCILE_MD: &str = include_str!("../../skills/notarai-reconcile/SKILL.md");
+const BOOTSTRAP_MD: &str = include_str!("../../skills/notarai-bootstrap/SKILL.md");
 const NOTARAI_README_TEMPLATE: &str = include_str!("../../templates/notarai-readme.md");
 const SCHEMA_JSON: &str = include_str!("../../notarai.spec.json");
 
-/// The section written to / replaced in CLAUDE.md. Exactly 3 lines plus trailing newline.
-const NOTARAI_SECTION: &str = "## NotarAI\n\n@.notarai/README.md\n@.notarai/notarai.spec.json\n";
+/// The section written to / replaced in CLAUDE.md.
+const NOTARAI_SECTION: &str = "## NotarAI\n\nSpecs live in `.notarai/*.spec.yaml` and are the canonical source of truth.\nRun `/notarai-reconcile` to detect drift between specs, code, and docs.\nRun `notarai validate .notarai/` to validate specs manually.\nThe PostToolUse hook auto-validates any spec file you write or edit.\n";
 
 fn has_notarai_hook(matchers: &[serde_json::Value]) -> bool {
     matchers.iter().any(|m| {
@@ -182,8 +182,8 @@ pub fn run(project_root: Option<&Path>) -> i32 {
 
     setup_schema(&notarai_dir);
     setup_notarai_readme(&notarai_dir);
-    setup_command("notarai-reconcile", RECONCILE_MD, &claude_dir);
-    setup_command("notarai-bootstrap", BOOTSTRAP_MD, &claude_dir);
+    setup_skill("notarai-reconcile", RECONCILE_MD, &claude_dir);
+    setup_skill("notarai-bootstrap", BOOTSTRAP_MD, &claude_dir);
     setup_claude_context(&root);
     setup_gitignore(&root);
     setup_mcp_json(&root);
@@ -257,22 +257,22 @@ fn setup_claude_context(project_dir: &Path) {
     }
 }
 
-fn setup_command(name: &str, content: &str, claude_dir: &Path) {
-    let commands_dir = claude_dir.join("commands");
+fn setup_skill(name: &str, content: &str, claude_dir: &Path) {
+    let skill_dir = claude_dir.join("skills").join(name);
 
-    if let Err(e) = fs::create_dir_all(&commands_dir) {
-        eprintln!("Warning: could not create .claude/commands/ directory: {e}");
+    if let Err(e) = fs::create_dir_all(&skill_dir) {
+        eprintln!("Warning: could not create .claude/skills/{name}/ directory: {e}");
         return;
     }
 
-    let dest_path = commands_dir.join(format!("{name}.md"));
+    let dest_path = skill_dir.join("SKILL.md");
 
     if let Err(e) = fs::write(&dest_path, content) {
-        eprintln!("Warning: could not write {name}.md: {e}");
+        eprintln!("Warning: could not write {name}/SKILL.md: {e}");
         return;
     }
 
-    println!("Updated .claude/commands/{name}.md");
+    println!("Updated .claude/skills/{name}/SKILL.md");
 }
 
 fn setup_gitignore(project_dir: &Path) {

@@ -47,8 +47,8 @@ notarai init
 1. Adds a **PostToolUse hook** to `.claude/settings.json` so spec files are automatically validated when Claude Code writes or edits them (command: `notarai hook validate`).
 2. Copies `notarai.spec.json` to `.notarai/notarai.spec.json` so Claude has the schema available (always refreshed to keep current).
 3. Writes `.notarai/README.md` with workflow instructions (always overwritten).
-4. Copies `notarai-reconcile.md` and `notarai-bootstrap.md` to `.claude/commands/` (always overwritten to stay in sync with the binary).
-5. Replaces the `## NotarAI` section in `CLAUDE.md` with `@`-imports of the schema and README. Appends if the section is absent.
+4. Copies `notarai-reconcile` and `notarai-bootstrap` skills to `.claude/skills/` (always overwritten to stay in sync with the binary).
+5. Replaces the `## NotarAI` section in `CLAUDE.md` with a concise workflow description. Appends if the section is absent.
 6. Appends `.notarai/.cache/` to `.gitignore` so the hash cache DB is never committed.
 7. Writes `.mcp.json` registering `notarai mcp` as a local [MCP server](./mcp-server.md).
 
