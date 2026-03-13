@@ -100,8 +100,8 @@ This overwrites `.notarai/notarai.spec.json` with the bundled schema and updates
 
 ## Bootstrap from an existing codebase
 
-Use the `/notarai-bootstrap` slash command in Claude Code to generate specs from your existing code via a structured developer interview.
+Use the `/notarai-bootstrap` skill in Claude Code to generate specs from your existing code via a structured developer interview.
 
 ## Detect drift
 
-Use the `/notarai-reconcile` slash command in Claude Code to detect drift between specs and code, and propose aligned updates.
+Use the `/notarai-reconcile` skill in Claude Code to detect drift between specs and code, and propose aligned updates.

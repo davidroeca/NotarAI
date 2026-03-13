@@ -36,7 +36,7 @@ notarai validate .notarai/subsystems/
 
 ## notarai init
 
-Set up NotarAI in a project. Running `init` again is safe: it always refreshes slash commands and the schema copy.
+Set up NotarAI in a project. Running `init` again is safe: it always refreshes skills and the schema copy.
 
 ```sh
 notarai init

@@ -210,7 +210,7 @@ decisions:
     choice: 'Remove cache update and cache changed CLI subcommands'
     rationale: 'These subcommands were only used to seed the MCP cache from the CLI, but the correct way to seed the cache is via mark_reconciled (which uses relative paths as keys, matching how get_spec_diff queries it). The CLI subcommands used absolute paths as keys, creating a separate namespace. Removing them eliminates the confusion and reduces CLI surface.'
   - date: '2026-02-26'
-    choice: 'init always overwrites .claude/commands/ and replaces the CLAUDE.md NotarAI section'
+    choice: 'init always overwrites .claude/commands/ and replaces the CLAUDE.md NotarAI section (superseded by 2026-03-08 decision)'
     rationale: 'Previous behavior skipped existing commands and warned on CLAUDE.md drift, requiring manual intervention to keep installed commands in sync with the bundled version. Always overwriting and always replacing makes init idempotent without user involvement -- the section is small and always correct after a run.'
   - date: '2026-02-26'
     choice: 'Move schema copy from .claude/notarai.spec.json to .notarai/notarai.spec.json'

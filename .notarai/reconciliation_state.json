@@ -2,31 +2,187 @@
   "schema_version": "1",
   "cli_version": "0.4.0",
   "last_reconciliation": {
-    "timestamp": "1772981102Z",
-    "git_hash": "edbe99ff2caaddad20395ec05a6f54b72d736276",
-    "branch": "main"
+    "timestamp": "1773423102Z",
+    "git_hash": "505284e13078856b5a64e0d247228a4ec3ec2cb7",
+    "branch": "fix-16"
   },
   "file_fingerprints": {
+    ".claude/commands/notarai-bootstrap.md": {
+      "blake3": "c8e52ff8d6236b585b4aa97ca6352c83ef11b2d77e3902aae1f65f8e9f73b834"
+    },
+    ".claude/commands/notarai-reconcile.md": {
+      "blake3": "e3e1658ada3bf2e0a091c9e6a2c448aafef911ea52d790591b256f99c9c9a77f"
+    },
+    ".claude/rules/rust.md": {
+      "blake3": "cf9636b27d939cdeeb2aab6b0e4ee953f28343f062154c935473d8f4ac746844"
+    },
     ".claude/rules/schema-version.md": {
       "blake3": "2f85619c3f699b6c51d7a7a8af950949d0c56d501744810016e89004f28616c0"
     },
-    ".claude/skills/notarai-bootstrap/SKILL.md": {
-      "blake3": "599412980db13f28bcc1ab84cde9a675c5bcb9e1850bf6c95ee25f64b2258580"
+    ".claude/rules/style.md": {
+      "blake3": "1113e90a1247236e3507a9e2bb05c66577a817dc282ad5a3cdd7af3accfd55c9"
     },
-    ".claude/skills/notarai-reconcile/SKILL.md": {
-      "blake3": "8a9e1728f13de640b423c32efc578829c3d55702dcc07b2e158828e817c2cb2a"
+    ".claude/rules/testing.md": {
+      "blake3": "11d826dbd76f4558a8b20d08e5c4f1839b234a905309b4c8171a62996d8d5d47"
+    },
+    ".claude/settings.json": {
+      "blake3": "858636e6a078753d8b5cc52781247443cdea8b861b75a3849346dbe868a11753"
+    },
+    ".github/dependabot.yml": {
+      "blake3": "de34f1eb9088315b3b9c9d36a25680c1f41fb4323cabee723256a1735c39fd77"
     },
     ".github/workflows/ci.yml": {
       "blake3": "e4b0908c2b7cdbe72a837c2d36afe3c43575edd215b6ffea05f7553ea261daaf"
     },
+    ".github/workflows/docs.yml": {
+      "blake3": "4b1ee04906b2dc69b7c4b39ace3154a387cbd5afcf1c9c60df79729e734377fa"
+    },
+    ".github/workflows/release.yml": {
+      "blake3": "621d25827b1775c3af716f86c53b80fa18db1903bfe21ed06b20a293e3b83cb7"
+    },
+    ".notarai/README.md": {
+      "blake3": "f92342a1aec07b2181f663969c76ec0104da15809f37ca30a63f6116cdbf56e4"
+    },
+    ".notarai/reconciliation_state.json": {
+      "blake3": "0e6973a56afbf437d8ec3e8b3c40803222f121e5cece985873383da0d08cef62"
+    },
+    ".pre-commit-config.yaml": {
+      "blake3": "fe6c5477a972693b5fa47e114a2cf5b57d0457570e3f46894afc4775f6c52786"
+    },
     "CLAUDE.md": {
       "blake3": "09140e3eba747db2f8f0070afd59391912ab1bed31b41ef8a4857f7527661d01"
     },
+    "CONTRIBUTING.md": {
+      "blake3": "409b092203febc8c5e923faf69aab3adcc7a55a0c235678e450386bf4d8527e0"
+    },
+    "Cargo.lock": {
+      "blake3": "f2c7def369a42a1a7da273debaa11bd98a728a8560a3d5b2f4ea1b89ffa1ba77"
+    },
+    "Cargo.toml": {
+      "blake3": "edadcd29987be70e6aa0e46776685764115d5750b4cb3ff369606fca8601617e"
+    },
+    "README.md": {
+      "blake3": "c24569484d726bd34cd38d962131ac7c43e0f2d9c047bcad07c2e572eface171"
+    },
+    "biome.json": {
+      "blake3": "200e52de865bc21f5879a56de27088e37a29be6b02de1bd8e2fc7c94225dc73c"
+    },
+    "commands/notarai-bootstrap.md": {
+      "blake3": "599412980db13f28bcc1ab84cde9a675c5bcb9e1850bf6c95ee25f64b2258580"
+    },
+    "commands/notarai-reconcile.md": {
+      "blake3": "8a9e1728f13de640b423c32efc578829c3d55702dcc07b2e158828e817c2cb2a"
+    },
+    "docs-site/README.md": {
+      "blake3": "f4e6940b4b753763fbf8565765b0baaf7e99331c549c352eeb264019cbdc466f"
+    },
+    "docs-site/astro.config.mjs": {
+      "blake3": "e0925a388268a4f2799bab9cd9cd3937426d7b976895770e0feb143b84f0d693"
+    },
+    "docs-site/src/content/docs/background/comparison-to-sdd.md": {
+      "blake3": "9968584c95532f06a7c9f38d1faef20bc157b56b2311277bbcec26d25ce583bd"
+    },
+    "docs-site/src/content/docs/background/design-diagrams.md": {
+      "blake3": "ec7f591c8595e730e90bd3d8f8ec355df3c15cba9586f0bcb1423167a5a963a6"
+    },
+    "docs-site/src/content/docs/background/inspirations.md": {
+      "blake3": "2c2fb86a2ba5695f47dc822fca824aeb3c96f41af056eef46896abca9526f4de"
+    },
+    "docs-site/src/content/docs/background/motivation.md": {
+      "blake3": "0f35f2365650e0e1d091a48e623f314a7b578f98d6e1c08596107dc54f28883d"
+    },
+    "docs-site/src/content/docs/contributing.md": {
+      "blake3": "1b2070b830080171024c56145513b3860b0f0476ff0ea7977d9d27d770726fdc"
+    },
+    "docs-site/src/content/docs/getting-started/installation.md": {
+      "blake3": "f02c3fb1f0ddaea264ac7affdfc4091f68f919e91db47815838cf2b6991ed385"
+    },
+    "docs-site/src/content/docs/getting-started/quick-start.md": {
+      "blake3": "610ec67207969b04995e7da88862df0628a80b809f5692571ce95147c6dad92e"
+    },
+    "docs-site/src/content/docs/guides/reconciliation.md": {
+      "blake3": "57dfee9b31a6bc35fd033208289b4d5d63d6acb9ade0639304c436ba1f37a1ed"
+    },
+    "docs-site/src/content/docs/guides/spec-format.md": {
+      "blake3": "695db6a63e2a656b46ab5d1396899ae5a8046879283781fb054a5681f81ae662"
+    },
+    "docs-site/src/content/docs/index.mdx": {
+      "blake3": "7ec7a95e45d73825c9e37da64a2330e884a108d1368fd64d0bb5b2f298616506"
+    },
+    "docs-site/src/content/docs/reference/cli.md": {
+      "blake3": "daf91b15c4a5987a85660bbad6e19b6b64cbac18a29649b721522a111b5d21e0"
+    },
+    "docs-site/src/content/docs/reference/mcp-server.md": {
+      "blake3": "5bd0a6e6b1f9282d47ecdeadca1c98add4f8347a9eb81ed66c410f4b9bdd8928"
+    },
+    "docs/book.toml": {
+      "blake3": "d5df1c1b015e6e8dca52f918a05fda9fdc50d8aeff91c094a0005e3c54616110"
+    },
+    "docs/src/SUMMARY.md": {
+      "blake3": "b404b359a62a7604f8d737b639f1d04ded246a646bc2363ed373a69bb271a3d0"
+    },
+    "docs/src/background/comparison-to-sdd.md": {
+      "blake3": "498f13dffee6d1ff901793c54761f285bb210c82ed07696bfb0647050ff1bd8b"
+    },
+    "docs/src/background/design-diagrams.md": {
+      "blake3": "36a380ede68f598dad49d82280e1427a5ca8d3c2ec0d0212a0ca39e747ce0b97"
+    },
+    "docs/src/background/inspirations.md": {
+      "blake3": "10030debc8865cf39d9dd8c66ac2a0659581c8763a45ad21d2d6296ef987e10e"
+    },
+    "docs/src/background/motivation.md": {
+      "blake3": "b0a48f0384561c015f71e80215e6716ec41d2174e99944184ba4bdfeca85822c"
+    },
+    "docs/src/contributing.md": {
+      "blake3": "35882f0f61e5e5a45d523513871692853ae2388cd0e1f427c6a0e5219d933aa1"
+    },
+    "docs/src/getting-started/installation.md": {
+      "blake3": "755c308666b507af41cbffaedd9909d4466cfb1c783b1db6a7250c20618bcb4b"
+    },
     "docs/src/getting-started/quick-start.md": {
-      "blake3": "d5bf03d4f84eb745462c60f44b0f82a0f8231c5d7f89e857df5ebc198c291e14"
+      "blake3": "92966e5a3ac76795c5ead494c8e2cbc8101a7f90012ca6025881e4725e3f8f7e"
+    },
+    "docs/src/guides/non-software-examples.md": {
+      "blake3": "606d28ac3ddcd74b5b9f33d5e8cc0f54c9b97420715c398a0cc1866f7b6c4ac8"
+    },
+    "docs/src/guides/reconciliation.md": {
+      "blake3": "0d9b8ec7037cd639b68c1b29add3dadb1c32bddf02b76e81e96edff8165afad5"
+    },
+    "docs/src/guides/spec-format.md": {
+      "blake3": "d4be2bf9e4b57347cc8eb6ee8523e11d3c7de80306d1ae1bef4672e2b1a24af1"
+    },
+    "docs/src/guides/specs-vs-claude-rules.md": {
+      "blake3": "e0756c8edd810d0ee8eb981e7b7717fb1e8b3d73aacf0ab46fcdc510367e6206"
+    },
+    "docs/src/index.md": {
+      "blake3": "a9f5249bba61112da086cc03469de079982d865f0817bf8984035d996681c38f"
     },
     "docs/src/reference/cli.md": {
-      "blake3": "a3763ea2ccfa2c4810007745b61f26d0d894e38db93319e387c6ead45b6d9f0d"
+      "blake3": "408ad3fd8ba10ab3f4dbff728d7b9e1007512cbae1c4346158f7787150245c3a"
+    },
+    "docs/src/reference/mcp-server.md": {
+      "blake3": "d5aca1171f98a361eda701a43cdadcd7691c90ffb4e8401ee468f4cd3a733e37"
+    },
+    "notarai.spec.json": {
+      "blake3": "55806e6b229aca23494d5b650891b196f726cb41a14e52a3ebd7b4bde7dc8e00"
+    },
+    "package.json": {
+      "blake3": "a65b8e5fd84b685641d3c5d28c7aa604d7d5de9465b40b5a9946260867b03f60"
+    },
+    "prettier.config.mjs": {
+      "blake3": "7caeb596677d8cf53febdcc99eec3fc53e854d0912657ca17cb45216f0156df4"
+    },
+    "schemas/0.5/spec.schema.json": {
+      "blake3": "6c2ef2234669e859dafcddc3b1d5106e4a3a2a24ff98e7630773e22de1b9d77d"
+    },
+    "schemas/0.6/spec.schema.json": {
+      "blake3": "7182f1cbb9021c6e781aa8a6990d28384232ed80cb785345f406ba1ddc37521a"
+    },
+    "scripts/install.ps1": {
+      "blake3": "ffd8e4ffa66d60d305b7185e3e9bbd5705fa36e613db7b62202f8df537887f8b"
+    },
+    "scripts/install.sh": {
+      "blake3": "493163c6256ad8ca815dd114dc609851ea93c2130205648999b96b96945fcb6a"
     },
     "skills/notarai-bootstrap/SKILL.md": {
       "blake3": "599412980db13f28bcc1ab84cde9a675c5bcb9e1850bf6c95ee25f64b2258580"
@@ -34,15 +190,88 @@
     "skills/notarai-reconcile/SKILL.md": {
       "blake3": "8a9e1728f13de640b423c32efc578829c3d55702dcc07b2e158828e817c2cb2a"
     },
+    "src/commands/cache.rs": {
+      "blake3": "8029043cbfa390ddbf9a6995f964a3432839c74536ec70e586299e49e8384756"
+    },
+    "src/commands/hook_validate.rs": {
+      "blake3": "2dd660143c1a4ae6a6784e2755ac7efecb996047925d39202a5876cec451055e"
+    },
     "src/commands/init.rs": {
       "blake3": "be7a55f6063abd3355d86715a4fac9a7e4f665249fc3bb07a6dde63157e69ae6"
     },
+    "src/commands/mcp.rs": {
+      "blake3": "13feaa41cc9c3e700f704c113c39dd31268c83aa3a8f12f1f8bb037ce31f51c6"
+    },
+    "src/commands/mod.rs": {
+      "blake3": "2afeaebb044ec2990b0eae23afeb0b26af7676ffa08b34cad1f4cb57bd1f2074"
+    },
+    "src/commands/schema_bump.rs": {
+      "blake3": "1f739e3d3addcaaa67b80238f2a344f3cbe716af0df45f252c28fc29d66623d5"
+    },
+    "src/commands/state.rs": {
+      "blake3": "015985206a3b4999c2bd969daf67d5048095ea3053bca7ec7cbd923dea187669"
+    },
+    "src/commands/update.rs": {
+      "blake3": "25eb7fe55a44ee14f09cbc60e46ed5001a66967ea40f4ee844f5f4921e74d13c"
+    },
+    "src/commands/validate.rs": {
+      "blake3": "3ce6330dbaaa1dfa9f2aa453beb76bf460c630171e675372f655da8eff4318d7"
+    },
+    "src/core/cache.rs": {
+      "blake3": "e2b2c563b331266a315c88bccf412704f3d2c16eec02beaaa26497a4a5096b0a"
+    },
+    "src/core/mcp_tools.rs": {
+      "blake3": "8de7d67fbd7e475d2a6805584b4ed82f0f1a28829eef0208a123aeb94a11c889"
+    },
+    "src/core/mod.rs": {
+      "blake3": "dc1c0ac8247b0268b670f9ea9a95e9bb973e67d4e46951b3cc439fa3a92f1140"
+    },
+    "src/core/schema.rs": {
+      "blake3": "de5e0fadba38843fb80fd24e60b94420769e267548cb105a13c5919e51b6b685"
+    },
+    "src/core/state.rs": {
+      "blake3": "54c87e1c78ce42cd273a29bc92e3dd170a0fe3ce51e06dd460774aa08bd7faa1"
+    },
+    "src/core/update.rs": {
+      "blake3": "30692cc4adc4a70ac7c203238a12e536046741c273f30153456707127c85a11a"
+    },
+    "src/core/validator.rs": {
+      "blake3": "1773d92f1ed20fdcd1b2454692ef336a0e10953de4d8b83bcc33b46dcf5bcda3"
+    },
+    "src/core/yaml.rs": {
+      "blake3": "4698c54c4c9c692d0003d4e3a61f3b9d7727f27d982e9b54da6dbd0f8beb38dc"
+    },
+    "src/main.rs": {
+      "blake3": "0c3abd83bf85411fd9ee16f5d1b3e2b60b056ccb2def11a3921c64d66975e3ff"
+    },
+    "templates/notarai-readme.md": {
+      "blake3": "b6c98d644e6f78a428e113aba5bf5fec1b3bb44905b5d804bdca4820580516c6"
+    },
+    "tests/bin_test.rs": {
+      "blake3": "9ed192af8cb039797cc49f9f59c82cf5800213c2fb00f5530a8438de6bb7354c"
+    },
+    "tests/cache_test.rs": {
+      "blake3": "3b6ea49234d4d7254cdba52d3332bb2622ea6a1597acdedde4b68014e00ece33"
+    },
     "tests/init_test.rs": {
-      "blake3": "5f7e3e21297ddbd656fe616cc97596ec8c71ad7c1bddb1964971af8310b83a4f"
+      "blake3": "0c8cbad98f2d2012b2be36264fbd9307fe3b37eefd2595c9381b740ffec21a7e"
+    },
+    "tests/mcp_test.rs": {
+      "blake3": "9d90fe89b04e9f059ee2f6b8fd11305bb24babf4f42c4cfe2140c8f3762c971c"
+    },
+    "tests/state_test.rs": {
+      "blake3": "f45e42888942311bd77e6882602aa9ebeac8c8b9156659fa933332649b7654ee"
+    },
+    "tests/update_test.rs": {
+      "blake3": "65de3cfb096803ab18c8b0e9896988ed699a7a8fa449326ddfc17dc8eb167b7e"
     }
   },
   "spec_fingerprints": {
-    ".notarai/ci.spec.yaml": "6f403770b472b39d690a41d729c7d90c04c7c8c9c2b698a486cd0562318c7448",
-    ".notarai/cli.spec.yaml": "afce8f1c0f79924c389644b657e33d629a4480e25316eaaae88f7eb251b4c27b"
+    ".notarai/ci.spec.yaml": "65654acd819fb0c629b5765a0569cec37718e6829d7b000cd9816cb43063436b",
+    ".notarai/cli.spec.yaml": "1b4332e52044408623cf37f417b701c01267509daa4251a329cacbeb330e37ce",
+    ".notarai/docs-site.spec.yaml": "319ad566ececed817928c1642f8c33eee6bd2ecd6093efcc6325b25b7229c22a",
+    ".notarai/docs.spec.yaml": "60b858f31eeaf9680852dc29a90f593a47e1c57c6005bc0dc81fca91f5d05fec",
+    ".notarai/style.spec.yaml": "40fe8e6900c21114cfb0f86ce035b4a8fd5a5c2fadd844182867e4266c771e08",
+    ".notarai/system.spec.yaml": "6763397bcbdbdc5404dbbaeb8744f2809879c1a80f2374fe738d8b4c2f0f155a"
   }
 }
