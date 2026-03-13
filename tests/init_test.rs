@@ -97,8 +97,8 @@ fn creates_claude_md_when_missing() {
     assert!(claude_md.exists());
     let content = fs::read_to_string(claude_md).unwrap();
     assert!(content.contains("## NotarAI"));
-    assert!(content.contains("@.notarai/README.md"));
-    assert!(content.contains("@.notarai/notarai.spec.json"));
+    assert!(content.contains("/notarai-reconcile"));
+    assert!(content.contains("notarai validate"));
 }
 
 #[test]
@@ -140,8 +140,8 @@ fn replaces_existing_notarai_section_in_claude_md() {
     // Outdated content is replaced
     assert!(!content.contains("This is outdated content."));
     // New section present
-    assert!(content.contains("@.notarai/README.md"));
-    assert!(content.contains("@.notarai/notarai.spec.json"));
+    assert!(content.contains("/notarai-reconcile"));
+    assert!(content.contains("notarai validate"));
 }
 
 #[test]
@@ -176,12 +176,12 @@ fn copies_slash_commands() {
 
     assert!(
         tmp.path()
-            .join(".claude/commands/notarai-reconcile.md")
+            .join(".claude/skills/notarai-reconcile/SKILL.md")
             .exists()
     );
     assert!(
         tmp.path()
-            .join(".claude/commands/notarai-bootstrap.md")
+            .join(".claude/skills/notarai-bootstrap/SKILL.md")
             .exists()
     );
 }
@@ -195,7 +195,7 @@ fn always_overwrites_slash_commands_on_rerun() {
         .assert()
         .success();
 
-    let reconcile_path = tmp.path().join(".claude/commands/notarai-reconcile.md");
+    let reconcile_path = tmp.path().join(".claude/skills/notarai-reconcile/SKILL.md");
     fs::write(&reconcile_path, "sentinel content").unwrap();
 
     notarai()

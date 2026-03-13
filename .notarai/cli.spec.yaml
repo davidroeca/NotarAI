@@ -32,11 +32,11 @@ behaviors:
     given: 'no existing .claude/settings.json'
     then: >
       creates .claude/settings.json with the PostToolUse validation hook (command: notarai
-      hook validate); copies notarai-reconcile.md and notarai-bootstrap.md to
-      .claude/commands/ (always overwriting); copies notarai.spec.json to
+      hook validate); copies SKILL.md for notarai-reconcile and notarai-bootstrap to
+      .claude/skills/<name>/ (always overwriting); copies notarai.spec.json to
       .notarai/notarai.spec.json; writes .notarai/README.md from the bundled template with
       the current CLI version injected; creates or updates CLAUDE.md with the NotarAI section
-      (@.notarai/README.md and @.notarai/notarai.spec.json); appends .notarai/.cache/ to
+      (inline description of the workflow); appends .notarai/.cache/ to
       .gitignore; writes .mcp.json registering notarai mcp as a local MCP server
 
   - name: validate_warns_stale_schema
@@ -51,7 +51,7 @@ behaviors:
     given: 'notarai init has already been run'
     then: >
       detects existing hook and MCP entry and reports already configured; always overwrites
-      .claude/commands/ (no existence check); always overwrites .notarai/notarai.spec.json and
+      .claude/skills/ (no existence check); always overwrites .notarai/notarai.spec.json and
       .notarai/README.md; replaces the ## NotarAI section in CLAUDE.md with the current
       template content; idempotently checks .gitignore and .mcp.json
 
@@ -158,7 +158,7 @@ constraints:
   - 'Exit codes: 0 for success/no-op, 1 for validation failure or errors'
   - 'CLI uses clap 4.x derive API for argument parsing and help generation'
   - 'The jsonschema validator is compiled once at process init via OnceLock (not per call); runtime schema reads (e.g. freshness checks) are permitted'
-  - 'All bundled assets (schema, templates, commands) are embedded at compile time via include_str!'
+  - 'All bundled assets (schema, templates, skills) are embedded at compile time via include_str!'
   - 'The crate README should contain valid links'
   - 'If certain files are linked in the crate README, they must be bundled with the crate'
   - 'Batch database operations -- loops over DB calls must use a single transaction with a prepared statement, not implicit per-call transactions'
@@ -210,7 +210,7 @@ decisions:
     choice: 'Remove cache update and cache changed CLI subcommands'
     rationale: 'These subcommands were only used to seed the MCP cache from the CLI, but the correct way to seed the cache is via mark_reconciled (which uses relative paths as keys, matching how get_spec_diff queries it). The CLI subcommands used absolute paths as keys, creating a separate namespace. Removing them eliminates the confusion and reduces CLI surface.'
   - date: '2026-02-26'
-    choice: 'init always overwrites .claude/commands/ and replaces the CLAUDE.md NotarAI section'
+    choice: 'init always overwrites .claude/commands/ and replaces the CLAUDE.md NotarAI section (superseded by 2026-03-08 decision)'
     rationale: 'Previous behavior skipped existing commands and warned on CLAUDE.md drift, requiring manual intervention to keep installed commands in sync with the bundled version. Always overwriting and always replacing makes init idempotent without user involvement -- the section is small and always correct after a run.'
   - date: '2026-02-26'
     choice: 'Move schema copy from .claude/notarai.spec.json to .notarai/notarai.spec.json'
@@ -257,6 +257,15 @@ decisions:
       file_categories maps each changed file to its spec artifact category
       for category-aware reconciliation.
 
+  - date: '2026-03-08'
+    choice: 'Migrate bundled Claude Code commands to skills (.claude/skills/<name>/SKILL.md)'
+    rationale: >
+      Claude Code promotes .claude/skills/ over .claude/commands/ as the recommended
+      location; skills support frontmatter, context: fork for subagents, and directory
+      structure for supporting files. No active users so no migration shim needed.
+      The CLAUDE.md NotarAI section was also changed from @-imports of README and schema
+      to an inline workflow description to avoid loading irrelevant content into every session.
+
 artifacts:
   code:
     - path: 'src/main.rs'
@@ -272,10 +281,10 @@ artifacts:
       role: 'JSON Schema for the current schema version; always reflects the newest version'
     - path: 'schemas/*/spec.schema.json'
       role: 'Frozen snapshots of old schema versions; copied by the docs workflow to serve each version at its canonical $id URL'
-    - path: 'commands/notarai-reconcile.md'
-      role: 'Bundled Claude Code slash command copied by init'
-    - path: 'commands/notarai-bootstrap.md'
-      role: 'Bundled Claude Code slash command for bootstrap interview, copied by init'
+    - path: 'skills/notarai-reconcile/SKILL.md'
+      role: 'Bundled Claude Code skill copied by init'
+    - path: 'skills/notarai-bootstrap/SKILL.md'
+      role: 'Bundled Claude Code skill for bootstrap interview, copied by init'
     - path: 'templates/notarai-readme.md'
       role: 'Bundled .notarai/README.md template written by notarai init to target projects'
     - path: '.claude/rules/rust.md'

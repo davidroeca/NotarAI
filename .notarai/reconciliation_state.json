@@ -1,10 +1,10 @@
 {
   "schema_version": "1",
-  "cli_version": "0.3.3",
+  "cli_version": "0.4.0",
   "last_reconciliation": {
-    "timestamp": "1772774633Z",
-    "git_hash": "b022952d01d1e037df2568ea792803aa0a680535",
-    "branch": "evolve-schema"
+    "timestamp": "1773423102Z",
+    "git_hash": "505284e13078856b5a64e0d247228a4ec3ec2cb7",
+    "branch": "fix-16"
   },
   "file_fingerprints": {
     ".claude/commands/notarai-bootstrap.md": {
@@ -17,7 +17,7 @@
       "blake3": "cf9636b27d939cdeeb2aab6b0e4ee953f28343f062154c935473d8f4ac746844"
     },
     ".claude/rules/schema-version.md": {
-      "blake3": "e9623b2a177462a49570b12481f8192b255bfe0284916f32b6d69e24e0ef01fc"
+      "blake3": "2f85619c3f699b6c51d7a7a8af950949d0c56d501744810016e89004f28616c0"
     },
     ".claude/rules/style.md": {
       "blake3": "1113e90a1247236e3507a9e2bb05c66577a817dc282ad5a3cdd7af3accfd55c9"
@@ -32,7 +32,7 @@
       "blake3": "de34f1eb9088315b3b9c9d36a25680c1f41fb4323cabee723256a1735c39fd77"
     },
     ".github/workflows/ci.yml": {
-      "blake3": "3e6d5cb69fdd7efec2061a981d13a24abcc697b8f1c6b701450a9900ed26cce1"
+      "blake3": "e4b0908c2b7cdbe72a837c2d36afe3c43575edd215b6ffea05f7553ea261daaf"
     },
     ".github/workflows/docs.yml": {
       "blake3": "4b1ee04906b2dc69b7c4b39ace3154a387cbd5afcf1c9c60df79729e734377fa"
@@ -50,7 +50,7 @@
       "blake3": "fe6c5477a972693b5fa47e114a2cf5b57d0457570e3f46894afc4775f6c52786"
     },
     "CLAUDE.md": {
-      "blake3": "04c362980e1961ac98bf86a0370a1630641ace770022b0c22b6051a835e5ace6"
+      "blake3": "09140e3eba747db2f8f0070afd59391912ab1bed31b41ef8a4857f7527661d01"
     },
     "CONTRIBUTING.md": {
       "blake3": "409b092203febc8c5e923faf69aab3adcc7a55a0c235678e450386bf4d8527e0"
@@ -62,7 +62,7 @@
       "blake3": "edadcd29987be70e6aa0e46776685764115d5750b4cb3ff369606fca8601617e"
     },
     "README.md": {
-      "blake3": "e8c7d6db82ed877459d9724278e5cb42ef0003bad885446a7d9ced68a5f686bb"
+      "blake3": "c24569484d726bd34cd38d962131ac7c43e0f2d9c047bcad07c2e572eface171"
     },
     "biome.json": {
       "blake3": "200e52de865bc21f5879a56de27088e37a29be6b02de1bd8e2fc7c94225dc73c"
@@ -140,7 +140,7 @@
       "blake3": "755c308666b507af41cbffaedd9909d4466cfb1c783b1db6a7250c20618bcb4b"
     },
     "docs/src/getting-started/quick-start.md": {
-      "blake3": "5e25be05ef5266a82345423e481cdfe45f60ea690e3de2636792ca906bc3e132"
+      "blake3": "92966e5a3ac76795c5ead494c8e2cbc8101a7f90012ca6025881e4725e3f8f7e"
     },
     "docs/src/guides/non-software-examples.md": {
       "blake3": "606d28ac3ddcd74b5b9f33d5e8cc0f54c9b97420715c398a0cc1866f7b6c4ac8"
@@ -158,7 +158,7 @@
       "blake3": "a9f5249bba61112da086cc03469de079982d865f0817bf8984035d996681c38f"
     },
     "docs/src/reference/cli.md": {
-      "blake3": "521e62fb8cfb2e78cc47b05d48e1571870de624032bb98bd308f553878c436e6"
+      "blake3": "408ad3fd8ba10ab3f4dbff728d7b9e1007512cbae1c4346158f7787150245c3a"
     },
     "docs/src/reference/mcp-server.md": {
       "blake3": "d5aca1171f98a361eda701a43cdadcd7691c90ffb4e8401ee468f4cd3a733e37"
@@ -184,6 +184,12 @@
     "scripts/install.sh": {
       "blake3": "493163c6256ad8ca815dd114dc609851ea93c2130205648999b96b96945fcb6a"
     },
+    "skills/notarai-bootstrap/SKILL.md": {
+      "blake3": "599412980db13f28bcc1ab84cde9a675c5bcb9e1850bf6c95ee25f64b2258580"
+    },
+    "skills/notarai-reconcile/SKILL.md": {
+      "blake3": "8a9e1728f13de640b423c32efc578829c3d55702dcc07b2e158828e817c2cb2a"
+    },
     "src/commands/cache.rs": {
       "blake3": "8029043cbfa390ddbf9a6995f964a3432839c74536ec70e586299e49e8384756"
     },
@@ -191,7 +197,7 @@
       "blake3": "2dd660143c1a4ae6a6784e2755ac7efecb996047925d39202a5876cec451055e"
     },
     "src/commands/init.rs": {
-      "blake3": "5bae9bb716a48103a42096c100a439a254bc1ec7a800454724d81a327055660c"
+      "blake3": "be7a55f6063abd3355d86715a4fac9a7e4f665249fc3bb07a6dde63157e69ae6"
     },
     "src/commands/mcp.rs": {
       "blake3": "13feaa41cc9c3e700f704c113c39dd31268c83aa3a8f12f1f8bb037ce31f51c6"
@@ -262,10 +268,10 @@
   },
   "spec_fingerprints": {
     ".notarai/ci.spec.yaml": "65654acd819fb0c629b5765a0569cec37718e6829d7b000cd9816cb43063436b",
-    ".notarai/cli.spec.yaml": "8655da2a529ea116d41805d3018d4d26894696c5f691a15c4f157e036c8cf203",
+    ".notarai/cli.spec.yaml": "1b4332e52044408623cf37f417b701c01267509daa4251a329cacbeb330e37ce",
     ".notarai/docs-site.spec.yaml": "319ad566ececed817928c1642f8c33eee6bd2ecd6093efcc6325b25b7229c22a",
     ".notarai/docs.spec.yaml": "60b858f31eeaf9680852dc29a90f593a47e1c57c6005bc0dc81fca91f5d05fec",
     ".notarai/style.spec.yaml": "40fe8e6900c21114cfb0f86ce035b4a8fd5a5c2fadd844182867e4266c771e08",
-    ".notarai/system.spec.yaml": "1f126ff1e5701b31400de16665f84c49607f0cbb657c80ce676553ba859016ea"
+    ".notarai/system.spec.yaml": "6763397bcbdbdc5404dbbaeb8744f2809879c1a80f2374fe738d8b4c2f0f155a"
   }
 }
