@@ -15,25 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "case \"$CLAUDE_FILE_PATH\" in *.rs) rustfmt \"$CLAUDE_FILE_PATH\" ;; esac"
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "case \"$CLAUDE_FILE_PATH\" in *.json|*.js|*.ts) biome format --write \"$CLAUDE_FILE_PATH\" ;; esac"
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "case \"$CLAUDE_FILE_PATH\" in *.md) npx prettier --write \"$CLAUDE_FILE_PATH\" ;; esac"
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/format.sh"
           }
         ]
       }
