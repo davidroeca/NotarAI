@@ -145,11 +145,7 @@ pub fn get_spec_diff(
         match crate::core::cache::open_cache_db(project_root) {
             Ok(conn) => {
                 // Check whether the primary spec file itself has changed vs cache.
-                let primary_pair = vec![(spec_path.to_string(), abs_spec.clone())];
-                let (primary_changed, _) =
-                    crate::core::cache::check_changed_batch(&conn, &primary_pair)
-                        .unwrap_or_else(|_| (vec![spec_path.to_string()], vec![]));
-                let psc = !primary_changed.is_empty();
+                let psc = is_spec_changed_vs_cache(&conn, spec_path, &abs_spec);
 
                 let spec_pairs: Vec<(String, std::path::PathBuf)> = spec_files
                     .into_iter()
@@ -336,12 +332,27 @@ pub fn get_changed_artifacts(
     })?;
 
     // Check whether the primary spec file itself has changed vs cache.
-    let primary_pair = vec![(spec_path.to_string(), abs_spec.clone())];
-    let (primary_changed, _) = crate::core::cache::check_changed_batch(&conn, &primary_pair)
-        .unwrap_or_else(|_| (vec![spec_path.to_string()], vec![]));
-    let primary_spec_changed = !primary_changed.is_empty();
+    let primary_spec_changed = is_spec_changed_vs_cache(&conn, spec_path, &abs_spec);
 
-    let pairs: Vec<(String, std::path::PathBuf)> = files
+    // Partition governed files: .notarai/**/*.spec.yaml vs. everything else.
+    let (spec_files, artifact_files): (Vec<String>, Vec<String>) =
+        files.into_iter().partition(|f| is_spec_file(f));
+
+    // Check governed spec files against cache.
+    let spec_pairs: Vec<(String, std::path::PathBuf)> = spec_files
+        .into_iter()
+        .map(|rel| {
+            let abs = project_root.join(&rel);
+            (rel, abs)
+        })
+        .collect();
+    let (governed_specs_changed, _) = crate::core::cache::check_changed_batch(&conn, &spec_pairs)
+        .unwrap_or_else(|_| {
+            let all: Vec<String> = spec_pairs.into_iter().map(|(r, _)| r).collect();
+            (all, vec![])
+        });
+
+    let artifact_pairs: Vec<(String, std::path::PathBuf)> = artifact_files
         .into_iter()
         .map(|rel| {
             let abs = project_root.join(&rel);
@@ -349,13 +360,13 @@ pub fn get_changed_artifacts(
         })
         .collect();
 
-    let (changed, unchanged) =
-        crate::core::cache::check_changed_batch(&conn, &pairs).map_err(|e| McpError {
+    let (changed, unchanged) = crate::core::cache::check_changed_batch(&conn, &artifact_pairs)
+        .map_err(|e| McpError {
             code: -32603,
             message: e,
         })?;
 
-    let spec_invalidated = if primary_spec_changed {
+    let spec_invalidated = if primary_spec_changed || !governed_specs_changed.is_empty() {
         unchanged
     } else {
         vec![]
@@ -489,6 +500,17 @@ fn build_file_categories(
 
 fn is_spec_file(path: &str) -> bool {
     path.starts_with(".notarai/") && path.ends_with(".spec.yaml")
+}
+
+/// Check whether a spec file's on-disk content differs from the cache.
+///
+/// Returns `true` when the spec has changed (or the cache lookup fails),
+/// `false` when the cached hash matches the current file.
+fn is_spec_changed_vs_cache(conn: &rusqlite::Connection, spec_rel: &str, spec_abs: &Path) -> bool {
+    let pair = vec![(spec_rel.to_string(), spec_abs.to_path_buf())];
+    let (changed, _) = crate::core::cache::check_changed_batch(conn, &pair)
+        .unwrap_or_else(|_| (vec![spec_rel.to_string()], vec![]));
+    !changed.is_empty()
 }
 
 /// Locate the system spec (the one with a `subsystems` key) in `.notarai/`.
