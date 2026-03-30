@@ -117,20 +117,22 @@ Get the git diff filtered to files governed by a specific spec. Uses the hash ca
     "src/auth.rs": "code",
     "docs/auth.md": "docs",
     "assets/logo.png": "assets"
-  }
+  },
+  "spec_invalidated": ["src/utils.rs"]
 }
 ```
 
-| Field             | Description                                                                                                           |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `diff`            | Unified diff output for non-spec, non-binary artifact files only                                                      |
-| `files`           | Non-spec files included in the diff (includes binary files by path, but their content is in `binary_changes`)         |
-| `skipped`         | Non-spec files whose BLAKE3 hash matched the cache (already reconciled)                                               |
-| `excluded`        | Patterns passed via `exclude_patterns`                                                                                |
-| `spec_changes`    | Array of `{path, content}` for each governed `.notarai/**/*.spec.yaml` file that changed                              |
-| `system_spec`     | The system spec (the spec with a `subsystems` key) -- included whenever `spec_changes` is non-empty; `null` otherwise |
-| `binary_changes`  | File paths of binary files (images, PPTX, PDF, etc.) whose content cannot be usefully diffed                          |
-| `file_categories` | Object mapping each changed file path to its artifact category from the spec (e.g., `"code"`, `"docs"`, `"assets"`)   |
+| Field              | Description                                                                                                                                                                                                      |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `diff`             | Unified diff output for non-spec, non-binary artifact files only                                                                                                                                                 |
+| `files`            | Non-spec files included in the diff (includes binary files by path, but their content is in `binary_changes`)                                                                                                    |
+| `skipped`          | Non-spec files whose BLAKE3 hash matched the cache (already reconciled)                                                                                                                                          |
+| `excluded`         | Patterns passed via `exclude_patterns`                                                                                                                                                                           |
+| `spec_changes`     | Array of `{path, content}` for each governed `.notarai/**/*.spec.yaml` file that changed                                                                                                                         |
+| `system_spec`      | The system spec (the spec with a `subsystems` key) -- included whenever `spec_changes` is non-empty; `null` otherwise                                                                                            |
+| `binary_changes`   | File paths of binary files (images, PPTX, PDF, etc.) whose content cannot be usefully diffed                                                                                                                     |
+| `file_categories`  | Object mapping each changed file path to its artifact category from the spec (e.g., `"code"`, `"docs"`, `"assets"`)                                                                                              |
+| `spec_invalidated` | Cached artifact paths whose governing spec has changed since last reconciliation, indicating they need review even though the artifacts themselves have not changed on disk. Empty when `bypass_cache` is `true` |
 
 **Why full content for spec files?**
 
@@ -161,11 +163,17 @@ Get artifact files governed by a spec that have changed since the last cache upd
 
 ```json
 {
-  "changed_artifacts": ["docs/auth.md", "docs/api-reference.md"]
+  "changed_artifacts": ["docs/auth.md", "docs/api-reference.md"],
+  "spec_invalidated": ["docs/overview.md"]
 }
 ```
 
-Only files whose content differs from the cached hash are included. If no `artifact_type` is specified, all artifact types are checked.
+| Field               | Description                                                                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `changed_artifacts` | Files whose on-disk content differs from the cached hash                                                                                                                    |
+| `spec_invalidated`  | Cached artifact paths whose governing spec has changed since last reconciliation, indicating they need review even though the artifacts themselves have not changed on disk |
+
+If no `artifact_type` is specified, all artifact types are checked. When `artifact_type` is set, both `changed_artifacts` and `spec_invalidated` are filtered to that type.
 
 ---
 
