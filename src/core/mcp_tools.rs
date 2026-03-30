@@ -130,6 +130,7 @@ pub fn get_spec_diff(
             "excluded": exclude_patterns,
             "spec_changes": [],
             "system_spec": null,
+            "spec_invalidated": [],
         }));
     }
 
@@ -138,11 +139,18 @@ pub fn get_spec_diff(
         files.into_iter().partition(|f| is_spec_file(f));
 
     // Apply cache filtering to both groups independently.
-    let (spec_to_show, artifact_to_diff, artifact_skipped) = if bypass_cache {
-        (spec_files, artifact_files, vec![])
+    let (spec_to_show, artifact_to_diff, artifact_skipped, primary_spec_changed) = if bypass_cache {
+        (spec_files, artifact_files, vec![], false)
     } else {
         match crate::core::cache::open_cache_db(project_root) {
             Ok(conn) => {
+                // Check whether the primary spec file itself has changed vs cache.
+                let primary_pair = vec![(spec_path.to_string(), abs_spec.clone())];
+                let (primary_changed, _) =
+                    crate::core::cache::check_changed_batch(&conn, &primary_pair)
+                        .unwrap_or_else(|_| (vec![spec_path.to_string()], vec![]));
+                let psc = !primary_changed.is_empty();
+
                 let spec_pairs: Vec<(String, std::path::PathBuf)> = spec_files
                     .into_iter()
                     .map(|rel| {
@@ -172,10 +180,20 @@ pub fn get_spec_diff(
                     (all, vec![])
                 });
 
-                (s_show, a_diff, a_skip)
+                (s_show, a_diff, a_skip, psc)
             }
-            Err(_) => (spec_files, artifact_files, vec![]), // cache unavailable: include everything
+            Err(_) => (spec_files, artifact_files, vec![], false), // cache unavailable: include everything
         }
+    };
+
+    // When the primary spec changed, cached artifacts that would normally be
+    // skipped are reclassified as spec_invalidated: they need review because
+    // their governing spec has drifted even though the artifacts themselves
+    // have not changed on disk.
+    let (artifact_skipped, spec_invalidated) = if primary_spec_changed || !spec_to_show.is_empty() {
+        (vec![], artifact_skipped)
+    } else {
+        (artifact_skipped, vec![])
     };
 
     // Read full content of each changed spec file.
@@ -263,6 +281,7 @@ pub fn get_spec_diff(
         "system_spec": system_spec,
         "binary_changes": binary_changes,
         "file_categories": file_categories,
+        "spec_invalidated": spec_invalidated,
     }))
 }
 
@@ -316,6 +335,12 @@ pub fn get_changed_artifacts(
         message: e,
     })?;
 
+    // Check whether the primary spec file itself has changed vs cache.
+    let primary_pair = vec![(spec_path.to_string(), abs_spec.clone())];
+    let (primary_changed, _) = crate::core::cache::check_changed_batch(&conn, &primary_pair)
+        .unwrap_or_else(|_| (vec![spec_path.to_string()], vec![]));
+    let primary_spec_changed = !primary_changed.is_empty();
+
     let pairs: Vec<(String, std::path::PathBuf)> = files
         .into_iter()
         .map(|rel| {
@@ -324,13 +349,22 @@ pub fn get_changed_artifacts(
         })
         .collect();
 
-    let (changed, _unchanged) =
+    let (changed, unchanged) =
         crate::core::cache::check_changed_batch(&conn, &pairs).map_err(|e| McpError {
             code: -32603,
             message: e,
         })?;
 
-    Ok(serde_json::json!({"changed_artifacts": changed}))
+    let spec_invalidated = if primary_spec_changed {
+        unchanged
+    } else {
+        vec![]
+    };
+
+    Ok(serde_json::json!({
+        "changed_artifacts": changed,
+        "spec_invalidated": spec_invalidated,
+    }))
 }
 
 /// Record that the given files have been reconciled by hashing and caching them.
