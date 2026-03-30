@@ -126,6 +126,18 @@ artifacts:
     - path: '*.rs'
 "#;
 
+/// Updated version of TXT_SPEC (changed intent to trigger a cache mismatch).
+const TXT_SPEC_V2: &str = r#"schema_version: '0.4'
+intent: 'Updated test spec governing txt files'
+behaviors:
+  - name: tracks_txt_files
+    given: 'txt files exist'
+    then: 'they appear in the diff'
+artifacts:
+  code:
+    - path: '*.txt'
+"#;
+
 const INITIALIZE_MSG: &str = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{}}}"#;
 
 #[test]
@@ -729,4 +741,400 @@ fn get_changed_artifacts_works_with_nonstandard_category() {
         // Response must contain changed_artifacts key (may be empty if cache is cold
         // and file wasn't modified -- that's fine, we're testing the key is present).
         .stdout(predicate::str::contains("changed_artifacts"));
+}
+
+// -- spec_invalidated: get_spec_diff ------------------------------------------
+
+#[test]
+fn get_spec_diff_invalidates_cached_artifacts_when_spec_changes() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "initial").unwrap();
+    fs::write(root.join("beta.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    fs::write(root.join("alpha.txt"), "changed").unwrap();
+    fs::write(root.join("beta.txt"), "changed").unwrap();
+    git_commit_all(root, "changes");
+
+    // Seed all files (spec + artifacts) into cache.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":[".notarai/test.spec.yaml","alpha.txt","beta.txt"]}}}"#;
+
+    // Now modify the spec on disk (simulates spec edit after reconciliation).
+    // We must do this between messages, so we write the file, then send the diff request.
+    // Since assert_cmd doesn't support interleaving, we modify the spec before
+    // running the MCP server and seed with the OLD hash. Instead, seed first,
+    // then in a second invocation with the modified spec, query get_spec_diff.
+
+    // Step 1: seed cache with current hashes.
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success();
+
+    // Step 2: modify the spec on disk (hash now differs from cache).
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC_V2).unwrap();
+
+    // Step 3: query get_spec_diff -- artifacts should be spec_invalidated, not skipped.
+    let diff_msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/test.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{diff_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("spec_invalidated"))
+        .stdout(predicate::str::contains("alpha.txt"))
+        .stdout(predicate::str::contains("beta.txt"));
+}
+
+#[test]
+fn get_spec_diff_no_invalidation_when_spec_unchanged() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    fs::write(root.join("alpha.txt"), "changed").unwrap();
+    git_commit_all(root, "changes");
+
+    // Seed all files into cache.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":[".notarai/test.spec.yaml","alpha.txt"]}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success();
+
+    // Spec is NOT modified -- hashes still match cache.
+    let diff_msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/test.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    let output = notarai()
+        .arg("mcp")
+        .write_stdin(format!("{diff_msg}\n"))
+        .current_dir(root)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // Parse the JSON-RPC response to verify spec_invalidated is empty.
+    let resp: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let content_text = resp["result"]["content"][0]["text"].as_str().unwrap();
+    let inner: serde_json::Value = serde_json::from_str(content_text).unwrap();
+    let invalidated = inner["spec_invalidated"].as_array().unwrap();
+    assert!(
+        invalidated.is_empty(),
+        "spec_invalidated should be empty when spec is unchanged, got: {invalidated:?}"
+    );
+}
+
+// -- spec_invalidated: get_changed_artifacts ----------------------------------
+
+#[test]
+fn get_changed_artifacts_invalidates_when_spec_changes() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "content").unwrap();
+    git_commit_all(root, "base");
+
+    // Seed all files into cache.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":[".notarai/test.spec.yaml","alpha.txt"]}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success();
+
+    // Modify the spec on disk (hash now differs from cache).
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC_V2).unwrap();
+
+    // Query get_changed_artifacts -- alpha.txt should appear in spec_invalidated.
+    let msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_changed_artifacts","arguments":{"spec_path":".notarai/test.spec.yaml"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("spec_invalidated"))
+        .stdout(predicate::str::contains("alpha.txt"));
+}
+
+#[test]
+fn get_changed_artifacts_no_invalidation_when_spec_unchanged() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "content").unwrap();
+    git_commit_all(root, "base");
+
+    // Seed all files into cache.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":[".notarai/test.spec.yaml","alpha.txt"]}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success();
+
+    // Spec is NOT modified.
+    let msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_changed_artifacts","arguments":{"spec_path":".notarai/test.spec.yaml"}}}"#;
+
+    let output = notarai()
+        .arg("mcp")
+        .write_stdin(format!("{msg}\n"))
+        .current_dir(root)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let resp: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let content_text = resp["result"]["content"][0]["text"].as_str().unwrap();
+    let inner: serde_json::Value = serde_json::from_str(content_text).unwrap();
+    let invalidated = inner["spec_invalidated"].as_array().unwrap();
+    assert!(
+        invalidated.is_empty(),
+        "spec_invalidated should be empty when spec is unchanged, got: {invalidated:?}"
+    );
+}
+
+// -- spec_invalidated: bypass_cache -------------------------------------------
+
+#[test]
+fn get_spec_diff_bypass_cache_has_empty_spec_invalidated() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    fs::write(root.join("alpha.txt"), "changed").unwrap();
+    git_commit_all(root, "changes");
+
+    // Seed cache, then modify spec -- would normally trigger invalidation.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":[".notarai/test.spec.yaml","alpha.txt"]}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success();
+
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC_V2).unwrap();
+
+    // With bypass_cache, spec_invalidated should always be empty.
+    let diff_msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/test.spec.yaml","base_branch":"HEAD~1","bypass_cache":true}}}"#;
+
+    let output = notarai()
+        .arg("mcp")
+        .write_stdin(format!("{diff_msg}\n"))
+        .current_dir(root)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let resp: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let content_text = resp["result"]["content"][0]["text"].as_str().unwrap();
+    let inner: serde_json::Value = serde_json::from_str(content_text).unwrap();
+    let invalidated = inner["spec_invalidated"].as_array().unwrap();
+    assert!(
+        invalidated.is_empty(),
+        "spec_invalidated should be empty when bypass_cache is true, got: {invalidated:?}"
+    );
+}
+
+// -- spec_invalidated: sub-spec change ----------------------------------------
+
+#[test]
+fn get_spec_diff_sub_spec_change_invalidates_artifacts() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    // Primary spec governs code.txt and a child spec.
+    fs::write(root.join(".notarai/parent.spec.yaml"), GOVERNING_SPEC).unwrap();
+    fs::write(root.join(".notarai/child.spec.yaml"), CHILD_SPEC_V1).unwrap();
+    fs::write(root.join("code.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    fs::write(root.join("code.txt"), "changed").unwrap();
+    git_commit_all(root, "changes");
+
+    // Seed all files into cache.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":[".notarai/parent.spec.yaml",".notarai/child.spec.yaml","code.txt"]}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success();
+
+    // Modify the child spec (not the primary) on disk.
+    fs::write(root.join(".notarai/child.spec.yaml"), CHILD_SPEC_V2).unwrap();
+
+    // Primary spec is unchanged, but governed child spec changed.
+    // code.txt should appear in spec_invalidated.
+    let diff_msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_spec_diff","arguments":{"spec_path":".notarai/parent.spec.yaml","base_branch":"HEAD~1"}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{diff_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("spec_invalidated"))
+        .stdout(predicate::str::contains("code.txt"));
+}
+
+// -- spec_invalidated: artifact_type filter -----------------------------------
+
+#[test]
+fn get_changed_artifacts_type_filter_limits_invalidation() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), CATEGORIZED_SPEC).unwrap();
+    fs::write(root.join("main.rs"), "fn main() {}").unwrap();
+    fs::write(root.join("README.md"), "# readme").unwrap();
+    git_commit_all(root, "base");
+
+    // Seed all files into cache.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":[".notarai/test.spec.yaml","main.rs","README.md"]}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success();
+
+    // Modify spec to trigger invalidation.
+    let updated_spec = CATEGORIZED_SPEC.replace(
+        "Test spec with multiple artifact categories",
+        "Updated spec with multiple artifact categories",
+    );
+    fs::write(root.join(".notarai/test.spec.yaml"), &updated_spec).unwrap();
+
+    // Query only the "docs" artifact type.
+    let msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_changed_artifacts","arguments":{"spec_path":".notarai/test.spec.yaml","artifact_type":"docs"}}}"#;
+
+    let output = notarai()
+        .arg("mcp")
+        .write_stdin(format!("{msg}\n"))
+        .current_dir(root)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let resp: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let content_text = resp["result"]["content"][0]["text"].as_str().unwrap();
+    let inner: serde_json::Value = serde_json::from_str(content_text).unwrap();
+    let invalidated = inner["spec_invalidated"].as_array().unwrap();
+
+    // Only docs artifacts should appear, not code artifacts.
+    let invalidated_strs: Vec<&str> = invalidated.iter().filter_map(|v| v.as_str()).collect();
+    assert!(
+        invalidated_strs.iter().any(|s| s.ends_with(".md")),
+        "expected docs artifact in spec_invalidated, got: {invalidated_strs:?}"
+    );
+    assert!(
+        !invalidated_strs.iter().any(|s| s.ends_with(".rs")),
+        "code artifacts should not appear when filtering by docs, got: {invalidated_strs:?}"
+    );
+}
+
+// -- spec_invalidated: mixed changed + invalidated ----------------------------
+
+#[test]
+fn get_changed_artifacts_mixed_changed_and_invalidated() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+
+    setup_git_repo(root);
+    fs::create_dir_all(root.join(".notarai")).unwrap();
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC).unwrap();
+    fs::write(root.join("alpha.txt"), "initial").unwrap();
+    fs::write(root.join("beta.txt"), "initial").unwrap();
+    git_commit_all(root, "base");
+
+    // Seed all files into cache.
+    let seed_msg = r#"{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"mark_reconciled","arguments":{"files":[".notarai/test.spec.yaml","alpha.txt","beta.txt"]}}}"#;
+
+    notarai()
+        .arg("mcp")
+        .write_stdin(format!("{seed_msg}\n"))
+        .current_dir(root)
+        .assert()
+        .success();
+
+    // Modify spec AND one artifact.
+    fs::write(root.join(".notarai/test.spec.yaml"), TXT_SPEC_V2).unwrap();
+    fs::write(root.join("alpha.txt"), "modified").unwrap();
+    // beta.txt is unchanged on disk.
+
+    let msg = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_changed_artifacts","arguments":{"spec_path":".notarai/test.spec.yaml"}}}"#;
+
+    let output = notarai()
+        .arg("mcp")
+        .write_stdin(format!("{msg}\n"))
+        .current_dir(root)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let resp: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let content_text = resp["result"]["content"][0]["text"].as_str().unwrap();
+    let inner: serde_json::Value = serde_json::from_str(content_text).unwrap();
+
+    // alpha.txt changed on disk -> changed_artifacts (not spec_invalidated)
+    let changed = inner["changed_artifacts"].as_array().unwrap();
+    let changed_strs: Vec<&str> = changed.iter().filter_map(|v| v.as_str()).collect();
+    assert!(
+        changed_strs.contains(&"alpha.txt"),
+        "alpha.txt should be in changed_artifacts, got: {changed_strs:?}"
+    );
+
+    // beta.txt unchanged on disk but spec changed -> spec_invalidated
+    let invalidated = inner["spec_invalidated"].as_array().unwrap();
+    let invalidated_strs: Vec<&str> = invalidated.iter().filter_map(|v| v.as_str()).collect();
+    assert!(
+        invalidated_strs.contains(&"beta.txt"),
+        "beta.txt should be in spec_invalidated, got: {invalidated_strs:?}"
+    );
+    assert!(
+        !invalidated_strs.contains(&"alpha.txt"),
+        "alpha.txt should NOT be in spec_invalidated (it's already in changed_artifacts), got: {invalidated_strs:?}"
+    );
 }

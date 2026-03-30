@@ -7,7 +7,7 @@ fi
 fp=$(jq -r '.tool_input.file_path')
 
 case "$fp" in
-  *.rs)             rustfmt "$fp" ;;
+  *.rs)             rustfmt --edition 2024 "$fp" ;;
   *.json|*.js|*.ts) biome format --write "$fp" ;;
   *.md)             npx prettier --write "$fp" ;;
 esac

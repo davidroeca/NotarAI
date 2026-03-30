@@ -130,6 +130,7 @@ pub fn get_spec_diff(
             "excluded": exclude_patterns,
             "spec_changes": [],
             "system_spec": null,
+            "spec_invalidated": [],
         }));
     }
 
@@ -138,11 +139,14 @@ pub fn get_spec_diff(
         files.into_iter().partition(|f| is_spec_file(f));
 
     // Apply cache filtering to both groups independently.
-    let (spec_to_show, artifact_to_diff, artifact_skipped) = if bypass_cache {
-        (spec_files, artifact_files, vec![])
+    let (spec_to_show, artifact_to_diff, artifact_skipped, primary_spec_changed) = if bypass_cache {
+        (spec_files, artifact_files, vec![], false)
     } else {
         match crate::core::cache::open_cache_db(project_root) {
             Ok(conn) => {
+                // Check whether the primary spec file itself has changed vs cache.
+                let psc = is_spec_changed_vs_cache(&conn, spec_path, &abs_spec);
+
                 let spec_pairs: Vec<(String, std::path::PathBuf)> = spec_files
                     .into_iter()
                     .map(|rel| {
@@ -172,10 +176,20 @@ pub fn get_spec_diff(
                     (all, vec![])
                 });
 
-                (s_show, a_diff, a_skip)
+                (s_show, a_diff, a_skip, psc)
             }
-            Err(_) => (spec_files, artifact_files, vec![]), // cache unavailable: include everything
+            Err(_) => (spec_files, artifact_files, vec![], false), // cache unavailable: include everything
         }
+    };
+
+    // When the primary spec changed, cached artifacts that would normally be
+    // skipped are reclassified as spec_invalidated: they need review because
+    // their governing spec has drifted even though the artifacts themselves
+    // have not changed on disk.
+    let (artifact_skipped, spec_invalidated) = if primary_spec_changed || !spec_to_show.is_empty() {
+        (vec![], artifact_skipped)
+    } else {
+        (artifact_skipped, vec![])
     };
 
     // Read full content of each changed spec file.
@@ -263,6 +277,7 @@ pub fn get_spec_diff(
         "system_spec": system_spec,
         "binary_changes": binary_changes,
         "file_categories": file_categories,
+        "spec_invalidated": spec_invalidated,
     }))
 }
 
@@ -316,7 +331,28 @@ pub fn get_changed_artifacts(
         message: e,
     })?;
 
-    let pairs: Vec<(String, std::path::PathBuf)> = files
+    // Check whether the primary spec file itself has changed vs cache.
+    let primary_spec_changed = is_spec_changed_vs_cache(&conn, spec_path, &abs_spec);
+
+    // Partition governed files: .notarai/**/*.spec.yaml vs. everything else.
+    let (spec_files, artifact_files): (Vec<String>, Vec<String>) =
+        files.into_iter().partition(|f| is_spec_file(f));
+
+    // Check governed spec files against cache.
+    let spec_pairs: Vec<(String, std::path::PathBuf)> = spec_files
+        .into_iter()
+        .map(|rel| {
+            let abs = project_root.join(&rel);
+            (rel, abs)
+        })
+        .collect();
+    let (governed_specs_changed, _) = crate::core::cache::check_changed_batch(&conn, &spec_pairs)
+        .unwrap_or_else(|_| {
+            let all: Vec<String> = spec_pairs.into_iter().map(|(r, _)| r).collect();
+            (all, vec![])
+        });
+
+    let artifact_pairs: Vec<(String, std::path::PathBuf)> = artifact_files
         .into_iter()
         .map(|rel| {
             let abs = project_root.join(&rel);
@@ -324,13 +360,22 @@ pub fn get_changed_artifacts(
         })
         .collect();
 
-    let (changed, _unchanged) =
-        crate::core::cache::check_changed_batch(&conn, &pairs).map_err(|e| McpError {
+    let (changed, unchanged) = crate::core::cache::check_changed_batch(&conn, &artifact_pairs)
+        .map_err(|e| McpError {
             code: -32603,
             message: e,
         })?;
 
-    Ok(serde_json::json!({"changed_artifacts": changed}))
+    let spec_invalidated = if primary_spec_changed || !governed_specs_changed.is_empty() {
+        unchanged
+    } else {
+        vec![]
+    };
+
+    Ok(serde_json::json!({
+        "changed_artifacts": changed,
+        "spec_invalidated": spec_invalidated,
+    }))
 }
 
 /// Record that the given files have been reconciled by hashing and caching them.
@@ -455,6 +500,17 @@ fn build_file_categories(
 
 fn is_spec_file(path: &str) -> bool {
     path.starts_with(".notarai/") && path.ends_with(".spec.yaml")
+}
+
+/// Check whether a spec file's on-disk content differs from the cache.
+///
+/// Returns `true` when the spec has changed (or the cache lookup fails),
+/// `false` when the cached hash matches the current file.
+fn is_spec_changed_vs_cache(conn: &rusqlite::Connection, spec_rel: &str, spec_abs: &Path) -> bool {
+    let pair = vec![(spec_rel.to_string(), spec_abs.to_path_buf())];
+    let (changed, _) = crate::core::cache::check_changed_batch(conn, &pair)
+        .unwrap_or_else(|_| (vec![spec_rel.to_string()], vec![]));
+    !changed.is_empty()
 }
 
 /// Locate the system spec (the one with a `subsystems` key) in `.notarai/`.
