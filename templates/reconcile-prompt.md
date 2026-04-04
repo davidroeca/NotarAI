@@ -8,21 +8,22 @@
 
 ## Changed Files
 
+The following files governed by this spec have changed since `{{base_branch}}`:
+
 {{changed_files}}
-
-## Diff
-
-```diff
-{{diff}}
-```
 
 ## Instructions
 
-Review the diff above against the spec. For each behavior, constraint, and invariant:
+For each changed file listed above:
 
-1. Check whether the changes support or contradict it
-2. Identify any drift between spec intent and implementation
-3. Propose targeted updates to bring spec, code, and docs into alignment
+1. Read the file's current content using your file-reading tools.
+2. Run `git diff {{base_branch}} -- <file>` (or equivalent) to see what changed.
+
+Then review the changes against the spec. For each behavior, constraint, and invariant:
+
+- Check whether the changes support or contradict it.
+- Identify any drift between spec intent and implementation.
+- Propose targeted updates to bring spec, code, and docs into alignment.
 
 The spec is the canonical tiebreaker when code and spec disagree.
 

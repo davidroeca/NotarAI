@@ -193,3 +193,34 @@ fn export_context_all_specs() {
         .assert()
         .success();
 }
+
+#[test]
+fn export_context_bootstrap_outputs_template() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    // Works even without .notarai/
+    notarai()
+        .args(["export-context", "--bootstrap"])
+        .current_dir(tmp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Phase 1"))
+        .stdout(predicate::str::contains("Phase 2"))
+        .stdout(predicate::str::contains("Phase 3"));
+}
+
+#[test]
+fn export_context_bootstrap_warns_if_specs_exist() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+
+    notarai()
+        .args(["export-context", "--bootstrap"])
+        .current_dir(tmp.path())
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("already contains spec files"));
+}

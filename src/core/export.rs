@@ -3,11 +3,13 @@ use std::path::Path;
 use crate::core::{git, spec_loader};
 
 const RECONCILE_PROMPT_TEMPLATE: &str = include_str!("../../templates/reconcile-prompt.md");
+const BOOTSTRAP_PROMPT_TEMPLATE: &str = include_str!("../../templates/bootstrap-prompt.md");
 
 pub struct ExportContext {
     pub spec_path: String,
     pub spec_name: String,
     pub spec_content: String,
+    pub base_branch: String,
     pub changed_files: Vec<String>,
     pub diff: String,
     pub binary_changes: Vec<String>,
@@ -79,6 +81,7 @@ pub fn build_context(
         spec_path: spec_path.to_string(),
         spec_name,
         spec_content,
+        base_branch: base_branch.to_string(),
         changed_files,
         diff,
         binary_changes,
@@ -112,7 +115,8 @@ pub fn build_all_contexts(
     Ok(contexts)
 }
 
-/// Render an ExportContext to markdown using the reconcile prompt template.
+/// Render an ExportContext to markdown using the lean reconcile prompt template.
+/// The template instructs the agent to read files and run git diff itself.
 pub fn render_markdown(ctx: &ExportContext) -> String {
     let changed_list = if ctx.changed_files.is_empty() {
         "No changed files.".to_string()
@@ -124,19 +128,19 @@ pub fn render_markdown(ctx: &ExportContext) -> String {
             .join("\n")
     };
 
-    let diff = if ctx.diff.is_empty() {
-        "No diff.".to_string()
-    } else {
-        ctx.diff.clone()
-    };
-
     RECONCILE_PROMPT_TEMPLATE
         .replace("{{spec_name}}", &ctx.spec_name)
+        .replace("{{base_branch}}", &ctx.base_branch)
         .replace("{{changed_files}}", &changed_list)
-        .replace("{{diff}}", &diff)
-        // Handle both formatted and unformatted placeholder variants.
+        // Handle both formatted and unformatted placeholder variants (prettier expands
+        // {{spec_content}} inside YAML code fences to { { spec_content } }).
         .replace("{{spec_content}}", &ctx.spec_content)
         .replace("{ { spec_content } }", &ctx.spec_content)
+}
+
+/// Output the bootstrap prompt template as-is (no placeholder substitution).
+pub fn render_bootstrap() -> &'static str {
+    BOOTSTRAP_PROMPT_TEMPLATE
 }
 
 /// Render an ExportContext to JSON.

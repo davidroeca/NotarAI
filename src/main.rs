@@ -55,6 +55,9 @@ enum Commands {
         /// Export context for all affected specs
         #[arg(long)]
         all: bool,
+        /// Output the bootstrap prompt for a new project with no specs yet
+        #[arg(long)]
+        bootstrap: bool,
         /// Base branch for diff
         #[arg(long, default_value = "main")]
         base_branch: String,
@@ -112,9 +115,10 @@ fn main() {
         Some(Commands::ExportContext {
             spec,
             all,
+            bootstrap,
             base_branch,
             format,
-        }) => commands::export_context::run(spec.as_deref(), all, &base_branch, &format),
+        }) => commands::export_context::run(spec.as_deref(), all, bootstrap, &base_branch, &format),
         Some(Commands::Cache { action }) => commands::cache::run(action),
         Some(Commands::Mcp) => commands::mcp::run(),
         Some(Commands::SchemaBump) => commands::schema_bump::run(None),

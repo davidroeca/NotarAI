@@ -1,6 +1,6 @@
 use crate::core::export;
 
-pub fn run(spec: Option<&str>, all: bool, base_branch: &str, format: &str) -> i32 {
+pub fn run(spec: Option<&str>, all: bool, bootstrap: bool, base_branch: &str, format: &str) -> i32 {
     let project_root = match std::env::current_dir() {
         Ok(p) => p,
         Err(e) => {
@@ -9,6 +9,29 @@ pub fn run(spec: Option<&str>, all: bool, base_branch: &str, format: &str) -> i3
         }
     };
 
+    if bootstrap {
+        // Warn if specs already exist; bootstrap is a pre-init command.
+        let notarai_dir = project_root.join(".notarai");
+        if notarai_dir.exists() {
+            let has_specs = std::fs::read_dir(&notarai_dir)
+                .ok()
+                .map(|entries| {
+                    entries
+                        .filter_map(|e| e.ok())
+                        .any(|e| e.file_name().to_string_lossy().ends_with(".spec.yaml"))
+                })
+                .unwrap_or(false);
+            if has_specs {
+                eprintln!(
+                    "Warning: .notarai/ already contains spec files. \
+                     Use export-context --all to reconcile existing specs instead."
+                );
+            }
+        }
+        print!("{}", export::render_bootstrap());
+        return 0;
+    }
+
     if !project_root.join(".notarai").exists() {
         eprintln!("Error: .notarai/ not found. Run `notarai init` first.");
         return 2;
@@ -16,7 +39,7 @@ pub fn run(spec: Option<&str>, all: bool, base_branch: &str, format: &str) -> i3
 
     match (spec, all) {
         (Some(_), true) | (None, false) => {
-            eprintln!("Error: specify exactly one of --spec <path> or --all.");
+            eprintln!("Error: specify exactly one of --spec <path>, --all, or --bootstrap.");
             return 1;
         }
         _ => {}

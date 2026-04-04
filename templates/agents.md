@@ -24,9 +24,25 @@ Run `notarai check --format json` for machine-readable output.
 
 ## Reconciliation
 
-Run `notarai export-context --all --base-branch main --format markdown` to generate
-a self-contained reconciliation prompt. Paste the output into your preferred LLM agent
-to get a drift analysis and alignment recommendations.
+If you have MCP tool access, use the NotarAI MCP tools directly. They are more efficient
+than export-context because they fetch diffs lazily, one spec at a time:
+
+```
+list_affected_specs    -- find which specs have changed artifacts
+get_spec_diff          -- get the filtered diff for a single spec
+get_changed_artifacts  -- list which artifact files changed per spec
+mark_reconciled        -- update the hash cache after reconciliation
+```
+
+If you do not have MCP tool access, run:
+
+```
+notarai export-context --all --base-branch main
+```
+
+and process the output. The output includes each affected spec's content and a list of
+changed files. Use your file-reading and shell tools to read the changed files and run
+`git diff` to examine what changed.
 
 For a single spec:
 
@@ -34,9 +50,20 @@ For a single spec:
 notarai export-context --spec .notarai/<name>.spec.yaml --base-branch main
 ```
 
-## MCP Server
+## Bootstrap
 
-NotarAI includes an MCP server for tool-integrated reconciliation:
+If this is a new project with no specs yet, run:
+
+```
+notarai export-context --bootstrap
+```
+
+and follow the instructions in the output to discover the project, interview the developer,
+and draft an initial `.notarai/` spec directory.
+
+## MCP Server Configuration
+
+The MCP server is configured in `.mcp.json`:
 
 ```json
 {
@@ -49,6 +76,3 @@ NotarAI includes an MCP server for tool-integrated reconciliation:
   }
 }
 ```
-
-Available tools: `list_affected_specs`, `get_spec_diff`, `get_changed_artifacts`,
-`mark_reconciled`, `clear_cache`, `snapshot_state`.

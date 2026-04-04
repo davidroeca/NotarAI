@@ -318,7 +318,7 @@ fn init_generic_creates_reconcile_prompt() {
     assert!(prompt.exists());
     let content = fs::read_to_string(prompt).unwrap();
     assert!(content.contains("spec_content"));
-    assert!(content.contains("{{diff}}"));
+    assert!(content.contains("base_branch"));
 }
 
 #[test]

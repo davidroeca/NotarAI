@@ -190,7 +190,7 @@ behaviors:
 
   - name: export_context_single_spec
     given: 'notarai export-context --spec <path> --base-branch <branch>'
-    then: 'outputs reconciliation context for that spec: spec content, changed files, and diff'
+    then: 'outputs reconciliation context for that spec: spec content and changed files'
 
   - name: export_context_all_specs
     given: 'notarai export-context --all --base-branch <branch>'
@@ -198,11 +198,21 @@ behaviors:
 
   - name: export_context_markdown
     given: '--format markdown (default)'
-    then: 'outputs a self-contained reconciliation prompt using the reconcile-prompt.md template with placeholders filled'
+    then: >
+      outputs the reconcile-prompt.md template with spec_name, spec_content, changed_files,
+      and base_branch filled in; the template instructs the agent to read files and run
+      git diff itself rather than embedding the full diff inline
 
   - name: export_context_json
     given: '--format json'
-    then: 'outputs structured JSON with spec_path, spec_content, changed_files, diff, binary_changes, and file_categories'
+    then: 'outputs structured JSON with spec_path, spec_content, changed_files, diff, binary_changes, and file_categories; diff is included for consumers that cannot run git themselves'
+
+  - name: export_context_bootstrap
+    given: 'notarai export-context --bootstrap'
+    then: >
+      outputs the bootstrap-prompt.md template as-is (no placeholder substitution);
+      warns on stderr if .notarai/ already contains spec files;
+      does not require .notarai/ to exist (it is a pre-init command)
 
   - name: export_context_requires_git
     given: 'notarai export-context is invoked outside a git repository'
@@ -210,7 +220,7 @@ behaviors:
 
   - name: export_context_exit_codes
     given: 'notarai export-context completes'
-    then: 'exits 0 on success, 1 on error, 2 if .notarai/ does not exist'
+    then: 'exits 0 on success, 1 on error, 2 if .notarai/ does not exist (except --bootstrap which does not require it)'
 
   - name: reconcile_parallel_subagents
     given: 'the notarai-reconcile or notarai-bootstrap slash commands are invoked'
@@ -348,6 +358,23 @@ decisions:
       orphaned, or overlapping; lint (future) reports spec quality issues like missing
       behaviors, stale decisions, or invalid refs. check can optionally invoke lint later.
 
+  - date: '2026-04-04'
+    choice: 'reconcile-prompt.md is a lean template (no embedded diff); agents read files and run git diff themselves'
+    rationale: >
+      Embedding the full diff in the prompt scales badly for large changesets and is
+      redundant for agents that have shell or file tool access. A lean template (spec +
+      changed file list + instructions) keeps context small and lets tool-capable agents
+      fetch exactly what they need. Agents without tool access should use --format json
+      (which still includes the diff) or the MCP tools directly.
+
+  - date: '2026-04-04'
+    choice: 'export-context --bootstrap outputs bootstrap-prompt.md for generic agents; does not require .notarai/'
+    rationale: >
+      Generic agents need an equivalent of the Claude-specific notarai-bootstrap skill.
+      The bootstrap prompt is a standalone template the agent can receive via any channel;
+      it guides the agent through project discovery, structured interview, and spec drafting.
+      Since bootstrapping is a pre-init operation, requiring .notarai/ would be circular.
+
   - date: '2026-03-08'
     choice: 'Migrate bundled Claude Code commands to skills (.claude/skills/<name>/SKILL.md)'
     rationale: >
@@ -381,7 +408,9 @@ artifacts:
     - path: 'templates/agents.md'
       role: 'Bundled AGENTS.md template written by notarai init --agent generic'
     - path: 'templates/reconcile-prompt.md'
-      role: 'Bundled reconciliation prompt template with {{placeholders}} for export-context'
+      role: 'Bundled lean reconciliation prompt template; includes spec and changed files but not the diff'
+    - path: 'templates/bootstrap-prompt.md'
+      role: 'Bundled agent-agnostic bootstrap prompt output by export-context --bootstrap'
     - path: '.claude/rules/rust.md'
       role: 'Claude rule equivalent -- proactive enforcement of Rust coding constraints during generation'
     - path: '.claude/rules/testing.md'
