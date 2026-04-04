@@ -1,6 +1,10 @@
 pub mod cache;
+pub mod check;
+pub mod export;
+pub mod git;
 pub mod mcp_tools;
 pub mod schema;
+pub mod spec_loader;
 pub mod state;
 pub mod update;
 pub mod validator;

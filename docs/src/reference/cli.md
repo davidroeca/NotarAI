@@ -34,25 +34,117 @@ notarai validate .notarai/subsystems/
 
 ---
 
+## notarai check
+
+Deterministic, LLM-free drift detection. Reports coverage gaps, orphaned globs, changed files, and overlapping coverage.
+
+```sh
+# Human-readable output (default)
+notarai check
+
+# JSON output
+notarai check --format json
+
+# Custom base branch
+notarai check --base-branch develop
+```
+
+**Arguments:**
+
+| Flag            | Required | Default | Description                            |
+| --------------- | -------- | ------- | -------------------------------------- |
+| `--format`      | No       | `human` | Output format: `human` or `json`       |
+| `--base-branch` | No       | `main`  | Base branch for changed-file detection |
+
+**Checks performed:**
+
+| Check                        | Severity | Description                                             |
+| ---------------------------- | -------- | ------------------------------------------------------- |
+| Coverage gaps                | Warning  | Tracked files not governed by any spec (minus excludes) |
+| Orphaned globs               | Warning  | Artifact glob patterns matching zero files              |
+| Changed since reconciliation | Warning  | Governed files changed since last cache update          |
+| Overlapping coverage         | Warning  | Files governed by two or more specs                     |
+
+The check command never modifies files or the cache database.
+
+**Exit codes:** `0` no error-severity findings, `1` errors found, `2` not initialized (`.notarai/` missing).
+
+---
+
 ## notarai init
 
 Set up NotarAI in a project. Running `init` again is safe: it always refreshes skills and the schema copy.
 
 ```sh
+# Interactive prompt (defaults to claude)
 notarai init
+
+# Claude Code mode (explicit)
+notarai init --agent claude
+
+# Generic mode (any LLM agent)
+notarai init --agent generic
 ```
 
-**What it does:**
+**Arguments:**
 
-1. Adds a **PostToolUse hook** to `.claude/settings.json` so spec files are automatically validated when Claude Code writes or edits them (command: `notarai hook validate`).
-2. Copies `notarai.spec.json` to `.notarai/notarai.spec.json` so Claude has the schema available (always refreshed to keep current).
-3. Writes `.notarai/README.md` with workflow instructions (always overwritten).
-4. Copies `notarai-reconcile` and `notarai-bootstrap` skills to `.claude/skills/` (always overwritten to stay in sync with the binary).
-5. Replaces the `## NotarAI` section in `CLAUDE.md` with a concise workflow description. Appends if the section is absent.
-6. Appends `.notarai/.cache/` to `.gitignore` so the hash cache DB is never committed.
-7. Writes `.mcp.json` registering `notarai mcp` as a local [MCP server](./mcp-server.md).
+| Flag      | Required | Description                                                         |
+| --------- | -------- | ------------------------------------------------------------------- |
+| `--agent` | No       | Agent type: `claude` or `generic`. Prompts interactively if omitted |
+
+**Shared setup (both modes):**
+
+1. Copies `notarai.spec.json` to `.notarai/notarai.spec.json` (always refreshed).
+2. Writes `.notarai/README.md` with workflow instructions (always overwritten).
+3. Appends `.notarai/.cache/` to `.gitignore`.
+4. Writes `.mcp.json` registering `notarai mcp` as a local [MCP server](./mcp-server.md).
+
+**Claude mode** (`--agent claude`):
+
+5. Adds a **PostToolUse hook** to `.claude/settings.json` (command: `notarai hook validate`).
+6. Copies `notarai-reconcile` and `notarai-bootstrap` skills to `.claude/skills/`.
+7. Replaces the `## NotarAI` section in `CLAUDE.md` with a concise workflow description.
+
+**Generic mode** (`--agent generic`):
+
+5. Writes `AGENTS.md` with agent-agnostic NotarAI workflow documentation.
+6. Writes `.notarai/reconcile-prompt.md` with a reconciliation prompt template containing `{{placeholders}}`.
 
 **Exit codes:** `0` success, `1` error.
+
+---
+
+## notarai export-context
+
+Export reconciliation context for any LLM agent. Outputs spec content, changed files, and diffs in a format suitable for feeding into a reconciliation prompt.
+
+```sh
+# Single spec, markdown output (default)
+notarai export-context --spec .notarai/auth.spec.yaml
+
+# All affected specs, JSON output
+notarai export-context --all --format json
+
+# Custom base branch
+notarai export-context --spec .notarai/api.spec.yaml --base-branch develop
+```
+
+**Arguments:**
+
+| Flag            | Required       | Default    | Description                           |
+| --------------- | -------------- | ---------- | ------------------------------------- |
+| `--spec`        | One of the two |            | Path to a single spec file            |
+| `--all`         | One of the two |            | Export context for all affected specs |
+| `--base-branch` | No             | `main`     | Base branch for diff                  |
+| `--format`      | No             | `markdown` | Output format: `markdown` or `json`   |
+
+Exactly one of `--spec` or `--all` is required.
+
+**Markdown output** fills the bundled `reconcile-prompt.md` template with spec content, changed file list, and diff. Multiple specs are separated by `---`.
+
+**JSON output** includes `spec_path`, `spec_name`, `spec_content`, `changed_files`, `diff`, `binary_changes`, and `file_categories`. A single spec produces an object; `--all` with multiple specs produces an array.
+
+**Exit codes:** `0` success, `1` error (bad arguments, missing spec, git failure), `2` not initialized (`.notarai/` missing).
 
 ---
 

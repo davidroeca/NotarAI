@@ -22,8 +22,21 @@ enum Commands {
         /// File or directory to validate
         path: Option<String>,
     },
-    /// Set up NotarAI in a project (hook, slash commands, schema, CLAUDE.md context)
-    Init,
+    /// Deterministic drift detection (coverage gaps, orphaned globs, changed files, overlaps)
+    Check {
+        /// Output format: human or json
+        #[arg(long, default_value = "human")]
+        format: String,
+        /// Base branch for changed-since detection
+        #[arg(long, default_value = "main")]
+        base_branch: String,
+    },
+    /// Set up NotarAI in a project
+    Init {
+        /// Agent type: claude or generic (interactive prompt if omitted)
+        #[arg(long)]
+        agent: Option<String>,
+    },
     /// Internal hook commands
     Hook {
         #[command(subcommand)]
@@ -33,6 +46,21 @@ enum Commands {
     Cache {
         #[command(subcommand)]
         action: commands::cache::CacheAction,
+    },
+    /// Export reconciliation context for any LLM agent
+    ExportContext {
+        /// Spec file path (relative to project root)
+        #[arg(long)]
+        spec: Option<String>,
+        /// Export context for all affected specs
+        #[arg(long)]
+        all: bool,
+        /// Base branch for diff
+        #[arg(long, default_value = "main")]
+        base_branch: String,
+        /// Output format: markdown or json
+        #[arg(long, default_value = "markdown")]
+        format: String,
     },
     /// MCP server (stdio JSON-RPC 2.0 transport)
     Mcp,
@@ -62,10 +90,31 @@ fn main() {
 
     let exit_code = match cli.command {
         Some(Commands::Validate { path }) => commands::validate::run(path),
-        Some(Commands::Init) => commands::init::run(None),
+        Some(Commands::Check {
+            format,
+            base_branch,
+        }) => commands::check::run(&format, &base_branch),
+        Some(Commands::Init { agent }) => {
+            let agent_kind = match agent.as_deref() {
+                Some("claude") => Some(commands::init::AgentKind::Claude),
+                Some("generic") => Some(commands::init::AgentKind::Generic),
+                Some(other) => {
+                    eprintln!("Error: unknown agent '{other}'. Expected 'claude' or 'generic'.");
+                    std::process::exit(1);
+                }
+                None => None,
+            };
+            commands::init::run(None, agent_kind)
+        }
         Some(Commands::Hook { action }) => match action {
             HookAction::Validate => commands::hook_validate::run(),
         },
+        Some(Commands::ExportContext {
+            spec,
+            all,
+            base_branch,
+            format,
+        }) => commands::export_context::run(spec.as_deref(), all, &base_branch, &format),
         Some(Commands::Cache { action }) => commands::cache::run(action),
         Some(Commands::Mcp) => commands::mcp::run(),
         Some(Commands::SchemaBump) => commands::schema_bump::run(None),
