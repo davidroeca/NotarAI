@@ -2,9 +2,9 @@
   "schema_version": "1",
   "cli_version": "0.5.1",
   "last_reconciliation": {
-    "timestamp": "1774837985Z",
-    "git_hash": "fef119634ddc37d4de51b0d7341bcea7d555c0ee",
-    "branch": "fix-docs-reconciliation"
+    "timestamp": "1775322231Z",
+    "git_hash": "4193478eee6f69f5d16e0d20280269120eeb666c",
+    "branch": "improvements"
   },
   "file_fingerprints": {
     ".claude/commands/notarai-bootstrap.md": {
@@ -158,7 +158,7 @@
       "blake3": "a9f5249bba61112da086cc03469de079982d865f0817bf8984035d996681c38f"
     },
     "docs/src/reference/cli.md": {
-      "blake3": "408ad3fd8ba10ab3f4dbff728d7b9e1007512cbae1c4346158f7787150245c3a"
+      "blake3": "d74981b8c229e32c972018cfd0085292109058fea1d9984826fecc641fd9f460"
     },
     "docs/src/reference/mcp-server.md": {
       "blake3": "c7ff42a552be8480fb7dd0a91684f74400ef1a373101df13dbc9e28d65be54e8"
@@ -193,17 +193,23 @@
     "src/commands/cache.rs": {
       "blake3": "8029043cbfa390ddbf9a6995f964a3432839c74536ec70e586299e49e8384756"
     },
+    "src/commands/check.rs": {
+      "blake3": "052386157ef9b43babdf6458b5c2f5c9c78fd0beef07a77b18142a5ba68714fe"
+    },
+    "src/commands/export_context.rs": {
+      "blake3": "04233c20e66d00b82a8a35a1bcf753aebe811f08d029e677604bccae1891fcc1"
+    },
     "src/commands/hook_validate.rs": {
       "blake3": "2dd660143c1a4ae6a6784e2755ac7efecb996047925d39202a5876cec451055e"
     },
     "src/commands/init.rs": {
-      "blake3": "be7a55f6063abd3355d86715a4fac9a7e4f665249fc3bb07a6dde63157e69ae6"
+      "blake3": "397523b06ae42afb2c6efc4c35f8f8dc7a125c501f013a52340adfcf2b6ff445"
     },
     "src/commands/mcp.rs": {
       "blake3": "8c3b8e3301f70bff2e6445baf5ef620488ed76dfa7aba2e0b83ec5d0adca5fa0"
     },
     "src/commands/mod.rs": {
-      "blake3": "2afeaebb044ec2990b0eae23afeb0b26af7676ffa08b34cad1f4cb57bd1f2074"
+      "blake3": "1e6e962c9ca4d437c9e836ad0f9208eeec16f2c0376638ccc539003d2f6f7064"
     },
     "src/commands/schema_bump.rs": {
       "blake3": "1f739e3d3addcaaa67b80238f2a344f3cbe716af0df45f252c28fc29d66623d5"
@@ -220,17 +226,29 @@
     "src/core/cache.rs": {
       "blake3": "e2b2c563b331266a315c88bccf412704f3d2c16eec02beaaa26497a4a5096b0a"
     },
+    "src/core/check.rs": {
+      "blake3": "d0d8e40c1aae0ef59dfb2d5bc27a6cbbf2a47be9bf6ba9a12721cf4e5dbf14e8"
+    },
+    "src/core/export.rs": {
+      "blake3": "eaf15aa8c0daf87c1557ec96b350f04d539b29e60e44d12b9545d9975458d1f4"
+    },
+    "src/core/git.rs": {
+      "blake3": "dc7dd007a1062751c4b71be73c291d5482a181028ea25090a7840864ca5268f1"
+    },
     "src/core/mcp_tools.rs": {
-      "blake3": "65504bf9561dd901ddaf0c45703d60fc5e06f029333a546ca29554b2d8e3a549"
+      "blake3": "414cc5dea7f735f050f6305b8afbe122975d91b42fc376e4047d18b2384f95bc"
     },
     "src/core/mod.rs": {
-      "blake3": "dc1c0ac8247b0268b670f9ea9a95e9bb973e67d4e46951b3cc439fa3a92f1140"
+      "blake3": "fbed7ecc15af4cfb8c34c004531202cb00bd8c9c1cba434f4e59c12844add4bd"
     },
     "src/core/schema.rs": {
       "blake3": "de5e0fadba38843fb80fd24e60b94420769e267548cb105a13c5919e51b6b685"
     },
+    "src/core/spec_loader.rs": {
+      "blake3": "0cd21ecb394f86f21823be1dac0e30e0d9a0fc3c3cb46e16b4fc550da57e046a"
+    },
     "src/core/state.rs": {
-      "blake3": "54c87e1c78ce42cd273a29bc92e3dd170a0fe3ce51e06dd460774aa08bd7faa1"
+      "blake3": "e8e2559dfb4427160f71cf954ce9039b64824fe881cb99e2e8c4d2a8133c1e57"
     },
     "src/core/update.rs": {
       "blake3": "30692cc4adc4a70ac7c203238a12e536046741c273f30153456707127c85a11a"
@@ -242,10 +260,19 @@
       "blake3": "4698c54c4c9c692d0003d4e3a61f3b9d7727f27d982e9b54da6dbd0f8beb38dc"
     },
     "src/main.rs": {
-      "blake3": "0c3abd83bf85411fd9ee16f5d1b3e2b60b056ccb2def11a3921c64d66975e3ff"
+      "blake3": "0790502b170aa856d919b66ca62992fe1c2d2245feab2e590fb70cff1b5cbe57"
+    },
+    "templates/agents.md": {
+      "blake3": "597f753637851abe2eb1c84c405d77d6387705a1041df509559f12c5753da51d"
+    },
+    "templates/bootstrap-prompt.md": {
+      "blake3": "218486c52b024e84258a8e2fc9a363073679bcf8db1fe6aff7b9dbaced87490d"
     },
     "templates/notarai-readme.md": {
       "blake3": "b6c98d644e6f78a428e113aba5bf5fec1b3bb44905b5d804bdca4820580516c6"
+    },
+    "templates/reconcile-prompt.md": {
+      "blake3": "2bf073c8c6202d576baf5d515018cc31c8b4486e826baf0f7d60d8eae4774bca"
     },
     "tests/bin_test.rs": {
       "blake3": "9ed192af8cb039797cc49f9f59c82cf5800213c2fb00f5530a8438de6bb7354c"
@@ -253,8 +280,14 @@
     "tests/cache_test.rs": {
       "blake3": "3b6ea49234d4d7254cdba52d3332bb2622ea6a1597acdedde4b68014e00ece33"
     },
+    "tests/check_test.rs": {
+      "blake3": "c19fbd5c6c8dc1c1f403341266eb89858295ff3e4a192fa0b0a78c189e1c9e31"
+    },
+    "tests/export_context_test.rs": {
+      "blake3": "01e2f1b28b6423062cbd1037f093bb02ed83d7469fe570304913715ceaf15363"
+    },
     "tests/init_test.rs": {
-      "blake3": "0c8cbad98f2d2012b2be36264fbd9307fe3b37eefd2595c9381b740ffec21a7e"
+      "blake3": "e652d172295815b77d31b9dc5378e78941ed2afc6795df9e101acd1d945e6226"
     },
     "tests/mcp_test.rs": {
       "blake3": "ede14b2c2e0e46ebaf3e968d804d6272fadfca5c45863810d9ed697a629be462"
@@ -268,7 +301,7 @@
   },
   "spec_fingerprints": {
     ".notarai/ci.spec.yaml": "65654acd819fb0c629b5765a0569cec37718e6829d7b000cd9816cb43063436b",
-    ".notarai/cli.spec.yaml": "21dd614cefe7e617f72e28c123776c475183c1d9d625f8d576034286d47abed4",
+    ".notarai/cli.spec.yaml": "c03c95671bb2b2cb8e09fe3c4e1614785ff3cdd86a86abf706ad9f25c332f5dd",
     ".notarai/docs-site.spec.yaml": "319ad566ececed817928c1642f8c33eee6bd2ecd6093efcc6325b25b7229c22a",
     ".notarai/docs.spec.yaml": "ccc157940d8ddf54b3f6ea86519204d79e80a99547faa0c60aaed87c44e123aa",
     ".notarai/style.spec.yaml": "16fa3e929ae2b66f093dcce99f3e22d28e191b5435414d5c2f42dcd01d267163",

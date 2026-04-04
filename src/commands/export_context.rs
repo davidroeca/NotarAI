@@ -45,6 +45,11 @@ pub fn run(spec: Option<&str>, all: bool, bootstrap: bool, base_branch: &str, fo
         _ => {}
     }
 
+    if crate::core::git::head_hash(&project_root).is_none() {
+        eprintln!("Error: not a git repository. export-context requires git.");
+        return 1;
+    }
+
     let contexts = if let Some(spec_path) = spec {
         if !project_root.join(spec_path).exists() {
             eprintln!("Error: spec file not found: {spec_path}");

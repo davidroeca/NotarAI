@@ -149,6 +149,7 @@ pub fn render_json(ctx: &ExportContext) -> serde_json::Value {
         "spec_path": ctx.spec_path,
         "spec_name": ctx.spec_name,
         "spec_content": ctx.spec_content,
+        "base_branch": ctx.base_branch,
         "changed_files": ctx.changed_files,
         "diff": ctx.diff,
         "binary_changes": ctx.binary_changes,

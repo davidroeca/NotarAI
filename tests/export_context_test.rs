@@ -211,6 +211,58 @@ fn export_context_bootstrap_outputs_template() {
 }
 
 #[test]
+fn export_context_exits_1_outside_git_repo() {
+    let tmp = TempDir::new().unwrap();
+    // Has .notarai/ but is NOT a git repo.
+    fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+
+    notarai()
+        .args(["export-context", "--all"])
+        .current_dir(tmp.path())
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("not a git repository"));
+}
+
+#[test]
+fn export_context_json_includes_base_branch() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    fs::create_dir_all(tmp.path().join("src")).unwrap();
+    fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+    fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    fs::write(
+        tmp.path().join("src/main.rs"),
+        "fn main() { println!(\"hi\"); }",
+    )
+    .unwrap();
+    git_commit_all(tmp.path(), "update");
+
+    let output = notarai()
+        .args([
+            "export-context",
+            "--spec",
+            ".notarai/app.spec.yaml",
+            "--base-branch",
+            "HEAD~1",
+            "--format",
+            "json",
+        ])
+        .current_dir(tmp.path())
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let json: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("valid JSON output");
+    assert_eq!(json["base_branch"].as_str(), Some("HEAD~1"));
+}
+
+#[test]
 fn export_context_bootstrap_warns_if_specs_exist() {
     let tmp = TempDir::new().unwrap();
     setup_git_repo(tmp.path());

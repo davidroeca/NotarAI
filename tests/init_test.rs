@@ -287,6 +287,24 @@ fn mcp_json_created() {
     assert!(content.contains("mcp"));
 }
 
+#[test]
+fn init_defaults_to_claude_when_stdin_not_tty() {
+    let tmp = TempDir::new().unwrap();
+    // No --agent flag; piped stdin (test harness) is not a TTY,
+    // so it should default to claude mode without prompting.
+    notarai()
+        .args(["init"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    // Claude-specific artifacts must exist.
+    assert!(tmp.path().join(".claude/settings.json").exists());
+    assert!(tmp.path().join("CLAUDE.md").exists());
+    // Generic-specific artifacts must NOT exist.
+    assert!(!tmp.path().join("AGENTS.md").exists());
+}
+
 // --- Generic mode tests ---
 
 #[test]

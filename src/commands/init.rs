@@ -128,15 +128,17 @@ pub fn run(project_root: Option<&Path>, agent: Option<AgentKind>) -> i32 {
     };
 
     // Determine agent kind: explicit flag, interactive prompt, or default.
+    use std::io::IsTerminal;
     let agent_kind = match agent {
         Some(a) => a,
-        None => match prompt_agent_choice() {
+        None if std::io::stdin().is_terminal() => match prompt_agent_choice() {
             Ok(a) => a,
             Err(e) => {
                 eprintln!("Error: {e}");
                 return 1;
             }
         },
+        None => AgentKind::Claude,
     };
 
     let notarai_dir = root.join(".notarai");
