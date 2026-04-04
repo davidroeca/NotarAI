@@ -28,8 +28,16 @@ behaviors:
     given: 'invalid JSON on stdin or a missing file'
     then: 'exits 0 silently without error'
 
+  - name: init_agent_flag
+    given: 'notarai init is invoked with --agent claude or --agent generic'
+    then: 'uses the specified agent mode without prompting; claude is the default if --agent is omitted and stdin is not a TTY'
+
+  - name: init_interactive_prompt
+    given: 'notarai init is invoked without --agent and stdin is a TTY'
+    then: 'prompts on stderr "Which agent? [claude/generic] (default: claude):" and reads one line from stdin; empty input or "claude" selects claude mode; "generic" selects generic mode'
+
   - name: init_fresh
-    given: 'no existing .claude/settings.json'
+    given: 'no existing .claude/settings.json and agent mode is claude'
     then: >
       creates .claude/settings.json with the PostToolUse validation hook (command: notarai
       hook validate); copies SKILL.md for notarai-reconcile and notarai-bootstrap to
@@ -38,6 +46,15 @@ behaviors:
       the current CLI version injected; creates or updates CLAUDE.md with the NotarAI section
       (inline description of the workflow); appends .notarai/.cache/ to
       .gitignore; writes .mcp.json registering notarai mcp as a local MCP server
+
+  - name: init_generic_mode
+    given: 'agent mode is generic'
+    then: >
+      copies notarai.spec.json to .notarai/notarai.spec.json; writes .notarai/README.md;
+      writes .notarai/reconcile-prompt.md from the bundled template with {{placeholders}};
+      writes AGENTS.md with agent-agnostic NotarAI workflow documentation;
+      appends .notarai/.cache/ to .gitignore; writes .mcp.json registering notarai mcp;
+      does NOT create .claude/ directory or any Claude-specific files
 
   - name: validate_warns_stale_schema
     given: 'notarai validate runs and .notarai/notarai.spec.json exists but its $id differs from the bundled schema'
@@ -147,6 +164,64 @@ behaviors:
     given: 'notarai validate runs, or MCP server initializes, and .notarai/README.md exists with a version older than the running CLI (or is missing/unparseable)'
     then: 'prints a stderr hint (validate) or includes a projectNote field in the initialize response (MCP) suggesting notarai init to update project configs'
 
+  - name: check_coverage_gaps
+    given: 'notarai check is invoked in an initialized project'
+    then: 'reports files tracked by git that are not governed by any spec artifact glob and not matched by the system spec exclude patterns; severity: warning'
+
+  - name: check_orphaned_globs
+    given: 'notarai check is invoked and a spec contains artifact globs'
+    then: 'reports any artifact glob pattern that matches zero files on disk; severity: warning'
+
+  - name: check_changed_files
+    given: 'notarai check is invoked and a BLAKE3 cache exists'
+    then: 'reports governed files whose on-disk hash differs from the cache (changed since last reconciliation); severity: warning'
+
+  - name: check_overlapping_coverage
+    given: 'notarai check is invoked and multiple specs exist'
+    then: 'reports files governed by two or more specs; severity: warning'
+
+  - name: check_output_formats
+    given: 'notarai check is invoked with --format human (default) or --format json'
+    then: 'human format prints colored terminal output grouped by check type with a summary line; json format prints structured findings with type, severity, spec_path, file_path, and message fields'
+
+  - name: check_exit_codes
+    given: 'notarai check completes'
+    then: 'exits 0 if no error-severity findings, 1 if any errors, 2 if .notarai/ does not exist'
+
+  - name: export_context_single_spec
+    given: 'notarai export-context --spec <path> --base-branch <branch>'
+    then: 'outputs reconciliation context for that spec: spec content and changed files'
+
+  - name: export_context_all_specs
+    given: 'notarai export-context --all --base-branch <branch>'
+    then: 'outputs context for all specs with affected artifacts, concatenated'
+
+  - name: export_context_markdown
+    given: '--format markdown (default)'
+    then: >
+      outputs the reconcile-prompt.md template with spec_name, spec_content, changed_files,
+      and base_branch filled in; the template instructs the agent to read files and run
+      git diff itself rather than embedding the full diff inline
+
+  - name: export_context_json
+    given: '--format json'
+    then: 'outputs structured JSON with spec_path, spec_content, changed_files, diff, binary_changes, and file_categories; diff is included for consumers that cannot run git themselves'
+
+  - name: export_context_bootstrap
+    given: 'notarai export-context --bootstrap'
+    then: >
+      outputs the bootstrap-prompt.md template as-is (no placeholder substitution);
+      warns on stderr if .notarai/ already contains spec files;
+      does not require .notarai/ to exist (it is a pre-init command)
+
+  - name: export_context_requires_git
+    given: 'notarai export-context is invoked outside a git repository'
+    then: 'exits 1 with an error message'
+
+  - name: export_context_exit_codes
+    given: 'notarai export-context completes'
+    then: 'exits 0 on success, 1 on error, 2 if .notarai/ does not exist (except --bootstrap which does not require it)'
+
   - name: reconcile_parallel_subagents
     given: 'the notarai-reconcile or notarai-bootstrap slash commands are invoked'
     then: >
@@ -173,6 +248,7 @@ constraints:
   - 'Schema version enum must include all supported versions for backward compatibility (currently 0.7, 0.6, and 0.5)'
   - 'Before bumping the schema version: copy notarai.spec.json to schemas/<old_version>/spec.schema.json first; the docs workflow reads each version from its snapshot, not from notarai.spec.json'
   - 'Update checks use a global cache with 24h TTL; network requests use a 5s timeout for version checks and 120s for binary downloads'
+  - 'The check command must never modify any files or the cache database'
 
 invariants:
   - 'A valid spec file must never be reported as FAIL'
@@ -261,6 +337,44 @@ decisions:
       file_categories maps each changed file to its spec artifact category
       for category-aware reconciliation.
 
+  - date: '2026-04-03'
+    choice: 'Init supports --agent claude|generic; claude is the default for backward compatibility'
+    rationale: >
+      Generic mode writes AGENTS.md and a reconcile prompt template instead of Claude-specific
+      files (.claude/ hooks, skills, CLAUDE.md). MCP config is shared across both modes. Interactive
+      prompt only when --agent is not provided and stdin is a TTY.
+
+  - date: '2026-04-03'
+    choice: 'export-context shares core logic with MCP tools via spec_loader and git modules, not via JSON-RPC'
+    rationale: >
+      Both export-context and MCP get_spec_diff need the same spec-loading, glob-expansion,
+      and git-diff logic. Sharing via Rust modules avoids MCP JSON-RPC overhead and McpError
+      wrapping while keeping a single source of truth for the reconciliation context assembly.
+
+  - date: '2026-04-03'
+    choice: 'notarai check is file/coverage analysis only; spec quality rules belong in a future notarai lint command'
+    rationale: >
+      Clean separation avoids overlap: check reports what files are drifted, unspecced,
+      orphaned, or overlapping; lint (future) reports spec quality issues like missing
+      behaviors, stale decisions, or invalid refs. check can optionally invoke lint later.
+
+  - date: '2026-04-04'
+    choice: 'reconcile-prompt.md is a lean template (no embedded diff); agents read files and run git diff themselves'
+    rationale: >
+      Embedding the full diff in the prompt scales badly for large changesets and is
+      redundant for agents that have shell or file tool access. A lean template (spec +
+      changed file list + instructions) keeps context small and lets tool-capable agents
+      fetch exactly what they need. Agents without tool access should use --format json
+      (which still includes the diff) or the MCP tools directly.
+
+  - date: '2026-04-04'
+    choice: 'export-context --bootstrap outputs bootstrap-prompt.md for generic agents; does not require .notarai/'
+    rationale: >
+      Generic agents need an equivalent of the Claude-specific notarai-bootstrap skill.
+      The bootstrap prompt is a standalone template the agent can receive via any channel;
+      it guides the agent through project discovery, structured interview, and spec drafting.
+      Since bootstrapping is a pre-init operation, requiring .notarai/ would be circular.
+
   - date: '2026-03-08'
     choice: 'Migrate bundled Claude Code commands to skills (.claude/skills/<name>/SKILL.md)'
     rationale: >
@@ -291,6 +405,12 @@ artifacts:
       role: 'Bundled Claude Code skill for bootstrap interview, copied by init'
     - path: 'templates/notarai-readme.md'
       role: 'Bundled .notarai/README.md template written by notarai init to target projects'
+    - path: 'templates/agents.md'
+      role: 'Bundled AGENTS.md template written by notarai init --agent generic'
+    - path: 'templates/reconcile-prompt.md'
+      role: 'Bundled lean reconciliation prompt template; includes spec and changed files but not the diff'
+    - path: 'templates/bootstrap-prompt.md'
+      role: 'Bundled agent-agnostic bootstrap prompt output by export-context --bootstrap'
     - path: '.claude/rules/rust.md'
       role: 'Claude rule equivalent -- proactive enforcement of Rust coding constraints during generation'
     - path: '.claude/rules/testing.md'

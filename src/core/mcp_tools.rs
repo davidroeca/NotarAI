@@ -1,4 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
+
+use crate::core::spec_loader;
 
 /// A JSON-RPC error returned by an MCP tool.
 pub struct McpError {
@@ -9,6 +11,13 @@ pub struct McpError {
 /// Shorthand result type for MCP tool functions.
 pub type McpResult = Result<serde_json::Value, McpError>;
 
+fn mcp_err(message: String) -> McpError {
+    McpError {
+        code: -32603,
+        message,
+    }
+}
+
 /// List specs whose governed files overlap with files changed since `base_branch`.
 ///
 /// Runs `git diff <base_branch> --name-only`, then cross-references each
@@ -17,29 +26,9 @@ pub type McpResult = Result<serde_json::Value, McpError>;
 /// (specs with at least one matching artifact, including their `behaviors`,
 /// `constraints`, and `invariants`).
 pub fn list_affected_specs(base_branch: &str, project_root: &Path) -> McpResult {
-    let output = std::process::Command::new("git")
-        .args(["diff", base_branch, "--name-only"])
-        .current_dir(project_root)
-        .output()
-        .map_err(|e| McpError {
-            code: -32603,
-            message: format!("git error: {e}"),
-        })?;
+    let changed = crate::core::git::changed_files(base_branch, project_root).map_err(mcp_err)?;
 
-    if !output.status.success() {
-        return Err(McpError {
-            code: -32603,
-            message: String::from_utf8_lossy(&output.stderr).to_string(),
-        });
-    }
-
-    let changed: Vec<String> = String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .filter(|l| !l.is_empty())
-        .map(String::from)
-        .collect();
-
-    let specs = collect_specs(project_root)?;
+    let specs = spec_loader::collect_specs(project_root).map_err(mcp_err)?;
 
     let mut affected = Vec::new();
     for spec_path in &specs {
@@ -48,17 +37,9 @@ pub fn list_affected_specs(base_branch: &str, project_root: &Path) -> McpResult 
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|_| spec_path.to_string_lossy().to_string());
 
-        let content = std::fs::read_to_string(spec_path).map_err(|e| McpError {
-            code: -32603,
-            message: format!("read error for {spec_rel}: {e}"),
-        })?;
+        let spec_value = spec_loader::load_spec(spec_path).map_err(mcp_err)?;
 
-        let spec_value = crate::core::yaml::parse_yaml(&content).map_err(|e| McpError {
-            code: -32603,
-            message: e,
-        })?;
-
-        if is_spec_affected(&spec_value, &changed) {
+        if spec_loader::is_spec_affected(&spec_value, &changed) {
             let behaviors = spec_value
                 .get("behaviors")
                 .cloned()
@@ -111,16 +92,9 @@ pub fn get_spec_diff(
     project_root: &Path,
 ) -> McpResult {
     let abs_spec = project_root.join(spec_path);
-    let content = std::fs::read_to_string(&abs_spec).map_err(|e| McpError {
-        code: -32603,
-        message: format!("read error: {e}"),
-    })?;
-    let spec_value = crate::core::yaml::parse_yaml(&content).map_err(|e| McpError {
-        code: -32603,
-        message: e,
-    })?;
+    let spec_value = spec_loader::load_spec(&abs_spec).map_err(mcp_err)?;
 
-    let files = expand_artifact_globs(&spec_value, project_root);
+    let files = spec_loader::expand_artifact_globs(&spec_value, project_root);
 
     if files.is_empty() {
         return Ok(serde_json::json!({
@@ -135,8 +109,9 @@ pub fn get_spec_diff(
     }
 
     // Partition governed files: .notarai/**/*.spec.yaml vs. everything else.
-    let (spec_files, artifact_files): (Vec<String>, Vec<String>) =
-        files.into_iter().partition(|f| is_spec_file(f));
+    let (spec_files, artifact_files): (Vec<String>, Vec<String>) = files
+        .into_iter()
+        .partition(|f| spec_loader::is_spec_file(f));
 
     // Apply cache filtering to both groups independently.
     let (spec_to_show, artifact_to_diff, artifact_skipped, primary_spec_changed) = if bypass_cache {
@@ -196,10 +171,8 @@ pub fn get_spec_diff(
     let mut spec_changes = Vec::new();
     for spec_rel in &spec_to_show {
         let abs = project_root.join(spec_rel);
-        let spec_content = std::fs::read_to_string(&abs).map_err(|e| McpError {
-            code: -32603,
-            message: format!("read error for {spec_rel}: {e}"),
-        })?;
+        let spec_content = std::fs::read_to_string(&abs)
+            .map_err(|e| mcp_err(format!("read error for {spec_rel}: {e}")))?;
         spec_changes.push(serde_json::json!({
             "path": spec_rel,
             "content": spec_content,
@@ -210,7 +183,7 @@ pub fn get_spec_diff(
     let system_spec = if spec_changes.is_empty() {
         serde_json::Value::Null
     } else {
-        find_system_spec(project_root, &spec_to_show)?
+        spec_loader::find_system_spec(project_root, &spec_to_show).map_err(mcp_err)?
     };
 
     // Partition artifact files into binary (known extension) and non-binary.
@@ -219,32 +192,10 @@ pub fn get_spec_diff(
         .cloned()
         .partition(|f| is_binary_by_extension(f));
 
-    // Build :(exclude) pathspecs from caller-supplied patterns.
-    // Git resolves these as globs, so patterns like "Cargo.lock" or "*.lock"
-    // work without pre-expansion.
-    let diff = if non_binary.is_empty() {
-        String::new()
-    } else {
-        let exclude_args: Vec<String> = exclude_patterns
-            .iter()
-            .map(|p| format!(":(exclude){p}"))
-            .collect();
-
-        let mut args: Vec<&str> = vec!["diff", base_branch, "--"];
-        args.extend(non_binary.iter().map(String::as_str));
-        args.extend(exclude_args.iter().map(String::as_str));
-
-        let output = std::process::Command::new("git")
-            .args(&args)
-            .current_dir(project_root)
-            .output()
-            .map_err(|e| McpError {
-                code: -32603,
-                message: format!("git error: {e}"),
-            })?;
-
-        String::from_utf8_lossy(&output.stdout).to_string()
-    };
+    // Run git diff on non-binary artifact files.
+    let diff =
+        crate::core::git::diff_files(base_branch, &non_binary, exclude_patterns, project_root)
+            .map_err(mcp_err)?;
 
     // Collect additional binary files detected from "Binary files ... differ" in the diff,
     // and strip those lines so the returned diff stays clean.
@@ -266,7 +217,8 @@ pub fn get_spec_diff(
     let diff = clean_lines.join("\n");
 
     // Build file_categories: map each changed artifact file to its spec category.
-    let file_categories = build_file_categories(&spec_value, &artifact_to_diff, project_root);
+    let file_categories =
+        spec_loader::build_file_categories(&spec_value, &artifact_to_diff, project_root);
 
     Ok(serde_json::json!({
         "diff": diff,
@@ -288,10 +240,7 @@ pub fn get_spec_diff(
 pub fn clear_cache(project_root: &Path) -> McpResult {
     let path = crate::core::cache::db_path(project_root);
     if path.exists() {
-        std::fs::remove_file(&path).map_err(|e| McpError {
-            code: -32603,
-            message: format!("could not delete cache: {e}"),
-        })?;
+        std::fs::remove_file(&path).map_err(|e| mcp_err(format!("could not delete cache: {e}")))?;
         Ok(serde_json::json!({"cleared": true}))
     } else {
         Ok(serde_json::json!({"cleared": false}))
@@ -312,31 +261,24 @@ pub fn get_changed_artifacts(
     project_root: &Path,
 ) -> McpResult {
     let abs_spec = project_root.join(spec_path);
-    let content = std::fs::read_to_string(&abs_spec).map_err(|e| McpError {
-        code: -32603,
-        message: format!("read error: {e}"),
-    })?;
-    let spec_value = crate::core::yaml::parse_yaml(&content).map_err(|e| McpError {
-        code: -32603,
-        message: e,
-    })?;
+    let spec_value = spec_loader::load_spec(&abs_spec).map_err(mcp_err)?;
 
     let files = match artifact_type {
-        Some(art_type) => expand_artifact_type_globs(&spec_value, project_root, art_type),
-        None => expand_artifact_globs(&spec_value, project_root),
+        Some(art_type) => {
+            spec_loader::expand_artifact_type_globs(&spec_value, project_root, art_type)
+        }
+        None => spec_loader::expand_artifact_globs(&spec_value, project_root),
     };
 
-    let conn = crate::core::cache::open_cache_db(project_root).map_err(|e| McpError {
-        code: -32603,
-        message: e,
-    })?;
+    let conn = crate::core::cache::open_cache_db(project_root).map_err(mcp_err)?;
 
     // Check whether the primary spec file itself has changed vs cache.
     let primary_spec_changed = is_spec_changed_vs_cache(&conn, spec_path, &abs_spec);
 
     // Partition governed files: .notarai/**/*.spec.yaml vs. everything else.
-    let (spec_files, artifact_files): (Vec<String>, Vec<String>) =
-        files.into_iter().partition(|f| is_spec_file(f));
+    let (spec_files, artifact_files): (Vec<String>, Vec<String>) = files
+        .into_iter()
+        .partition(|f| spec_loader::is_spec_file(f));
 
     // Check governed spec files against cache.
     let spec_pairs: Vec<(String, std::path::PathBuf)> = spec_files
@@ -360,11 +302,8 @@ pub fn get_changed_artifacts(
         })
         .collect();
 
-    let (changed, unchanged) = crate::core::cache::check_changed_batch(&conn, &artifact_pairs)
-        .map_err(|e| McpError {
-            code: -32603,
-            message: e,
-        })?;
+    let (changed, unchanged) =
+        crate::core::cache::check_changed_batch(&conn, &artifact_pairs).map_err(mcp_err)?;
 
     let spec_invalidated = if primary_spec_changed || !governed_specs_changed.is_empty() {
         unchanged
@@ -388,10 +327,7 @@ pub fn get_changed_artifacts(
 /// `cache update` subcommand, which uses absolute paths as keys instead of
 /// relative paths.
 pub fn mark_reconciled(files: &[String], project_root: &Path) -> McpResult {
-    let conn = crate::core::cache::open_cache_db(project_root).map_err(|e| McpError {
-        code: -32603,
-        message: e,
-    })?;
+    let conn = crate::core::cache::open_cache_db(project_root).map_err(mcp_err)?;
 
     let mut to_upsert = Vec::new();
     for f in files {
@@ -404,10 +340,7 @@ pub fn mark_reconciled(files: &[String], project_root: &Path) -> McpResult {
         }
     }
 
-    let count = crate::core::cache::upsert_batch(&conn, &to_upsert).map_err(|e| McpError {
-        code: -32603,
-        message: e,
-    })?;
+    let count = crate::core::cache::upsert_batch(&conn, &to_upsert).map_err(mcp_err)?;
 
     Ok(serde_json::json!({"updated": count}))
 }
@@ -417,14 +350,8 @@ pub fn mark_reconciled(files: &[String], project_root: &Path) -> McpResult {
 /// Called at the end of a reconciliation pass to persist the baseline.
 /// Returns `{"state_path": "...", "files": N, "specs": N, "git_hash": "..."}`.
 pub fn snapshot_state(project_root: &Path) -> McpResult {
-    let state = crate::core::state::snapshot_from_cache(project_root).map_err(|e| McpError {
-        code: -32603,
-        message: e,
-    })?;
-    crate::core::state::save_state(project_root, &state).map_err(|e| McpError {
-        code: -32603,
-        message: e,
-    })?;
+    let state = crate::core::state::snapshot_from_cache(project_root).map_err(mcp_err)?;
+    crate::core::state::save_state(project_root, &state).map_err(mcp_err)?;
     let state_path = crate::core::state::state_path(project_root)
         .to_string_lossy()
         .to_string();
@@ -453,55 +380,6 @@ fn is_binary_by_extension(path: &str) -> bool {
     BINARY_EXTENSIONS.iter().any(|ext| lower.ends_with(ext))
 }
 
-/// Build a map from file path -> artifact category name based on the spec's artifacts globs.
-///
-/// Each file in `files` is matched against every category's glob patterns. The first
-/// matching category wins. Files that match no category are omitted.
-fn build_file_categories(
-    spec: &serde_json::Value,
-    files: &[String],
-    project_root: &Path,
-) -> serde_json::Map<String, serde_json::Value> {
-    use std::collections::HashSet;
-
-    let mut map = serde_json::Map::new();
-    let Some(artifacts) = spec.get("artifacts").and_then(|a| a.as_object()) else {
-        return map;
-    };
-
-    // Pre-expand all category globs once into HashSets for O(1) lookup.
-    let category_files: Vec<(String, HashSet<String>)> = artifacts
-        .iter()
-        .map(|(cat, refs)| {
-            let expanded: HashSet<String> = refs
-                .as_array()
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|item| item.get("path").and_then(|p| p.as_str()))
-                        .flat_map(|pattern| expand_glob(pattern, project_root))
-                        .collect()
-                })
-                .unwrap_or_default();
-            (cat.clone(), expanded)
-        })
-        .collect();
-
-    for file in files {
-        for (cat, cat_files) in &category_files {
-            if cat_files.contains(file) {
-                map.insert(file.clone(), serde_json::Value::String(cat.clone()));
-                break;
-            }
-        }
-    }
-
-    map
-}
-
-fn is_spec_file(path: &str) -> bool {
-    path.starts_with(".notarai/") && path.ends_with(".spec.yaml")
-}
-
 /// Check whether a spec file's on-disk content differs from the cache.
 ///
 /// Returns `true` when the spec has changed (or the cache lookup fails),
@@ -511,180 +389,4 @@ fn is_spec_changed_vs_cache(conn: &rusqlite::Connection, spec_rel: &str, spec_ab
     let (changed, _) = crate::core::cache::check_changed_batch(conn, &pair)
         .unwrap_or_else(|_| (vec![spec_rel.to_string()], vec![]));
     !changed.is_empty()
-}
-
-/// Locate the system spec (the one with a `subsystems` key) in `.notarai/`.
-///
-/// If the system spec is already in `spec_changes_paths` (i.e., it changed),
-/// returns `{path}` only to avoid duplicating its content. Otherwise returns
-/// `{path, content}` with the full file. Returns `null` if no system spec is found.
-fn find_system_spec(
-    project_root: &Path,
-    spec_changes_paths: &[String],
-) -> Result<serde_json::Value, McpError> {
-    let notarai_dir = project_root.join(".notarai");
-    if !notarai_dir.exists() {
-        return Ok(serde_json::Value::Null);
-    }
-
-    let mut system_spec_rel: Option<String> = None;
-
-    // Fast path: check for .notarai/system.spec.yaml by convention name first.
-    let candidate = notarai_dir.join("system.spec.yaml");
-    if candidate.exists()
-        && let Ok(content) = std::fs::read_to_string(&candidate)
-        && let Ok(value) = crate::core::yaml::parse_yaml(&content)
-        && value.get("subsystems").is_some()
-        && let Ok(rel) = candidate.strip_prefix(project_root)
-    {
-        system_spec_rel = Some(rel.to_string_lossy().to_string());
-    }
-
-    // Fallback: scan .notarai/ (non-recursive) for a spec with a `subsystems` key.
-    if system_spec_rel.is_none()
-        && let Ok(entries) = std::fs::read_dir(&notarai_dir)
-    {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if !path.is_file() {
-                continue;
-            }
-            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if !name.ends_with(".spec.yaml") {
-                continue;
-            }
-            if let Ok(content) = std::fs::read_to_string(&path)
-                && let Ok(value) = crate::core::yaml::parse_yaml(&content)
-                && value.get("subsystems").is_some()
-                && let Ok(rel) = path.strip_prefix(project_root)
-            {
-                system_spec_rel = Some(rel.to_string_lossy().to_string());
-                break;
-            }
-        }
-    }
-
-    let Some(sys_path) = system_spec_rel else {
-        return Ok(serde_json::Value::Null);
-    };
-
-    // If the system spec itself changed, it's already in spec_changes -- return
-    // just the path reference to avoid duplicating the content.
-    if spec_changes_paths.contains(&sys_path) {
-        return Ok(serde_json::json!({"path": sys_path}));
-    }
-
-    // Otherwise read its full content.
-    let abs_sys = project_root.join(&sys_path);
-    let content = std::fs::read_to_string(&abs_sys).map_err(|e| McpError {
-        code: -32603,
-        message: format!("read error for system spec {sys_path}: {e}"),
-    })?;
-
-    Ok(serde_json::json!({
-        "path": sys_path,
-        "content": content,
-    }))
-}
-
-fn collect_specs(project_root: &Path) -> Result<Vec<PathBuf>, McpError> {
-    use walkdir::WalkDir;
-    let mut specs = Vec::new();
-    let notarai_dir = project_root.join(".notarai");
-    if !notarai_dir.exists() {
-        return Ok(specs);
-    }
-    for entry in WalkDir::new(&notarai_dir) {
-        let entry = entry.map_err(|e| McpError {
-            code: -32603,
-            message: format!("{e}"),
-        })?;
-        if entry.file_type().is_file() {
-            let name = entry.file_name().to_string_lossy();
-            if name.ends_with(".spec.yaml") {
-                specs.push(entry.into_path());
-            }
-        }
-    }
-    Ok(specs)
-}
-
-fn is_spec_affected(spec: &serde_json::Value, changed: &[String]) -> bool {
-    let Some(artifacts) = spec.get("artifacts") else {
-        return false;
-    };
-    let Some(obj) = artifacts.as_object() else {
-        return false;
-    };
-    for (_key, refs) in obj {
-        let Some(arr) = refs.as_array() else {
-            continue;
-        };
-        for item in arr {
-            let Some(pattern_str) = item.get("path").and_then(|p| p.as_str()) else {
-                continue;
-            };
-            if let Ok(pattern) = glob::Pattern::new(pattern_str) {
-                for changed_file in changed {
-                    if pattern.matches(changed_file) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    false
-}
-
-fn expand_artifact_globs(spec: &serde_json::Value, project_root: &Path) -> Vec<String> {
-    let mut files = Vec::new();
-    let Some(artifacts) = spec.get("artifacts").and_then(|a| a.as_object()) else {
-        return files;
-    };
-    for (_key, refs) in artifacts {
-        let Some(arr) = refs.as_array() else {
-            continue;
-        };
-        for item in arr {
-            if let Some(pattern_str) = item.get("path").and_then(|p| p.as_str()) {
-                files.extend(expand_glob(pattern_str, project_root));
-            }
-        }
-    }
-    files
-}
-
-fn expand_artifact_type_globs(
-    spec: &serde_json::Value,
-    project_root: &Path,
-    art_type: &str,
-) -> Vec<String> {
-    let mut files = Vec::new();
-    let Some(refs) = spec
-        .get("artifacts")
-        .and_then(|a| a.get(art_type))
-        .and_then(|r| r.as_array())
-    else {
-        return files;
-    };
-    for item in refs {
-        if let Some(pattern_str) = item.get("path").and_then(|p| p.as_str()) {
-            files.extend(expand_glob(pattern_str, project_root));
-        }
-    }
-    files
-}
-
-fn expand_glob(pattern_str: &str, project_root: &Path) -> Vec<String> {
-    let abs_pattern = project_root.join(pattern_str);
-    let abs_pattern_str = abs_pattern.to_string_lossy();
-    let mut result = Vec::new();
-    if let Ok(paths) = glob::glob(&abs_pattern_str) {
-        for path in paths.filter_map(|p| p.ok()) {
-            if let Ok(rel) = path.strip_prefix(project_root) {
-                result.push(rel.to_string_lossy().to_string());
-            }
-        }
-    }
-    result
 }

@@ -82,8 +82,8 @@ pub fn snapshot_from_cache(project_root: &Path) -> Result<ReconciliationState, S
         }
     }
 
-    let git_hash = git_head(project_root);
-    let branch = git_branch(project_root);
+    let git_hash = crate::core::git::head_hash(project_root);
+    let branch = crate::core::git::current_branch(project_root);
 
     Ok(ReconciliationState {
         schema_version: "1".to_string(),
@@ -178,37 +178,6 @@ fn utc_timestamp() -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default();
     format!("{}Z", duration.as_secs())
-}
-
-fn git_head(project_root: &Path) -> Option<String> {
-    let output = std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .current_dir(project_root)
-        .output()
-        .ok()?;
-    if output.status.success() {
-        Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
-    } else {
-        None
-    }
-}
-
-fn git_branch(project_root: &Path) -> Option<String> {
-    let output = std::process::Command::new("git")
-        .args(["branch", "--show-current"])
-        .current_dir(project_root)
-        .output()
-        .ok()?;
-    if output.status.success() {
-        let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if branch.is_empty() {
-            None
-        } else {
-            Some(branch)
-        }
-    } else {
-        None
-    }
 }
 
 #[cfg(test)]

@@ -7,9 +7,17 @@ const RECONCILE_MD: &str = include_str!("../../skills/notarai-reconcile/SKILL.md
 const BOOTSTRAP_MD: &str = include_str!("../../skills/notarai-bootstrap/SKILL.md");
 const NOTARAI_README_TEMPLATE: &str = include_str!("../../templates/notarai-readme.md");
 const SCHEMA_JSON: &str = include_str!("../../notarai.spec.json");
+const AGENTS_MD_TEMPLATE: &str = include_str!("../../templates/agents.md");
+const RECONCILE_PROMPT_TEMPLATE: &str = include_str!("../../templates/reconcile-prompt.md");
 
 /// The section written to / replaced in CLAUDE.md.
 const NOTARAI_SECTION: &str = "## NotarAI\n\nSpecs live in `.notarai/*.spec.yaml` and are the canonical source of truth.\nRun `/notarai-reconcile` to detect drift between specs, code, and docs.\nRun `notarai validate .notarai/` to validate specs manually.\nThe PostToolUse hook auto-validates any spec file you write or edit.\n";
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AgentKind {
+    Claude,
+    Generic,
+}
 
 fn has_notarai_hook(matchers: &[serde_json::Value]) -> bool {
     matchers.iter().any(|m| {
@@ -96,45 +104,131 @@ fn extract_notarai_section(content: &str) -> String {
     format!("{}\n", result.trim_end())
 }
 
+/// Prompt the user for agent kind via stdin. Returns Claude on empty input.
+fn prompt_agent_choice() -> Result<AgentKind, String> {
+    eprint!("Which agent? [claude/generic] (default: claude): ");
+    let mut input = String::new();
+    std::io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| format!("could not read stdin: {e}"))?;
+    match input.trim() {
+        "" | "claude" => Ok(AgentKind::Claude),
+        "generic" => Ok(AgentKind::Generic),
+        other => Err(format!(
+            "unknown agent: {other}. Expected 'claude' or 'generic'."
+        )),
+    }
+}
+
 /// Set up NotarAI in the target project directory.
-pub fn run(project_root: Option<&Path>) -> i32 {
+pub fn run(project_root: Option<&Path>, agent: Option<AgentKind>) -> i32 {
     let root = match project_root {
         Some(p) => p.to_path_buf(),
         None => std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf()),
     };
 
-    let claude_dir = root.join(".claude");
+    // Determine agent kind: explicit flag, interactive prompt, or default.
+    use std::io::IsTerminal;
+    let agent_kind = match agent {
+        Some(a) => a,
+        None if std::io::stdin().is_terminal() => match prompt_agent_choice() {
+            Ok(a) => a,
+            Err(e) => {
+                eprintln!("Error: {e}");
+                return 1;
+            }
+        },
+        None => AgentKind::Claude,
+    };
+
     let notarai_dir = root.join(".notarai");
 
-    if !claude_dir.exists()
-        && let Err(e) = fs::create_dir_all(&claude_dir)
+    // Create .notarai/ if it doesn't exist.
+    if !notarai_dir.exists()
+        && let Err(e) = fs::create_dir_all(&notarai_dir)
     {
-        eprintln!("Error: could not create .claude/ directory: {e}");
+        eprintln!("Error: could not create .notarai/ directory: {e}");
         return 1;
     }
 
-    let mut settings: serde_json::Value = {
-        let settings_path = claude_dir.join("settings.json");
-        if settings_path.exists() {
-            match fs::read_to_string(&settings_path) {
-                Ok(content) => match serde_json::from_str(&content) {
-                    Ok(v) => v,
-                    Err(_) => {
-                        eprintln!("Error: could not parse existing .claude/settings.json");
-                        return 1;
-                    }
-                },
-                Err(_) => {
-                    eprintln!("Error: could not read .claude/settings.json");
-                    return 1;
-                }
+    // Shared setup (both modes).
+    setup_schema(&notarai_dir);
+    setup_notarai_readme(&notarai_dir);
+    setup_gitignore(&root);
+    setup_mcp_json(&root);
+
+    // Agent-specific setup.
+    match agent_kind {
+        AgentKind::Claude => {
+            let claude_dir = root.join(".claude");
+            if !claude_dir.exists()
+                && let Err(e) = fs::create_dir_all(&claude_dir)
+            {
+                eprintln!("Error: could not create .claude/ directory: {e}");
+                return 1;
             }
-        } else {
-            serde_json::json!({})
+
+            setup_claude_settings(&root, &claude_dir);
+            setup_skill("notarai-reconcile", RECONCILE_MD, &claude_dir);
+            setup_skill("notarai-bootstrap", BOOTSTRAP_MD, &claude_dir);
+            setup_claude_context(&root);
         }
+        AgentKind::Generic => {
+            setup_agents_md(&root);
+            setup_reconcile_prompt(&notarai_dir);
+        }
+    }
+
+    crate::commands::update::passive_update_hint();
+    0
+}
+
+fn setup_schema(notarai_dir: &Path) {
+    let dest_path = notarai_dir.join("notarai.spec.json");
+
+    if let Err(e) = fs::write(&dest_path, SCHEMA_JSON) {
+        eprintln!("Warning: could not write notarai.spec.json: {e}");
+        return;
+    }
+
+    println!("Copied schema to .notarai/notarai.spec.json");
+}
+
+fn setup_notarai_readme(notarai_dir: &Path) {
+    let version = env!("CARGO_PKG_VERSION");
+    let content = NOTARAI_README_TEMPLATE.replace("{{VERSION}}", version);
+    let dest_path = notarai_dir.join("README.md");
+
+    if let Err(e) = fs::write(&dest_path, content) {
+        eprintln!("Warning: could not write .notarai/README.md: {e}");
+        return;
+    }
+
+    println!("Wrote .notarai/README.md");
+}
+
+fn setup_claude_settings(root: &Path, claude_dir: &Path) {
+    let settings_path = claude_dir.join("settings.json");
+
+    let mut settings: serde_json::Value = if settings_path.exists() {
+        match fs::read_to_string(&settings_path) {
+            Ok(content) => match serde_json::from_str(&content) {
+                Ok(v) => v,
+                Err(_) => {
+                    eprintln!("Error: could not parse existing .claude/settings.json");
+                    return;
+                }
+            },
+            Err(_) => {
+                eprintln!("Error: could not read .claude/settings.json");
+                return;
+            }
+        }
+    } else {
+        serde_json::json!({})
     };
 
-    // Ensure hooks.PostToolUse exists
+    // Ensure hooks.PostToolUse exists.
     if settings.get("hooks").is_none() {
         settings["hooks"] = serde_json::json!({});
     }
@@ -163,57 +257,17 @@ pub fn run(project_root: Option<&Path>) -> i32 {
             .expect("PostToolUse must be an array")
             .push(hook_entry);
 
-        let settings_path = claude_dir.join("settings.json");
         let content = serde_json::to_string_pretty(&settings).expect("JSON serialization") + "\n";
         if let Err(e) = fs::write(&settings_path, content) {
             eprintln!("Error: could not write .claude/settings.json: {e}");
-            return 1;
+            return;
         }
         println!("Added NotarAI validation hook to .claude/settings.json");
     }
 
-    // Create .notarai/ if it doesn't exist
-    if !notarai_dir.exists()
-        && let Err(e) = fs::create_dir_all(&notarai_dir)
-    {
-        eprintln!("Error: could not create .notarai/ directory: {e}");
-        return 1;
-    }
-
-    setup_schema(&notarai_dir);
-    setup_notarai_readme(&notarai_dir);
-    setup_skill("notarai-reconcile", RECONCILE_MD, &claude_dir);
-    setup_skill("notarai-bootstrap", BOOTSTRAP_MD, &claude_dir);
-    setup_claude_context(&root);
-    setup_gitignore(&root);
-    setup_mcp_json(&root);
-
-    crate::commands::update::passive_update_hint();
-    0
-}
-
-fn setup_schema(notarai_dir: &Path) {
-    let dest_path = notarai_dir.join("notarai.spec.json");
-
-    if let Err(e) = fs::write(&dest_path, SCHEMA_JSON) {
-        eprintln!("Warning: could not write notarai.spec.json: {e}");
-        return;
-    }
-
-    println!("Copied schema to .notarai/notarai.spec.json");
-}
-
-fn setup_notarai_readme(notarai_dir: &Path) {
-    let version = env!("CARGO_PKG_VERSION");
-    let content = NOTARAI_README_TEMPLATE.replace("{{VERSION}}", version);
-    let dest_path = notarai_dir.join("README.md");
-
-    if let Err(e) = fs::write(&dest_path, content) {
-        eprintln!("Warning: could not write .notarai/README.md: {e}");
-        return;
-    }
-
-    println!("Wrote .notarai/README.md");
+    // Suppress unused variable warning -- root is available for future use
+    // but claude_settings currently only needs claude_dir.
+    let _ = root;
 }
 
 fn setup_claude_context(project_dir: &Path) {
@@ -273,6 +327,28 @@ fn setup_skill(name: &str, content: &str, claude_dir: &Path) {
     }
 
     println!("Updated .claude/skills/{name}/SKILL.md");
+}
+
+fn setup_agents_md(project_dir: &Path) {
+    let agents_md_path = project_dir.join("AGENTS.md");
+
+    if let Err(e) = fs::write(&agents_md_path, AGENTS_MD_TEMPLATE) {
+        eprintln!("Warning: could not write AGENTS.md: {e}");
+        return;
+    }
+
+    println!("Wrote AGENTS.md");
+}
+
+fn setup_reconcile_prompt(notarai_dir: &Path) {
+    let dest_path = notarai_dir.join("reconcile-prompt.md");
+
+    if let Err(e) = fs::write(&dest_path, RECONCILE_PROMPT_TEMPLATE) {
+        eprintln!("Warning: could not write .notarai/reconcile-prompt.md: {e}");
+        return;
+    }
+
+    println!("Wrote .notarai/reconcile-prompt.md");
 }
 
 fn setup_gitignore(project_dir: &Path) {
