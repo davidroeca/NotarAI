@@ -36,7 +36,7 @@ notarai validate .notarai/subsystems/
 
 ## notarai check
 
-Deterministic, LLM-free drift detection. Reports coverage gaps, orphaned globs, changed files, and overlapping coverage.
+Deterministic, LLM-free drift detection. Reports coverage gaps, orphaned globs, changed files, overlapping coverage, circular `$ref` chains, and incomplete behaviors.
 
 ```sh
 # Human-readable output (default)
@@ -47,27 +47,35 @@ notarai check --format json
 
 # Custom base branch
 notarai check --base-branch develop
+
+# Strict mode: promote all warnings to errors (useful for CI)
+notarai check --strict
 ```
 
 **Arguments:**
 
-| Flag            | Required | Default | Description                            |
-| --------------- | -------- | ------- | -------------------------------------- |
-| `--format`      | No       | `human` | Output format: `human` or `json`       |
-| `--base-branch` | No       | `main`  | Base branch for changed-file detection |
+| Flag            | Required | Default | Description                                        |
+| --------------- | -------- | ------- | -------------------------------------------------- |
+| `--format`      | No       | `human` | Output format: `human` or `json`                   |
+| `--base-branch` | No       | `main`  | Base branch for changed-file detection             |
+| `--strict`      | No       | `false` | Promote all warnings to errors (zero-tolerance CI) |
 
 **Checks performed:**
 
-| Check                        | Severity | Description                                             |
-| ---------------------------- | -------- | ------------------------------------------------------- |
-| Coverage gaps                | Warning  | Tracked files not governed by any spec (minus excludes) |
-| Orphaned globs               | Warning  | Artifact glob patterns matching zero files              |
-| Changed since reconciliation | Warning  | Governed files changed since last cache update          |
-| Overlapping coverage         | Warning  | Files governed by two or more specs                     |
+| Check                        | Severity | Description                                                     |
+| ---------------------------- | -------- | --------------------------------------------------------------- |
+| Coverage gaps                | Warning  | Tracked files not governed by any spec (minus excludes)         |
+| Orphaned globs               | Error    | Artifact glob patterns matching zero files                      |
+| Changed since reconciliation | Warning  | Governed files changed since last cache update                  |
+| Overlapping coverage         | Warning  | Files governed by two or more specs                             |
+| Circular `$ref` chains       | Error    | Cycles in `subsystems`, `applies`, or `dependencies` references |
+| Behavior completeness        | Warning  | Behaviors missing a `given` or `then` field                     |
+
+With `--strict`, all warning-severity findings are promoted to errors.
 
 The check command never modifies files or the cache database.
 
-**Exit codes:** `0` no error-severity findings, `1` errors found, `2` not initialized (`.notarai/` missing).
+**Exit codes:** `0` no error-severity findings, `1` errors found (including warnings promoted under `--strict`), `2` not initialized (`.notarai/` missing).
 
 ---
 
@@ -285,11 +293,11 @@ notarai update
 
 The command queries the GitHub API for the latest release, compares its version against the current binary, and prints the result. Without `--check`, it also attempts to install the update:
 
-| Install method     | Detection                                  | Action                                     |
-| ------------------ | ------------------------------------------ | ------------------------------------------ |
-| **GitHub Release** | Binary is not in `.cargo/bin` or `target/` | Downloads and replaces the binary in place |
-| **cargo install**  | Binary path contains `.cargo/bin`          | Prints `cargo install notarai`             |
-| **Dev build**      | Debug build or path contains `target/`     | Prints `cargo install --path .`            |
+| Install method     | Detection                                  | Action                                       |
+| ------------------ | ------------------------------------------ | -------------------------------------------- |
+| **GitHub Release** | Binary is not in `.cargo/bin` or `target/` | Downloads and replaces the binary in place   |
+| **cargo install**  | Binary path contains `.cargo/bin`          | Prints `cargo install notarai`               |
+| **Dev build**      | Debug build or path contains `target/`     | Prints `cargo install --path crates/notarai` |
 
 **Passive update hints:**
 

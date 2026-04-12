@@ -84,8 +84,11 @@ artifacts:
 ";
 
     fn fixture_spec() -> String {
-        fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(".notarai/cli.spec.yaml"))
-            .expect("fixture spec exists")
+        // .notarai/ lives at the workspace root, two levels above this crate.
+        fs::read_to_string(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.notarai/cli.spec.yaml"),
+        )
+        .expect("fixture spec exists")
     }
 
     #[test]

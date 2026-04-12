@@ -146,11 +146,12 @@ artifacts:
     std::fs::write(tmp.path().join(".notarai/phantom.spec.yaml"), spec).unwrap();
     git_commit_all(tmp.path(), "initial");
 
+    // Orphaned globs are now error-severity, so exit code is 1.
     cargo_bin_cmd!("notarai")
         .arg("check")
         .current_dir(tmp.path())
         .assert()
-        .code(0)
+        .code(1)
         .stdout(predicate::str::contains("nonexistent/**/*.rs"));
 }
 
@@ -199,6 +200,8 @@ fn check_json_output_is_valid() {
     setup_git_repo(tmp.path());
 
     std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
     std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
     std::fs::write(tmp.path().join("ungoverned.txt"), "test").unwrap();
     git_commit_all(tmp.path(), "initial");
@@ -209,6 +212,7 @@ fn check_json_output_is_valid() {
         .output()
         .expect("check command");
 
+    // Coverage gap is a warning, exit 0.
     assert!(output.status.success());
 
     let json: serde_json::Value =
@@ -225,6 +229,147 @@ fn check_json_output_is_valid() {
     assert!(first.get("type").is_some());
     assert!(first.get("severity").is_some());
     assert!(first.get("message").is_some());
+}
+
+#[test]
+fn check_detects_circular_ref_cycle() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+
+    // a -> b -> a cycle via $ref. Use ./ form (relative to spec parent dir),
+    // matching the convention used in the real system.spec.yaml.
+    let spec_a = "\
+schema_version: '0.7'
+intent: 'Spec A'
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source'
+subsystems:
+  - $ref: './b.spec.yaml'
+";
+    let spec_b = "\
+schema_version: '0.7'
+intent: 'Spec B'
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source'
+dependencies:
+  - $ref: './a.spec.yaml'
+";
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    std::fs::write(tmp.path().join(".notarai/a.spec.yaml"), spec_a).unwrap();
+    std::fs::write(tmp.path().join(".notarai/b.spec.yaml"), spec_b).unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check command");
+
+    // Cycle is error-severity, so exit code is 1.
+    assert_eq!(output.status.code(), Some(1));
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let cycles: Vec<&serde_json::Value> = findings
+        .iter()
+        .filter(|f| f["type"] == "circular_ref")
+        .collect();
+    assert_eq!(cycles.len(), 1, "expected exactly one circular_ref finding");
+    assert_eq!(cycles[0]["severity"], "error");
+    let msg = cycles[0]["message"].as_str().unwrap();
+    assert!(msg.contains("a.spec.yaml") && msg.contains("b.spec.yaml"));
+}
+
+#[test]
+fn check_detects_behavior_missing_given() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+
+    let spec = "\
+schema_version: '0.7'
+intent: 'Test spec'
+behaviors:
+  - name: incomplete_behavior
+    then: 'something happens'
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source'
+";
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), spec).unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check command");
+
+    // Warning-severity by default, exit 0.
+    assert_eq!(output.status.code(), Some(0));
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let incomplete: Vec<&serde_json::Value> = findings
+        .iter()
+        .filter(|f| f["type"] == "behavior_incomplete")
+        .collect();
+    assert_eq!(incomplete.len(), 1);
+    assert_eq!(incomplete[0]["severity"], "warning");
+    let msg = incomplete[0]["message"].as_str().unwrap();
+    assert!(msg.contains("incomplete_behavior") && msg.contains("given"));
+}
+
+#[test]
+fn check_strict_promotes_warnings_to_errors() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+    // Coverage gap: file not in any spec, no exclude patterns.
+    std::fs::write(tmp.path().join("orphan.txt"), "ungoverned").unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    // Without --strict: warning severity, exit 0.
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .current_dir(tmp.path())
+        .assert()
+        .code(0);
+
+    // With --strict: warning is promoted to error, exit 1.
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--strict", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check --strict");
+    assert_eq!(output.status.code(), Some(1));
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let coverage_gaps: Vec<&serde_json::Value> = findings
+        .iter()
+        .filter(|f| f["type"] == "coverage_gap")
+        .collect();
+    assert!(!coverage_gaps.is_empty());
+    for g in &coverage_gaps {
+        assert_eq!(g["severity"], "error");
+    }
+    assert!(json["summary"]["errors"].as_u64().unwrap() >= 1);
+    assert_eq!(json["summary"]["warnings"].as_u64().unwrap(), 0);
 }
 
 #[test]

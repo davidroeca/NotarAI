@@ -30,6 +30,9 @@ enum Commands {
         /// Base branch for changed-since detection
         #[arg(long, default_value = "main")]
         base_branch: String,
+        /// Promote all warnings to errors (zero-tolerance mode for CI)
+        #[arg(long)]
+        strict: bool,
     },
     /// Set up NotarAI in a project
     Init {
@@ -96,7 +99,8 @@ fn main() {
         Some(Commands::Check {
             format,
             base_branch,
-        }) => commands::check::run(&format, &base_branch),
+            strict,
+        }) => commands::check::run(&format, &base_branch, strict),
         Some(Commands::Init { agent }) => {
             let agent_kind = match agent.as_deref() {
                 Some("claude") => Some(commands::init::AgentKind::Claude),

@@ -29,13 +29,13 @@ git clone https://github.com/davidroeca/NotarAI.git
 cd NotarAI
 cargo build
 cargo install biome
-cargo install --path .
+cargo install --path crates/notarai
 pre-commit install
 ```
 
-The last step installs the `notarai` binary to `~/.cargo/bin` so the Claude
-Code hook (`notarai hook validate`) resolves correctly. Re-run it whenever you
-want the installed binary to reflect your latest local changes.
+The `cargo install` step installs the `notarai` binary to `~/.cargo/bin` so the
+Claude Code hook (`notarai hook validate`) resolves correctly. Re-run it whenever
+you want the installed binary to reflect your latest local changes.
 
 ## Making Changes
 
@@ -56,8 +56,8 @@ want the installed binary to reflect your latest local changes.
 - `biome format --check` for non-Rust file formatting (JSON, JS/TS, CSS, etc.)
 - `prettier --check` for Markdown formatting (temporary until [biome#3718](https://github.com/biomejs/biome/issues/3718) is resolved)
 - Functional style preferred over excessive use of structs with methods
-- Core library lives in `src/core/` (not `src/lib/` due to Rust's reserved
-  module name)
+- Core library lives in `crates/notarai/src/core/` (not `src/lib/` due to
+  Rust's reserved module name)
 
 ## Project Structure
 

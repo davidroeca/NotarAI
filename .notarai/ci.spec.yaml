@@ -23,14 +23,14 @@ behaviors:
 
   - name: release_on_tag
     given: 'a GitHub release is published'
-    then: 'the release workflow builds cross-platform binaries via cargo-zigbuild for 7 targets (x86_64/aarch64 linux-gnu, x86_64/aarch64 linux-musl, x86_64/aarch64 macos, x86_64 windows-gnu), uploads them as release assets, and publishes the crate to crates.io'
+    then: 'the release workflow builds cross-platform binaries via a matrix of native runners (ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-latest, windows-latest) using `cargo build --release --target <triple>` for 7 targets (x86_64/aarch64 linux-gnu, x86_64/aarch64 linux-musl, x86_64/aarch64 macos, x86_64 windows-gnu), uploads each binary as a release asset, and publishes the notarai crate to crates.io from a separate `publish-crate` job that depends on the build matrix'
 
   - name: dependabot_updates
     given: 'a new version of a GitHub Actions action, Cargo dependency, or npm dependency is available'
     then: 'Dependabot opens a PR to update the pinned version'
 
 constraints:
-  - 'Release binaries are cross-compiled on ubuntu-latest using cargo-zigbuild for all 7 targets'
+  - 'Release binaries are built on a matrix of native runners (one per target triple), not via cargo-zigbuild'
   - 'Crates.io publish uses CARGO_REGISTRY_TOKEN secret'
   - 'Docs deployment targets the github-pages environment and requires pages write + id-token write permissions'
   - 'CI must pass cargo fmt, clippy, and all tests before merge'
@@ -45,14 +45,32 @@ artifacts:
     - path: '.github/workflows/docs.yml'
       role: 'Docs deploy workflow -- mdBook build + schema copy + GitHub Pages deploy on docs/ changes'
     - path: '.github/workflows/release.yml'
-      role: 'Release workflow — cargo-zigbuild cross-compile + GitHub Releases + crates.io publish'
+      role: 'Release workflow — native matrix cross-compile + GitHub Releases + crates.io publish'
     - path: '.github/dependabot.yml'
       role: 'Dependabot config for keeping GitHub Actions and Cargo dependency versions current'
 
 decisions:
+  - date: '2026-04-11'
+    choice: 'Drift correction: release matrix uses native runners, not cargo-zigbuild'
+    rationale: >
+      The 2026-02-23 zigbuild decision below was reverted at some point without
+      a corresponding spec update. The release workflow currently uses a matrix
+      of native runners (ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-latest,
+      windows-latest) with stock `cargo build --release --target <triple>`. This
+      decision records the correction so the spec, the workflow, and the
+      behaviors match.
+
+  - date: '2026-04-11'
+    choice: 'CI workflows operate on a Cargo workspace under crates/'
+    rationale: >
+      As part of the monorepo restructure, all cargo invocations target -p notarai
+      (or pass --manifest-path crates/notarai/Cargo.toml when needed). The init-sync
+      job runs the binary from the workspace target dir; .claude/skills/ stays at
+      the repo root because Claude Code expects per-project (not per-crate) config.
+
   - date: '2026-02-23'
-    choice: 'cargo-zigbuild for cross-compilation on ubuntu-latest'
-    rationale: 'All 7 targets (including macOS and Windows) build on a single ubuntu-latest runner without needing native macOS/Windows runners, reducing CI cost and complexity'
+    choice: 'cargo-zigbuild for cross-compilation on ubuntu-latest (SUPERSEDED)'
+    rationale: 'Originally chosen so all 7 targets could build on a single ubuntu-latest runner without native macOS/Windows runners. Reverted in favor of native matrix runners; see 2026-04-11 drift correction.'
   - date: '2026-02-23'
     choice: 'Dual distribution: GitHub Releases + crates.io'
     rationale: 'GitHub Releases provides direct binary downloads for users without Rust; crates.io serves Rust users who prefer cargo install'

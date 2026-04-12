@@ -18,7 +18,7 @@ fn print_install_instructions(method: &InstallMethod) {
         }
         InstallMethod::DevBuild => {
             eprintln!();
-            eprintln!("Run: cargo install --path .");
+            eprintln!("Run: cargo install --path crates/notarai");
         }
         InstallMethod::GithubRelease => {}
     }

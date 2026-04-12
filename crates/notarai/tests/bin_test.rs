@@ -28,7 +28,10 @@ fn unknown_command_exits_2() {
 
 #[test]
 fn validate_exits_0_for_repo_notarai_dir() {
+    // .notarai/ lives at the workspace root, two levels above this crate.
+    let workspace_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     notarai()
+        .current_dir(&workspace_root)
         .arg("validate")
         .assert()
         .success()

@@ -24,14 +24,14 @@ invariants:
 
 artifacts:
   code:
-    - path: 'src/**/*.rs'
-      role: 'source code and inline comments'
+    - path: 'crates/*/src/**/*.rs'
+      role: 'source code and inline comments across all workspace crates'
   docs:
     - path: 'docs/src/**/*.md'
       role: 'user-facing documentation'
-    - path: 'commands/*.md'
-      role: 'slash command prompts'
-    - path: 'templates/*.md'
+    - path: 'crates/notarai/skills/*/SKILL.md'
+      role: 'bundled Claude Code skill prompts'
+    - path: 'crates/notarai/templates/*.md'
       role: 'bundled templates'
   configs:
     - path: '.claude/rules/style.md'

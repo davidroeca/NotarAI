@@ -51,7 +51,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - run: cargo build --release --target ${{ matrix.target }}
+      - run: cargo build --release --target ${{ matrix.target }} -p notarai
 
       - name: Rename binary
         shell: bash
@@ -75,6 +75,6 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - run: cargo publish
+      - run: cargo publish -p notarai
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

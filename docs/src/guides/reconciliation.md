@@ -22,20 +22,20 @@ The system is always **propose-and-approve**, never auto-sync. Both users and LL
 
 After running `notarai init`, use the `/notarai-reconcile` slash command in Claude Code to trigger a reconciliation pass.
 
-The reconciliation engine uses the `notarai` MCP server to serve pre-filtered data, keeping context usage proportional to what actually changed:
+The skill is a thin orchestrator that delegates context assembly to the `notarai export-context` CLI command:
 
-1. Calls `list_affected_specs` to identify which specs govern changed files.
-2. For each affected spec, calls `get_spec_diff` to get only the diff for files that spec governs. Files already reconciled (per the BLAKE3 hash cache) are skipped and listed in the `skipped` field. Pass `exclude_patterns` to suppress noisy files like lockfiles; pass `bypass_cache: true` to force a full diff without clearing the cache.
-3. Loads any `applies` cross-cutting specs and merges their invariants and constraints into the analysis.
-4. Notes any `dependencies` refs for ripple-effect analysis.
-5. Calls `get_changed_artifacts` to get only doc artifacts that changed since the last reconciliation.
-6. Reads only those files, analyzes drift against the spec's behaviors, constraints, and invariants.
-7. Proposes targeted updates to bring spec, code, and docs back into alignment.
-8. Calls `mark_reconciled` to update the hash cache for the next run.
+1. Determines a baseline (from `.notarai/reconciliation_state.json` if available, or asks for a base branch).
+2. Runs `notarai export-context --all --base-branch <baseline> --format markdown` to gather per-spec reconciliation blocks containing spec content and changed-file lists.
+3. For small changesets (10 or fewer changed files), analyzes all specs inline. For larger changesets, spawns one parallel sub-agent per spec.
+4. Reads changed files, runs `git diff` per file, and evaluates each behavior, constraint, and invariant against the changes.
+5. Notes `applies` cross-cutting specs and `dependencies` refs for ripple-effect analysis.
+6. Produces a structured report (DRIFT / VIOLATED / UNSPECCED / STALE REF findings).
+7. Walks through findings interactively, proposing exact changes for approval.
+8. Calls `mark_reconciled` (via MCP or CLI) to update the hash cache, then snapshots reconciliation state.
 
-See the [MCP Server reference](../reference/mcp-server.md) for full tool parameters and return shapes.
+The [MCP server](../reference/mcp-server.md) is used for `mark_reconciled` and `snapshot_state` when available, with CLI fallbacks (`notarai state snapshot`) when it is not.
 
-If the MCP server is unavailable, the command falls back to a manual flow using `git diff` directly.
+For non-Claude agents, run `notarai export-context` directly and paste the output into your agent's prompt. See the [CLI reference](../reference/cli.md#notarai-export-context) for details.
 
 ## Automatic validation
 

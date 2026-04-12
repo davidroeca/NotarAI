@@ -1,6 +1,6 @@
 use crate::core::check::{CheckFinding, CheckResult, CheckType, Severity};
 
-pub fn run(format: &str, _base_branch: &str) -> i32 {
+pub fn run(format: &str, _base_branch: &str, strict: bool) -> i32 {
     let project_root = match std::env::current_dir() {
         Ok(p) => p,
         Err(e) => {
@@ -14,13 +14,21 @@ pub fn run(format: &str, _base_branch: &str) -> i32 {
         return 2;
     }
 
-    let result = match crate::core::check::run_all_checks(&project_root) {
+    let mut result = match crate::core::check::run_all_checks(&project_root) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("Error: {e}");
             return 1;
         }
     };
+
+    if strict {
+        for f in &mut result.findings {
+            if matches!(f.severity, Severity::Warning) {
+                f.severity = Severity::Error;
+            }
+        }
+    }
 
     match format {
         "json" => print_json(&result),
@@ -30,10 +38,11 @@ pub fn run(format: &str, _base_branch: &str) -> i32 {
     if has_errors(&result) { 1 } else { 0 }
 }
 
-fn has_errors(_result: &CheckResult) -> bool {
-    // All current checks are warning-severity. When error-severity checks are
-    // added (e.g. via a future lint integration), filter for them here.
-    false
+fn has_errors(result: &CheckResult) -> bool {
+    result
+        .findings
+        .iter()
+        .any(|f| matches!(f.severity, Severity::Error))
 }
 
 fn print_human(result: &CheckResult) {
@@ -50,6 +59,8 @@ fn print_human(result: &CheckResult) {
             "Changed Since Last Reconciliation",
         ),
         (CheckType::OverlappingCoverage, "Overlapping Coverage"),
+        (CheckType::CircularRef, "Circular $ref Cycles"),
+        (CheckType::BehaviorIncomplete, "Incomplete Behaviors"),
     ];
 
     for (check_type, label) in groups {
@@ -68,23 +79,50 @@ fn print_human(result: &CheckResult) {
                 .file_path
                 .as_deref()
                 .or(f.glob_pattern.as_deref())
+                .or(f.spec_path.as_deref())
                 .unwrap_or("(unknown)");
             let prefix = match f.severity {
                 Severity::Warning => "\x1b[33m  warning\x1b[0m",
+                Severity::Error => "\x1b[31m  error  \x1b[0m",
             };
             println!("{prefix}: {detail}");
-            if let Some(spec) = &f.spec_path {
+            if !matches!(check_type, CheckType::CircularRef)
+                && let Some(spec) = &f.spec_path
+            {
                 println!("          in {spec}");
+            }
+            if matches!(
+                check_type,
+                CheckType::CircularRef | CheckType::BehaviorIncomplete
+            ) {
+                println!("          {}", f.message);
             }
         }
         println!();
     }
 
-    let warnings = result.findings.len();
+    let (errors, warnings) = count_severity(result);
     println!(
-        "{warnings} finding{} total.",
-        if warnings == 1 { "" } else { "s" }
+        "{} issue{} found ({} error{}, {} warning{}).",
+        errors + warnings,
+        if errors + warnings == 1 { "" } else { "s" },
+        errors,
+        if errors == 1 { "" } else { "s" },
+        warnings,
+        if warnings == 1 { "" } else { "s" },
     );
+}
+
+fn count_severity(result: &CheckResult) -> (usize, usize) {
+    let mut errors = 0usize;
+    let mut warnings = 0usize;
+    for f in &result.findings {
+        match f.severity {
+            Severity::Error => errors += 1,
+            Severity::Warning => warnings += 1,
+        }
+    }
+    (errors, warnings)
 }
 
 fn print_json(result: &CheckResult) {
@@ -98,9 +136,12 @@ fn print_json(result: &CheckResult) {
                     CheckType::OrphanedGlob => "orphaned_glob",
                     CheckType::ChangedSinceReconciliation => "changed_since_reconciliation",
                     CheckType::OverlappingCoverage => "overlapping_coverage",
+                    CheckType::CircularRef => "circular_ref",
+                    CheckType::BehaviorIncomplete => "behavior_incomplete",
                 },
                 "severity": match f.severity {
                     Severity::Warning => "warning",
+                    Severity::Error => "error",
                 },
                 "spec_path": f.spec_path,
                 "file_path": f.file_path,
@@ -110,8 +151,7 @@ fn print_json(result: &CheckResult) {
         })
         .collect();
 
-    let errors = 0; // No error-severity findings yet.
-    let warnings = result.findings.len();
+    let (errors, warnings) = count_severity(result);
 
     let output = serde_json::json!({
         "findings": findings,

@@ -170,7 +170,7 @@ behaviors:
 
   - name: check_orphaned_globs
     given: 'notarai check is invoked and a spec contains artifact globs'
-    then: 'reports any artifact glob pattern that matches zero files on disk; severity: warning'
+    then: 'reports any artifact glob pattern that matches zero files on disk; severity: error (the spec references code that does not exist)'
 
   - name: check_changed_files
     given: 'notarai check is invoked and a BLAKE3 cache exists'
@@ -180,13 +180,25 @@ behaviors:
     given: 'notarai check is invoked and multiple specs exist'
     then: 'reports files governed by two or more specs; severity: warning'
 
+  - name: check_circular_refs
+    given: 'notarai check is invoked and spec $ref chains under subsystems, applies, or dependencies form a cycle'
+    then: 'reports the cycle (listing the spec paths on the cycle) as a single finding; severity: error'
+
+  - name: check_behavior_completeness
+    given: 'notarai check is invoked and a spec contains a behaviors array'
+    then: 'reports any behavior missing a given or then field; severity: warning; one finding per missing field'
+
+  - name: check_strict_mode
+    given: 'notarai check is invoked with --strict'
+    then: 'all warning-severity findings are promoted to error severity; exit code becomes 1 if any finding is present'
+
   - name: check_output_formats
     given: 'notarai check is invoked with --format human (default) or --format json'
-    then: 'human format prints colored terminal output grouped by check type with a summary line; json format prints structured findings with type, severity, spec_path, file_path, and message fields'
+    then: 'human format prints colored terminal output grouped by check type with a summary line counting errors and warnings; json format prints structured findings with type, severity, spec_path, file_path, and message fields'
 
   - name: check_exit_codes
     given: 'notarai check completes'
-    then: 'exits 0 if no error-severity findings, 1 if any errors, 2 if .notarai/ does not exist'
+    then: 'exits 0 if no error-severity findings, 1 if any errors (including warnings promoted under --strict), 2 if .notarai/ does not exist'
 
   - name: export_context_single_spec
     given: 'notarai export-context --spec <path> --base-branch <branch>'
@@ -367,6 +379,43 @@ decisions:
       fetch exactly what they need. Agents without tool access should use --format json
       (which still includes the diff) or the MCP tools directly.
 
+  - date: '2026-04-11'
+    choice: 'notarai check promotes orphaned globs and circular $ref cycles to error severity; --strict promotes all warnings to errors'
+    rationale: >
+      Orphaned globs mean a spec references code that has been removed or relocated; leaving them
+      as warnings let stale specs pass CI. Circular $ref cycles violate a system-spec invariant and
+      must fail loudly. --strict gives CI operators a zero-tolerance switch without changing the
+      default severity of informational findings like coverage gaps and overlapping coverage.
+
+  - date: '2026-04-11'
+    choice: 'notarai-reconcile skill delegates per-spec context assembly to notarai export-context'
+    rationale: >
+      Previously the skill duplicated MCP get_spec_diff orchestration in prose -- gathering
+      diffs, splitting spec changes, formatting per-spec analysis prompts. All of that logic now
+      lives in export-context (which renders the lean reconcile-prompt.md template per affected
+      spec). The skill's job is reduced to: baseline selection, invoking export-context, fan-out
+      decision, applies/dependencies handling, interactive resolution, and state snapshotting.
+      Eliminates duplication and ensures the Claude Code path and the agent-agnostic path stay
+      in lockstep automatically.
+
+  - date: '2026-04-11'
+    choice: 'CLI crate moved to crates/notarai/ as part of a Cargo workspace'
+    rationale: >
+      The repo is becoming a polyglot monorepo: the CLI crate, a forthcoming notarai-action
+      crate, and any future tooling all ship from one repo with sampo (changesets-for-polyglot-monorepos)
+      managing versioning. Moving the CLI under crates/notarai/ frees the workspace root for the
+      virtual workspace manifest and sibling crates without renaming or republishing the package.
+      All include_str! / include_bytes! paths still resolve crate-relative, so the move is purely
+      structural -- no code changes were required inside src/ beyond the file relocation.
+
+  - date: '2026-04-11'
+    choice: 'Behavior completeness lives inside notarai check, not a future notarai lint'
+    rationale: >
+      Missing given/then fields are a deterministic, file-local structural signal -- exactly the
+      kind of thing check already reports. Deferring it to a hypothetical lint subsystem would
+      delay actionable feedback with no design benefit. When lint lands, it can absorb this rule
+      or leave it in place; the rule ID will be stable either way.
+
   - date: '2026-04-04'
     choice: 'export-context --bootstrap outputs bootstrap-prompt.md for generic agents; does not require .notarai/'
     rationale: >
@@ -386,35 +435,37 @@ decisions:
 
 artifacts:
   code:
-    - path: 'src/main.rs'
+    - path: 'crates/notarai/src/main.rs'
       role: 'CLI entry point -- clap definition and command dispatch'
-    - path: 'src/commands/*.rs'
+    - path: 'crates/notarai/src/commands/*.rs'
       role: 'Command implementations (validate, init, hook_validate, cache, mcp, schema_bump, state, update)'
-    - path: 'src/core/*.rs'
+    - path: 'crates/notarai/src/core/*.rs'
       role: 'Core library (schema embedding, YAML parsing, jsonschema validation, hash cache, MCP tool implementations, update logic)'
   configs:
-    - path: 'Cargo.toml'
-      role: 'Rust package manifest -- dependencies, build metadata, and binary target'
-    - path: 'notarai.spec.json'
-      role: 'JSON Schema for the current schema version; always reflects the newest version'
-    - path: 'schemas/*/spec.schema.json'
+    - path: 'crates/notarai/Cargo.toml'
+      role: 'Rust package manifest for the notarai CLI crate -- dependencies, build metadata, and binary target'
+    - path: 'crates/notarai/README.md'
+      role: 'Crate-level README shipped with the published crate; mirrors the project README at the workspace root so cargo publish has the readme inside the crate directory'
+    - path: 'crates/notarai/notarai.spec.json'
+      role: 'JSON Schema for the current schema version; always reflects the newest version; embedded into the binary via include_str!'
+    - path: 'crates/notarai/schemas/*/spec.schema.json'
       role: 'Frozen snapshots of old schema versions; copied by the docs workflow to serve each version at its canonical $id URL'
-    - path: 'skills/notarai-reconcile/SKILL.md'
+    - path: 'crates/notarai/skills/notarai-reconcile/SKILL.md'
       role: 'Bundled Claude Code skill copied by init'
-    - path: 'skills/notarai-bootstrap/SKILL.md'
+    - path: 'crates/notarai/skills/notarai-bootstrap/SKILL.md'
       role: 'Bundled Claude Code skill for bootstrap interview, copied by init'
-    - path: 'templates/notarai-readme.md'
+    - path: 'crates/notarai/templates/notarai-readme.md'
       role: 'Bundled .notarai/README.md template written by notarai init to target projects'
-    - path: 'templates/agents.md'
+    - path: 'crates/notarai/templates/agents.md'
       role: 'Bundled AGENTS.md template written by notarai init --agent generic'
-    - path: 'templates/reconcile-prompt.md'
+    - path: 'crates/notarai/templates/reconcile-prompt.md'
       role: 'Bundled lean reconciliation prompt template; includes spec and changed files but not the diff'
-    - path: 'templates/bootstrap-prompt.md'
+    - path: 'crates/notarai/templates/bootstrap-prompt.md'
       role: 'Bundled agent-agnostic bootstrap prompt output by export-context --bootstrap'
     - path: '.claude/rules/rust.md'
       role: 'Claude rule equivalent -- proactive enforcement of Rust coding constraints during generation'
     - path: '.claude/rules/testing.md'
       role: 'Claude rule equivalent -- test workflow conventions for AI-assisted development'
   tests:
-    - path: 'tests/**/*.rs'
+    - path: 'crates/notarai/tests/**/*.rs'
       role: 'Integration tests (assert_cmd CLI tests, tempdir-based init tests)'

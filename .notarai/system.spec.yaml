@@ -76,7 +76,7 @@ artifacts:
       role: 'Background page covering the tools and traditions that shaped NotarAI -- BDD, IaC, JSON Schema, Design by Contract, and ADRs'
   configs:
     - path: 'Cargo.toml'
-      role: 'Rust package manifest -- dependencies, build metadata, and binary target'
+      role: 'Top-level Cargo workspace manifest -- declares workspace members under crates/'
     - path: 'biome.json'
       role: 'Biome formatting config -- applies to non-Rust source files (JSON, JS/TS, CSS); excludes Markdown (handled by prettier pending biomejs/biome#3718)'
     - path: 'scripts/install.sh'
@@ -150,6 +150,16 @@ decisions:
       tier to include derived (Tier 4). Extends behavior with interaction and
       state_transition. All additions are optional -- existing specs validate
       without modification.
+
+  - date: '2026-04-11'
+    choice: 'Restructured into a Cargo workspace under crates/'
+    rationale: >
+      Adopting sampo (changesets-for-polyglot-monorepos) lets the CLI crate, the
+      forthcoming notarai-action crate, and any future tooling ship from one repo
+      with versions managed in lockstep. Restructuring the existing crate into
+      crates/notarai/ is a prerequisite for adding sibling crates without
+      rewriting paths later. The workspace root holds only the virtual workspace
+      manifest, shared CI/docs, and project-level documentation.
 
   - date: '2026-03-05'
     choice: 'Schema 0.7: multi-artifact platform expansion'

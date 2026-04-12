@@ -24,7 +24,7 @@ behaviors:
 
   - name: schema_hosting
     given: 'a client requests /schema/0.7/spec.schema.json'
-    then: 'the server returns the JSON Schema file matching the $id in notarai.spec.json, copied from the repo root during the CI build step'
+    then: 'the server returns the JSON Schema file matching the $id in crates/notarai/notarai.spec.json, copied from the CLI crate directory during the CI build step'
 
   - name: mermaid_diagrams
     given: 'a docs page contains a mermaid code block'
@@ -33,7 +33,7 @@ behaviors:
 constraints:
   - 'Every new content page must be registered in docs/src/SUMMARY.md'
   - 'The mdBook site-url must match the deployment path (/docs/)'
-  - 'The repo root notarai.spec.json is the single source of truth for the schema; the hosted copy is produced by a CI step, never maintained by hand'
+  - 'crates/notarai/notarai.spec.json is the single source of truth for the schema; the hosted copy is produced by a CI step, never maintained by hand'
   - 'Background concept pages (background/**) are edited for content by the system spec; docs spec only controls their presentation'
   - 'Docs should be accessible to new programmers'
   - 'Docs should be concise and use clean language accessible to non-native English speakers'

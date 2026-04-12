@@ -102,6 +102,20 @@ This overwrites `.notarai/notarai.spec.json` with the bundled schema and updates
 
 Use the `/notarai-bootstrap` skill in Claude Code to generate specs from your existing code via a structured developer interview.
 
-## Detect drift
+## Check for drift
 
-Use the `/notarai-reconcile` skill in Claude Code to detect drift between specs and code, and propose aligned updates.
+Run `notarai check` to detect structural drift without an LLM:
+
+```sh
+# See what's drifted
+notarai check
+
+# Strict mode for CI (any finding = exit code 1)
+notarai check --strict
+```
+
+This reports coverage gaps, orphaned globs, changed files since last reconciliation, overlapping coverage, circular `$ref` chains, and incomplete behaviors. See the [CLI reference](../reference/cli.md#notarai-check) for details.
+
+## Reconcile with an LLM
+
+Use the `/notarai-reconcile` skill in Claude Code to perform a full semantic reconciliation: detect drift, propose spec/code/doc updates, and walk through each finding interactively.
