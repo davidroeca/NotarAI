@@ -116,6 +116,8 @@ notarai check --strict
 
 This reports coverage gaps, orphaned globs, changed files since last reconciliation, overlapping coverage, circular `$ref` chains, and incomplete behaviors. See the [CLI reference](../reference/cli.md#notarai-check) for details.
 
+For automated PR checks, add the [GitHub Action](../reference/github-action.md) to your CI workflow.
+
 ## Reconcile with an LLM
 
 Use the `/notarai-reconcile` skill in Claude Code to perform a full semantic reconciliation: detect drift, propose spec/code/doc updates, and walk through each finding interactively.

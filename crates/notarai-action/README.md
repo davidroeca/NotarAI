@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: davidroeca/NotarAI/crates/notarai-action@v0.6.0
+      - uses: davidroeca/NotarAI/crates/notarai-action@v0.7.0
 ```
 
 ## Inputs

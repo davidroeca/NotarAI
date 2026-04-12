@@ -62,6 +62,8 @@ artifacts:
       role: 'CLI command reference -- all subcommands, flags, and exit codes'
     - path: 'docs/src/reference/mcp-server.md'
       role: 'MCP server reference -- tool definitions, parameters, return shapes, and cache semantics'
+    - path: 'docs/src/reference/github-action.md'
+      role: 'GitHub Action reference -- setup, inputs, PR comment format, and strict mode'
     - path: 'docs/src/contributing.md'
       role: 'Full contributing guide -- development setup, code style, and PR workflow'
 

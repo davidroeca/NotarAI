@@ -18,6 +18,7 @@
 
 - [CLI Commands](./reference/cli.md)
 - [MCP Server](./reference/mcp-server.md)
+- [GitHub Action](./reference/github-action.md)
 
 # Background
 
