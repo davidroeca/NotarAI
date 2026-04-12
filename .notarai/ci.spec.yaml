@@ -46,6 +46,8 @@ artifacts:
       role: 'Docs deploy workflow -- mdBook build + schema copy + GitHub Pages deploy on docs/ changes'
     - path: '.github/workflows/release.yml'
       role: 'Release workflow — native matrix cross-compile + GitHub Releases + crates.io publish'
+    - path: '.github/workflows/dogfood-action.yml'
+      role: 'Dogfood workflow -- builds notarai from source and runs the action comment flow on every PR'
     - path: '.github/dependabot.yml'
       role: 'Dependabot config for keeping GitHub Actions and Cargo dependency versions current'
 

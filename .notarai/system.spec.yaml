@@ -47,6 +47,7 @@ subsystems:
   - $ref: './cli.spec.yaml'
   - $ref: './docs.spec.yaml'
   - $ref: './ci.spec.yaml'
+  - $ref: './action.spec.yaml'
 
 applies:
   - $ref: './style.spec.yaml'

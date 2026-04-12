@@ -1,0 +1,58 @@
+name: Dogfood NotarAI Action
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Build from source since the action references the local crate.
+      # In consumer repos, the action downloads a release binary instead.
+      - name: Build notarai
+        run: cargo build --release -p notarai
+
+      - name: Add binary to PATH
+        run: echo "${{ github.workspace }}/target/release" >> "$GITHUB_PATH"
+
+      - name: Run notarai check
+        id: check
+        run: |
+          set +e
+          output=$(notarai check --format json --base-branch main 2>&1)
+          exit_code=$?
+          set -e
+          echo "$output" > "$RUNNER_TEMP/notarai-check.json"
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHECK_EXIT_CODE: ${{ steps.check.outputs.exit_code }}
+        run: |
+          comment_body=$(crates/notarai-action/scripts/render-comment.sh < "$RUNNER_TEMP/notarai-check.json")
+
+          pr_number="${{ github.event.pull_request.number }}"
+          existing=$(gh api "repos/${{ github.repository }}/issues/${pr_number}/comments" \
+            --jq '.[] | select(.body | contains("<!-- notarai-action -->")) | .id' \
+            2>/dev/null || true)
+
+          if [ -n "$existing" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/${existing}" \
+              -X PATCH -f body="$comment_body"
+            echo "Updated existing PR comment"
+          else
+            gh pr comment "$pr_number" --body "$comment_body"
+            echo "Posted new PR comment"
+          fi

@@ -1,0 +1,130 @@
+name: 'NotarAI Drift Check'
+description: 'Run NotarAI deterministic drift detection on pull requests and post a summary comment'
+author: 'davidroeca'
+
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  version:
+    description: 'NotarAI version to install (e.g. "0.6.0"). Defaults to "latest".'
+    required: false
+    default: 'latest'
+  base-branch:
+    description: 'Branch to diff against for changed-file detection.'
+    required: false
+    default: 'main'
+  strict:
+    description: 'Treat warnings as errors (exit code 1 on any finding).'
+    required: false
+    default: 'false'
+  comment:
+    description: 'Post a PR comment with the results.'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect platform
+      id: platform
+      shell: bash
+      run: |
+        arch=$(uname -m)
+        case "$arch" in
+          x86_64)  binary_suffix="x86_64-linux-gnu" ;;
+          aarch64) binary_suffix="aarch64-linux-gnu" ;;
+          *)       echo "::error::Unsupported architecture: $arch"; exit 1 ;;
+        esac
+        echo "binary_suffix=$binary_suffix" >> "$GITHUB_OUTPUT"
+        echo "binary_name=notarai-${binary_suffix}" >> "$GITHUB_OUTPUT"
+
+    - name: Resolve version
+      id: version
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        if [ "$INPUT_VERSION" = "latest" ]; then
+          tag=$(gh api repos/davidroeca/NotarAI/releases/latest --jq '.tag_name')
+          version="${tag#v}"
+        else
+          version="$INPUT_VERSION"
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+
+    - name: Install NotarAI
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        binary_name="${{ steps.platform.outputs.binary_name }}"
+        tag="${{ steps.version.outputs.tag }}"
+        dest="$RUNNER_TEMP/notarai"
+
+        gh release download "$tag" \
+          --repo davidroeca/NotarAI \
+          --pattern "$binary_name" \
+          --dir "$RUNNER_TEMP"
+
+        mv "$RUNNER_TEMP/$binary_name" "$dest"
+        chmod +x "$dest"
+        echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+        echo "Installed notarai $tag ($binary_name)"
+
+    - name: Run notarai check
+      id: check
+      shell: bash
+      run: |
+        args="--format json --base-branch ${{ inputs.base-branch }}"
+        if [ "${{ inputs.strict }}" = "true" ]; then
+          args="$args --strict"
+        fi
+
+        set +e
+        output=$(notarai check $args 2>&1)
+        exit_code=$?
+        set -e
+
+        # Save output for the comment step
+        echo "$output" > "$RUNNER_TEMP/notarai-check.json"
+        echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+
+        if [ "$exit_code" -eq 2 ]; then
+          echo "::warning::NotarAI is not initialized in this repository (.notarai/ not found)"
+        fi
+
+    - name: Render and post PR comment
+      if: inputs.comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        CHECK_EXIT_CODE: ${{ steps.check.outputs.exit_code }}
+      run: |
+        script_dir="${{ github.action_path }}/scripts"
+        comment_body=$("$script_dir/render-comment.sh" < "$RUNNER_TEMP/notarai-check.json")
+
+        # Check if a comment with our marker already exists
+        pr_number="${{ github.event.pull_request.number }}"
+        existing=$(gh api "repos/${{ github.repository }}/issues/${pr_number}/comments" \
+          --jq '.[] | select(.body | contains("<!-- notarai-action -->")) | .id' \
+          2>/dev/null || true)
+
+        if [ -n "$existing" ]; then
+          gh api "repos/${{ github.repository }}/issues/comments/${existing}" \
+            -X PATCH -f body="$comment_body"
+          echo "Updated existing PR comment"
+        else
+          gh pr comment "$pr_number" --body "$comment_body"
+          echo "Posted new PR comment"
+        fi
+
+    - name: Set exit code
+      if: steps.check.outputs.exit_code == '1'
+      shell: bash
+      run: |
+        echo "::error::NotarAI check found error-severity findings"
+        exit 1
