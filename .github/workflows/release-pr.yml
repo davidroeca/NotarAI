@@ -1,0 +1,23 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sampo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: bruits/sampo/crates/sampo-github-action@main
+        with:
+          command: auto
+          cargo-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          create-github-release: true

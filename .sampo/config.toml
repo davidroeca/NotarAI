@@ -1,0 +1,21 @@
+# Sampo configuration
+version = 1
+
+[github]
+repository = "davidroeca/NotarAI"
+
+[changelog]
+show_commit_hash = true
+show_acknowledgments = true
+
+[git]
+# Use short tags (v0.7.0) instead of package-prefixed tags (notarai-v0.7.0).
+short_tags = "cargo/notarai"
+
+[packages]
+# Skip publish=false crates during sampo publish, but still track them
+# for versioning via linked groups.
+ignore_unpublished = true
+# Version both crates in lockstep: a changeset bumping either one
+# bumps both to the same version.
+linked = [["cargo/notarai", "cargo/notarai-action"]]

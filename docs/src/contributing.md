@@ -46,7 +46,24 @@ you want the installed binary to reflect your latest local changes.
 5. Run `cargo fmt --check` to verify formatting
 6. Run `cargo clippy -- -D warnings` to check for lint issues
 7. Use the `/notarai-reconcile` Claude Code command to check for spec drift
-8. Open a pull request
+8. Add a changeset if your PR should trigger a release (see below)
+9. Open a pull request
+
+## Changesets
+
+This project uses [sampo](https://github.com/bruits/sampo) for versioning and
+changelogs. If your PR introduces user-visible changes (new features, bug fixes,
+breaking changes), add a changeset:
+
+```sh
+sampo add
+```
+
+This creates a Markdown file in `.sampo/changesets/` describing the change and
+the bump level (`patch`, `minor`, or `major`). Commit this file with your PR.
+
+When changesets are merged to `main`, a release PR is automatically created.
+Merging the release PR publishes the new version.
 
 ## Code Style
 

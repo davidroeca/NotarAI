@@ -60,6 +60,9 @@ exclude:
   - 'docs/mermaid.min.js'
   - '.notarai/.cache/**'
   - '.notarai/reconciliation_state.json'
+  - '.sampo/changesets/**'
+  - '.sampo/changeset.md.example'
+  - '.sampo/README.md'
 
 artifacts:
   docs:
@@ -88,6 +91,8 @@ artifacts:
       role: 'Claude Code context file -- project description and NotarAI workflow instructions for AI-assisted development'
     - path: '.claude/rules/*.md'
       role: 'Modular Claude rules -- style, testing, and schema version conventions split from CLAUDE.md'
+    - path: '.sampo/config.toml'
+      role: 'sampo configuration -- linked packages, short tags, and changelog options'
     - path: '.pre-commit-config.yaml'
       role: 'pre-commit hook configuration -- runs code formatters and linters before each commit'
 
@@ -151,6 +156,15 @@ decisions:
       tier to include derived (Tier 4). Extends behavior with interaction and
       state_transition. All additions are optional -- existing specs validate
       without modification.
+
+  - date: '2026-04-12'
+    choice: 'sampo is the source of truth for versioning across all workspace crates'
+    rationale: >
+      Changesets (.sampo/changesets/*.md) capture version intent at PR time.
+      sampo release consumes them into version bumps, CHANGELOG.md entries, and
+      a release PR. sampo publish creates git tags and pushes to crates.io.
+      The CLI and action crates are linked so a single changeset bumps both.
+      This replaces the previous manual GitHub release trigger.
 
   - date: '2026-04-11'
     choice: 'Restructured into a Cargo workspace under crates/'
