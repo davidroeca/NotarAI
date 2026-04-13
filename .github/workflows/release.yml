@@ -62,7 +62,7 @@ jobs:
           fi
           cp "$src" "${{ matrix.binary }}"
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: ${{ matrix.binary }}
 
