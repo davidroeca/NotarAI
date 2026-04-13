@@ -62,20 +62,119 @@ notarai check --strict
 
 **Checks performed:**
 
-| Check                        | Severity | Description                                                     |
-| ---------------------------- | -------- | --------------------------------------------------------------- |
-| Coverage gaps                | Warning  | Tracked files not governed by any spec (minus excludes)         |
-| Orphaned globs               | Error    | Artifact glob patterns matching zero files                      |
-| Changed since reconciliation | Warning  | Governed files changed since last cache update                  |
-| Overlapping coverage         | Warning  | Files governed by two or more specs                             |
-| Circular `$ref` chains       | Error    | Cycles in `subsystems`, `applies`, or `dependencies` references |
-| Behavior completeness        | Warning  | Behaviors missing a `given` or `then` field                     |
+| Check                        | Severity | Tier         | Description                                                     |
+| ---------------------------- | -------- | ------------ | --------------------------------------------------------------- |
+| Orphaned globs               | Error    | Critical     | Artifact glob patterns matching zero files                      |
+| Circular `$ref` chains       | Error    | Critical     | Cycles in `subsystems`, `applies`, or `dependencies` references |
+| Changed since reconciliation | Warning  | Drift        | Governed files changed since last cache update                  |
+| Coverage gaps                | Warning  | Housekeeping | Tracked files not governed by any spec (minus excludes)         |
+| Overlapping coverage         | Warning  | Housekeeping | Files governed by two or more specs                             |
+| Behavior completeness        | Warning  | Housekeeping | Behaviors missing a `given` or `then` field                     |
+| T001 Test coverage missing   | Warning  | Housekeeping | Tier-1 behavior without a `tested_by` entry                     |
+| T002 Test path missing       | Error    | Critical     | `tested_by.path` does not exist on disk                         |
+| T003 Test stale              | Warning  | Drift        | `tested_by` file older than any governed code file              |
 
-With `--strict`, all warning-severity findings are promoted to errors.
+Lint rules (L001-L010) are also run and merged into check output. See [Lint Rules](./lint-rules.md).
+
+**Severity tiers:** Each finding is classified as Critical, Drift, or Housekeeping. Human output groups findings by tier. JSON output includes a `tier` field. See [Severity Tiers](../guides/severity-tiers.md) for details.
+
+**Configuration:** Create `.notarai/check.yaml` to control CI thresholds:
+
+```yaml
+fail_on: drift # Fail on critical or drift findings
+warn_on: drift # Suppress housekeeping from output
+```
+
+With `--strict`, all warning-severity findings are promoted to errors and any finding causes exit code 1.
 
 The check command never modifies files or the cache database.
 
-**Exit codes:** `0` no error-severity findings, `1` errors found (including warnings promoted under `--strict`), `2` not initialized (`.notarai/` missing).
+**Exit codes:** `0` no error-severity findings (or no findings at or above `fail_on` tier), `1` errors found (including warnings promoted under `--strict`), `2` not initialized (`.notarai/` missing).
+
+---
+
+## notarai lint
+
+Lint spec files for quality issues beyond JSON Schema conformance. A superset of `notarai validate` that checks semantic quality.
+
+```sh
+# Human-readable output (default)
+notarai lint
+
+# JSON output
+notarai lint --format json
+```
+
+| Flag       | Default | Description                      |
+| ---------- | ------- | -------------------------------- |
+| `--format` | `human` | Output format: `human` or `json` |
+
+Runs 10 deterministic rules (L001-L010) covering missing behaviors, broken `$ref` targets, stale decisions, schema mismatches, and more. Rules can be configured via `.notarai/lint.yaml`. Lint results are also integrated into `notarai check`.
+
+See [Lint Rules](./lint-rules.md) for the full rule reference.
+
+**Exit codes:** `0` no error-severity findings, `1` errors found, `2` not initialized.
+
+---
+
+## notarai decisions
+
+Manage decision proposals from reconciliation. Proposals are stored in `.notarai/decision-log.json` and can be accepted (appended to the spec's `decisions` array) or rejected (marked in the log with an optional reason).
+
+### notarai decisions list
+
+```sh
+# List all decisions
+notarai decisions list
+
+# Filter by status
+notarai decisions list --status proposed
+```
+
+| Flag       | Default | Description                                   |
+| ---------- | ------- | --------------------------------------------- |
+| `--status` | (all)   | Filter: `proposed`, `accepted`, or `rejected` |
+
+### notarai decisions accept
+
+```sh
+notarai decisions accept .notarai/auth.spec.yaml 0
+```
+
+Accepts the proposal at the given index: removes it from the log, appends `{ date, choice, rationale }` to the spec's YAML `decisions` array, and validates the spec afterward.
+
+### notarai decisions reject
+
+```sh
+notarai decisions reject .notarai/auth.spec.yaml 0 --reason "Not relevant"
+```
+
+Marks the proposal as rejected in the log. Does not modify the spec. The optional `--reason` flag records why the decision was rejected.
+
+**Exit codes:** `0` success, `1` error, `2` not initialized.
+
+---
+
+## notarai score
+
+Compute drift scores for each spec. Deterministic, no LLM calls.
+Exit code is always `0` (informational). See the
+[Drift Scoring](../guides/drift-scoring.md) guide for signal details
+and configuration.
+
+```sh
+notarai score
+notarai score --format json
+notarai score --spec .notarai/cli.spec.yaml
+```
+
+| Flag       | Default | Description                       |
+| ---------- | ------- | --------------------------------- |
+| `--format` | `human` | Output format: `human` or `json`. |
+| `--spec`   | (all)   | Score a single spec by path.      |
+
+Scores are in `[0.0, 1.0]` with thresholds: `< 0.3` healthy,
+`< 0.6` review, otherwise overdue.
 
 ---
 

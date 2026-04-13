@@ -99,7 +99,7 @@ artifacts:
 "#;
 
 /// Spec that governs code files under src/ and docs files.
-const CATEGORIZED_SPEC: &str = r#"schema_version: '0.7'
+const CATEGORIZED_SPEC: &str = r#"schema_version: '0.8'
 intent: 'Test spec with multiple artifact categories'
 behaviors:
   - name: tracks
@@ -113,7 +113,7 @@ artifacts:
 "#;
 
 /// Spec with a non-standard artifact category (slides).
-const SLIDES_SPEC: &str = r#"schema_version: '0.7'
+const SLIDES_SPEC: &str = r#"schema_version: '0.8'
 intent: 'Test spec with slides category'
 behaviors:
   - name: tracks

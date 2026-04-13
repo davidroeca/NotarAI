@@ -54,6 +54,26 @@ behaviors:
       to: confirmed
 ```
 
+Behaviors may also declare the tests that verify them via `tested_by`
+(introduced in schema 0.8). `notarai check` uses this to surface
+test-alignment drift:
+
+```yaml
+behaviors:
+  - name: 'signup'
+    given: 'valid email and password'
+    then: 'account created, welcome email sent'
+    tested_by:
+      - path: 'tests/auth/signup_test.rs'
+        assertion: 'signup_creates_account'
+```
+
+| Check | Severity | Trigger                                               |
+| ----- | -------- | ----------------------------------------------------- |
+| T001  | Warning  | A tier-1 behavior has no `tested_by` entry.           |
+| T002  | Error    | A `tested_by.path` does not exist on disk.            |
+| T003  | Warning  | A `tested_by` file is older than governed code files. |
+
 ### `artifacts`
 
 Glob patterns mapping the spec to the files it governs. The schema accepts any string as a category key. Convention categories:

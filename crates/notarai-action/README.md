@@ -2,6 +2,7 @@
 
 A GitHub Action that runs [NotarAI](https://github.com/davidroeca/NotarAI)
 deterministic drift detection on pull requests and posts a summary comment.
+Catches spec-code drift in CI without LLM calls, API keys, or network access.
 
 ## Usage
 

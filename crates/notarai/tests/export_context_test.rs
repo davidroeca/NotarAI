@@ -35,7 +35,7 @@ fn git_commit_all(dir: &std::path::Path, msg: &str) {
 }
 
 const MINIMAL_SPEC: &str = "\
-schema_version: '0.7'
+schema_version: '0.8'
 intent: 'Test spec'
 artifacts:
   code:

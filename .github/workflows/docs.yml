@@ -58,7 +58,9 @@ jobs:
           mkdir -p public/schema/0.6
           cp crates/notarai/schemas/0.6/spec.schema.json public/schema/0.6/spec.schema.json
           mkdir -p public/schema/0.7
-          cp crates/notarai/notarai.spec.json public/schema/0.7/spec.schema.json
+          cp crates/notarai/schemas/0.7/spec.schema.json public/schema/0.7/spec.schema.json
+          mkdir -p public/schema/0.8
+          cp crates/notarai/notarai.spec.json public/schema/0.8/spec.schema.json
 
       - uses: actions/upload-pages-artifact@v4
         with:

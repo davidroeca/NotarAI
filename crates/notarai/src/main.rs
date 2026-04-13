@@ -68,6 +68,26 @@ enum Commands {
         #[arg(long, default_value = "markdown")]
         format: String,
     },
+    /// Manage decision proposals from reconciliation
+    Decisions {
+        #[command(subcommand)]
+        action: commands::decisions::DecisionsAction,
+    },
+    /// Lint spec files for quality issues (superset of validate)
+    Lint {
+        /// Output format: human or json
+        #[arg(long, default_value = "human")]
+        format: String,
+    },
+    /// Compute drift scores for specs
+    Score {
+        /// Output format: human or json
+        #[arg(long, default_value = "human")]
+        format: String,
+        /// Score a single spec
+        #[arg(long)]
+        spec: Option<String>,
+    },
     /// MCP server (stdio JSON-RPC 2.0 transport)
     Mcp,
     /// Update schema version across all specs in the project
@@ -116,6 +136,8 @@ fn main() {
         Some(Commands::Hook { action }) => match action {
             HookAction::Validate => commands::hook_validate::run(),
         },
+        Some(Commands::Decisions { action }) => commands::decisions::run(action),
+        Some(Commands::Lint { format }) => commands::lint::run(&format),
         Some(Commands::ExportContext {
             spec,
             all,
@@ -123,6 +145,7 @@ fn main() {
             base_branch,
             format,
         }) => commands::export_context::run(spec.as_deref(), all, bootstrap, &base_branch, &format),
+        Some(Commands::Score { format, spec }) => commands::score::run(&format, spec.as_deref()),
         Some(Commands::Cache { action }) => commands::cache::run(action),
         Some(Commands::Mcp) => commands::mcp::run(),
         Some(Commands::SchemaBump) => commands::schema_bump::run(None),

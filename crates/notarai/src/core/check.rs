@@ -1,7 +1,52 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
+use crate::core::lint::LintRuleId;
 use crate::core::spec_loader;
+
+/// Configuration loaded from `.notarai/check.yaml`.
+pub struct CheckConfig {
+    /// Minimum tier that causes a non-zero exit code. Default: error-severity only.
+    pub fail_on: Option<SeverityTier>,
+    /// Minimum tier to show in output. Tiers below this are suppressed.
+    pub warn_on: SeverityTier,
+}
+
+impl Default for CheckConfig {
+    fn default() -> Self {
+        CheckConfig {
+            fail_on: None, // Use existing error-severity behavior by default.
+            warn_on: SeverityTier::Housekeeping,
+        }
+    }
+}
+
+impl CheckConfig {
+    /// Load from `.notarai/check.yaml` if it exists, otherwise return defaults.
+    pub fn load(project_root: &Path) -> Self {
+        let config_path = project_root.join(".notarai/check.yaml");
+        let content = match std::fs::read_to_string(&config_path) {
+            Ok(c) => c,
+            Err(_) => return CheckConfig::default(),
+        };
+        let value: serde_json::Value = match serde_yaml_ng::from_str(&content) {
+            Ok(v) => v,
+            Err(_) => return CheckConfig::default(),
+        };
+
+        let fail_on = value
+            .get("fail_on")
+            .and_then(|v| v.as_str())
+            .and_then(SeverityTier::from_str);
+        let warn_on = value
+            .get("warn_on")
+            .and_then(|v| v.as_str())
+            .and_then(SeverityTier::from_str)
+            .unwrap_or(SeverityTier::Housekeeping);
+
+        CheckConfig { fail_on, warn_on }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CheckType {
@@ -11,6 +56,10 @@ pub enum CheckType {
     OverlappingCoverage,
     CircularRef,
     BehaviorIncomplete,
+    LintViolation(LintRuleId),
+    TestCoverageMissing,
+    TestPathMissing,
+    TestStale,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -19,10 +68,49 @@ pub enum Severity {
     Error,
 }
 
+/// Reconciliation severity tier. Classifies findings by impact.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SeverityTier {
+    /// Behavioral/invariant violation or broken references.
+    Critical = 0,
+    /// Code changed in ways that may not align with spec.
+    Drift = 1,
+    /// Documentation, style, or organizational misalignment.
+    Housekeeping = 2,
+}
+
+impl SeverityTier {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SeverityTier::Critical => "critical",
+            SeverityTier::Drift => "drift",
+            SeverityTier::Housekeeping => "housekeeping",
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            SeverityTier::Critical => "Critical",
+            SeverityTier::Drift => "Drift",
+            SeverityTier::Housekeeping => "Housekeeping",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<SeverityTier> {
+        match s {
+            "critical" => Some(SeverityTier::Critical),
+            "drift" => Some(SeverityTier::Drift),
+            "housekeeping" => Some(SeverityTier::Housekeeping),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CheckFinding {
     pub check_type: CheckType,
     pub severity: Severity,
+    pub tier: SeverityTier,
     pub spec_path: Option<String>,
     pub file_path: Option<String>,
     pub glob_pattern: Option<String>,
@@ -31,6 +119,36 @@ pub struct CheckFinding {
 
 pub struct CheckResult {
     pub findings: Vec<CheckFinding>,
+}
+
+/// Derive the severity tier for a given check type.
+pub fn tier_for_check_type(ct: &CheckType) -> SeverityTier {
+    use crate::core::lint::LintRuleId;
+    match ct {
+        // Critical: broken references, structural violations.
+        CheckType::CircularRef | CheckType::OrphanedGlob => SeverityTier::Critical,
+        // Drift: code changed relative to spec.
+        CheckType::ChangedSinceReconciliation => SeverityTier::Drift,
+        // Housekeeping: organizational, style, coverage.
+        CheckType::CoverageGap
+        | CheckType::OverlappingCoverage
+        | CheckType::BehaviorIncomplete
+        | CheckType::TestCoverageMissing => SeverityTier::Housekeeping,
+        // Test alignment checks.
+        CheckType::TestPathMissing => SeverityTier::Critical,
+        CheckType::TestStale => SeverityTier::Drift,
+        // Lint rules mapped individually.
+        CheckType::LintViolation(rule_id) => match rule_id {
+            LintRuleId::L004 | LintRuleId::L009 => SeverityTier::Critical,
+            LintRuleId::L001 | LintRuleId::L010 => SeverityTier::Drift,
+            LintRuleId::L002
+            | LintRuleId::L003
+            | LintRuleId::L005
+            | LintRuleId::L006
+            | LintRuleId::L007
+            | LintRuleId::L008 => SeverityTier::Housekeeping,
+        },
+    }
 }
 
 /// Run all deterministic drift checks. Never modifies files or the cache.
@@ -76,6 +194,11 @@ pub fn run_all_checks(project_root: &Path) -> Result<CheckResult, String> {
     findings.extend(check_overlapping_coverage(&spec_files));
     findings.extend(check_circular_refs(&loaded_specs));
     findings.extend(check_behavior_completeness(&loaded_specs));
+    findings.extend(check_test_alignment(
+        project_root,
+        &loaded_specs,
+        &spec_files,
+    ));
 
     Ok(CheckResult { findings })
 }
@@ -113,6 +236,7 @@ fn check_coverage_gaps(
         findings.push(CheckFinding {
             check_type: CheckType::CoverageGap,
             severity: Severity::Warning,
+            tier: SeverityTier::Housekeeping,
             spec_path: None,
             file_path: Some(file.clone()),
             glob_pattern: None,
@@ -147,6 +271,7 @@ fn check_orphaned_globs(
                     findings.push(CheckFinding {
                         check_type: CheckType::OrphanedGlob,
                         severity: Severity::Error,
+                        tier: SeverityTier::Critical,
                         spec_path: Some(spec_rel.clone()),
                         file_path: None,
                         glob_pattern: Some(pattern_str.to_string()),
@@ -194,6 +319,7 @@ fn check_changed_since(
         .map(|file| CheckFinding {
             check_type: CheckType::ChangedSinceReconciliation,
             severity: Severity::Warning,
+            tier: SeverityTier::Drift,
             spec_path: None,
             file_path: Some(file.clone()),
             glob_pattern: None,
@@ -223,6 +349,7 @@ fn check_overlapping_coverage(spec_files: &[(String, Vec<String>)]) -> Vec<Check
             CheckFinding {
                 check_type: CheckType::OverlappingCoverage,
                 severity: Severity::Warning,
+                tier: SeverityTier::Housekeeping,
                 spec_path: None,
                 file_path: Some(file.to_string()),
                 glob_pattern: None,
@@ -238,207 +365,154 @@ fn check_overlapping_coverage(spec_files: &[(String, Vec<String>)]) -> Vec<Check
 
 /// Detect cycles in `$ref` chains across `subsystems`, `applies`, and `dependencies`.
 ///
-/// Refs are resolved relative to the containing spec file's directory when they start
-/// with `./` or `../`, and relative to the project root otherwise. Only refs that match
-/// another loaded spec participate in the graph; unresolved refs are silently ignored
-/// (they would be caught by a separate check if added later).
+/// Delegates to the shared cycle detection in `core::lint` and wraps results as
+/// `CheckFinding` values.
 fn check_circular_refs(loaded_specs: &[(String, serde_json::Value)]) -> Vec<CheckFinding> {
-    // Build a path -> adjacency list map keyed by the normalized relative spec path.
-    let known: HashSet<&str> = loaded_specs.iter().map(|(p, _)| p.as_str()).collect();
-    let mut graph: HashMap<String, Vec<String>> = HashMap::new();
-
-    for (spec_rel, spec_value) in loaded_specs {
-        let parent_dir = Path::new(spec_rel)
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_default();
-
-        let mut edges = Vec::new();
-        for field in ["subsystems", "applies", "dependencies"] {
-            let Some(arr) = spec_value.get(field).and_then(|v| v.as_array()) else {
-                continue;
-            };
-            for item in arr {
-                let Some(ref_str) = item.get("$ref").and_then(|r| r.as_str()) else {
-                    continue;
-                };
-                let resolved = resolve_ref_path(&parent_dir, ref_str);
-                if known.contains(resolved.as_str()) {
-                    edges.push(resolved);
-                }
+    crate::core::lint::detect_ref_cycles(loaded_specs)
+        .into_iter()
+        .map(|cycle| {
+            let display = cycle.join(" -> ");
+            CheckFinding {
+                check_type: CheckType::CircularRef,
+                severity: Severity::Error,
+                tier: SeverityTier::Critical,
+                spec_path: Some(cycle[0].clone()),
+                file_path: None,
+                glob_pattern: None,
+                message: format!("Circular $ref chain: {display}"),
             }
-        }
-        graph.insert(spec_rel.clone(), edges);
-    }
-
-    // DFS with a colored visit set: 0 = unvisited, 1 = on stack, 2 = done.
-    let mut color: HashMap<&str, u8> = loaded_specs.iter().map(|(p, _)| (p.as_str(), 0)).collect();
-    let mut reported: HashSet<Vec<String>> = HashSet::new();
-    let mut findings = Vec::new();
-
-    // Visit in deterministic order.
-    let mut roots: Vec<&str> = loaded_specs.iter().map(|(p, _)| p.as_str()).collect();
-    roots.sort();
-
-    for root in roots {
-        if color.get(root).copied().unwrap_or(2) != 0 {
-            continue;
-        }
-        let mut stack: Vec<String> = vec![root.to_string()];
-        dfs_find_cycles(&graph, &mut color, &mut stack, &mut reported, &mut findings);
-    }
-
-    findings
-}
-
-/// Resolve a `$ref` string relative to the containing spec's parent directory.
-///
-/// If `ref_str` starts with `./` or `../`, it is joined with `parent_dir` and normalized.
-/// Otherwise it is returned as-is (treated as project-root-relative).
-fn resolve_ref_path(parent_dir: &Path, ref_str: &str) -> String {
-    if ref_str.starts_with("./") || ref_str.starts_with("../") {
-        let joined = parent_dir.join(ref_str);
-        normalize_path(&joined)
-    } else {
-        ref_str.to_string()
-    }
-}
-
-/// Collapse `.` and `..` components without touching the filesystem.
-fn normalize_path(path: &Path) -> String {
-    let mut out: Vec<std::path::Component<'_>> = Vec::new();
-    for comp in path.components() {
-        match comp {
-            std::path::Component::CurDir => {}
-            std::path::Component::ParentDir => {
-                if !matches!(
-                    out.last(),
-                    Some(std::path::Component::RootDir) | Some(std::path::Component::Prefix(_))
-                ) {
-                    out.pop();
-                }
-            }
-            c => out.push(c),
-        }
-    }
-    out.iter()
-        .map(|c| c.as_os_str().to_string_lossy())
-        .collect::<Vec<_>>()
-        .join("/")
-}
-
-fn dfs_find_cycles<'a>(
-    graph: &'a HashMap<String, Vec<String>>,
-    color: &mut HashMap<&'a str, u8>,
-    stack: &mut Vec<String>,
-    reported: &mut HashSet<Vec<String>>,
-    findings: &mut Vec<CheckFinding>,
-) {
-    let node = match stack.last() {
-        Some(n) => n.clone(),
-        None => return,
-    };
-
-    // Mark current as on-stack via a lookup into the keys owned by the graph.
-    if let Some((k, _)) = graph.get_key_value(&node) {
-        color.insert(k.as_str(), 1);
-    }
-
-    if let Some(neighbors) = graph.get(&node) {
-        let mut sorted = neighbors.clone();
-        sorted.sort();
-        for next in sorted {
-            let c = color.get(next.as_str()).copied().unwrap_or(0);
-            match c {
-                0 => {
-                    stack.push(next);
-                    dfs_find_cycles(graph, color, stack, reported, findings);
-                    stack.pop();
-                }
-                1 => {
-                    // Found a cycle: slice the stack from the first occurrence of `next`.
-                    if let Some(start) = stack.iter().position(|s| s == &next) {
-                        let mut cycle: Vec<String> = stack[start..].to_vec();
-                        cycle.push(next.clone());
-                        // Canonicalize for dedup: rotate so the lexicographically smallest
-                        // element comes first, and ignore the trailing duplicate.
-                        let canonical = canonicalize_cycle(&cycle);
-                        if reported.insert(canonical.clone()) {
-                            let display = cycle.join(" -> ");
-                            findings.push(CheckFinding {
-                                check_type: CheckType::CircularRef,
-                                severity: Severity::Error,
-                                spec_path: Some(cycle[0].clone()),
-                                file_path: None,
-                                glob_pattern: None,
-                                message: format!("Circular $ref chain: {display}"),
-                            });
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    if let Some((k, _)) = graph.get_key_value(&node) {
-        color.insert(k.as_str(), 2);
-    }
-}
-
-/// Canonicalize a cycle for deduplication: drop the trailing duplicate node and rotate
-/// the remaining nodes so the lexicographically smallest comes first.
-fn canonicalize_cycle(cycle: &[String]) -> Vec<String> {
-    if cycle.len() < 2 {
-        return cycle.to_vec();
-    }
-    let nodes = &cycle[..cycle.len() - 1];
-    let min_idx = nodes
-        .iter()
-        .enumerate()
-        .min_by(|(_, a), (_, b)| a.cmp(b))
-        .map(|(i, _)| i)
-        .unwrap_or(0);
-    let mut rotated: Vec<String> = nodes[min_idx..].to_vec();
-    rotated.extend_from_slice(&nodes[..min_idx]);
-    rotated
+        })
+        .collect()
 }
 
 /// Flag behaviors missing a `given` or `then` field (or where either is blank).
+///
+/// Delegates to the shared detection in `core::lint` and wraps results as
+/// `CheckFinding` values.
 fn check_behavior_completeness(loaded_specs: &[(String, serde_json::Value)]) -> Vec<CheckFinding> {
+    crate::core::lint::detect_incomplete_behaviors(loaded_specs)
+        .into_iter()
+        .map(|(spec_rel, name, field)| CheckFinding {
+            check_type: CheckType::BehaviorIncomplete,
+            severity: Severity::Warning,
+            tier: SeverityTier::Housekeeping,
+            spec_path: Some(spec_rel.clone()),
+            file_path: None,
+            glob_pattern: None,
+            message: format!("Behavior '{name}' missing '{field}' field (in {spec_rel})"),
+        })
+        .collect()
+}
+
+/// T001-T003: Test-spec alignment checks.
+///
+/// - T001 (Housekeeping): A tier-1 behavior has no `tested_by` entry.
+/// - T002 (Critical): A `tested_by.path` does not exist on disk.
+/// - T003 (Drift): The test file's mtime is older than any governed code file.
+fn check_test_alignment(
+    project_root: &Path,
+    loaded_specs: &[(String, serde_json::Value)],
+    spec_files: &[(String, Vec<String>)],
+) -> Vec<CheckFinding> {
     let mut findings = Vec::new();
 
+    // Build a per-spec map of governed-code newest mtime for T003.
+    let spec_files_map: HashMap<&str, &Vec<String>> =
+        spec_files.iter().map(|(r, f)| (r.as_str(), f)).collect();
+
     for (spec_rel, spec_value) in loaded_specs {
+        // Only tier-1 (full) specs participate. Absent tier field defaults to full.
+        let tier = spec_value
+            .get("tier")
+            .and_then(|v| v.as_str())
+            .unwrap_or("full");
+        if tier != "full" {
+            continue;
+        }
         let Some(behaviors) = spec_value.get("behaviors").and_then(|b| b.as_array()) else {
             continue;
         };
-        for (idx, behavior) in behaviors.iter().enumerate() {
-            let name = behavior
+
+        // Compute newest mtime of governed code for T003 (once per spec).
+        let newest_code_mtime = spec_files_map
+            .get(spec_rel.as_str())
+            .map(|files| newest_mtime(project_root, files))
+            .unwrap_or(None);
+
+        for b in behaviors {
+            let name = b
                 .get("name")
                 .and_then(|n| n.as_str())
-                .map(str::to_string)
-                .unwrap_or_else(|| format!("behavior[{idx}]"));
+                .unwrap_or("<unnamed>");
+            let tested_by = b.get("tested_by").and_then(|t| t.as_array());
 
-            for field in ["given", "then"] {
-                let missing = !matches!(
-                    behavior.get(field).and_then(|v| v.as_str()),
-                    Some(s) if !s.trim().is_empty()
-                );
-                if missing {
+            match tested_by {
+                None => {
                     findings.push(CheckFinding {
-                        check_type: CheckType::BehaviorIncomplete,
+                        check_type: CheckType::TestCoverageMissing,
                         severity: Severity::Warning,
+                        tier: SeverityTier::Housekeeping,
                         spec_path: Some(spec_rel.clone()),
                         file_path: None,
                         glob_pattern: None,
                         message: format!(
-                            "Behavior '{name}' missing '{field}' field (in {spec_rel})"
+                            "T001: Behavior '{name}' has no tested_by entry (in {spec_rel})"
                         ),
                     });
+                }
+                Some(arr) => {
+                    for entry in arr {
+                        let Some(path) = entry.get("path").and_then(|p| p.as_str()) else {
+                            continue;
+                        };
+                        let full = project_root.join(path);
+                        if !full.exists() {
+                            findings.push(CheckFinding {
+                                check_type: CheckType::TestPathMissing,
+                                severity: Severity::Error,
+                                tier: SeverityTier::Critical,
+                                spec_path: Some(spec_rel.clone()),
+                                file_path: Some(path.to_string()),
+                                glob_pattern: None,
+                                message: format!(
+                                    "T002: Test path does not exist: {path} (behavior '{name}' in {spec_rel})"
+                                ),
+                            });
+                            continue;
+                        }
+                        // T003: stale test file vs code.
+                        if let (Some(code_mtime), Some(test_mtime)) =
+                            (newest_code_mtime, file_mtime(&full))
+                            && test_mtime < code_mtime
+                        {
+                            findings.push(CheckFinding {
+                                    check_type: CheckType::TestStale,
+                                    severity: Severity::Warning,
+                                    tier: SeverityTier::Drift,
+                                    spec_path: Some(spec_rel.clone()),
+                                    file_path: Some(path.to_string()),
+                                    glob_pattern: None,
+                                    message: format!(
+                                        "T003: Test file {path} is older than governed code (behavior '{name}' in {spec_rel})"
+                                    ),
+                                });
+                        }
+                    }
                 }
             }
         }
     }
 
     findings
+}
+
+fn file_mtime(path: &Path) -> Option<std::time::SystemTime> {
+    std::fs::metadata(path).ok().and_then(|m| m.modified().ok())
+}
+
+fn newest_mtime(project_root: &Path, rel_paths: &[String]) -> Option<std::time::SystemTime> {
+    rel_paths
+        .iter()
+        .filter_map(|rel| file_mtime(&project_root.join(rel)))
+        .max()
 }

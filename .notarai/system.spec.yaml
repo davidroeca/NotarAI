@@ -1,4 +1,4 @@
-schema_version: '0.7'
+schema_version: '0.8'
 
 intent: >
   NotarAI is a continuous intent reconciliation platform. It represents a shift
@@ -185,3 +185,13 @@ decisions:
       conditionals, state transition guards/actions, and extended enums for
       output types, layout types, interaction triggers, and domains. All
       additions are backward-compatible -- v0.6 specs validate without changes.
+
+  - date: '2026-04-13'
+    choice: 'Schema 0.8: test-spec alignment via tested_by; richer decisions'
+    rationale: >
+      Adds optional `tested_by` array to behaviors so reconciliation can
+      flag test-coverage gaps (T001), missing test paths (T002), and stale
+      tests lagging governed code (T003). Decisions gain optional `origin`,
+      `status`, and `related_files` fields so in-spec decisions can mirror
+      the richer proposals tracked in decision-log.json. All additions are
+      backward-compatible -- v0.7 specs validate unchanged.

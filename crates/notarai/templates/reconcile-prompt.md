@@ -27,11 +27,27 @@ Then review the changes against the spec. For each behavior, constraint, and inv
 
 The spec is the canonical tiebreaker when code and spec disagree.
 
-Report findings in this format:
+Classify each finding into a severity tier and group your report accordingly:
+
+## Critical
+
+Behavioral or invariant violations where code contradicts the spec.
+
+- **VIOLATED**: Code contradicts a spec constraint or invariant
+- **STALE REF**: Spec references code or docs that no longer exist
+
+## Drift
+
+Code has changed in ways that may not align with the spec, but no clear violation.
 
 - **DRIFT**: Code has changed in ways not reflected in the spec
-- **VIOLATED**: Code contradicts a spec constraint or invariant
 - **UNSPECCED**: New code not covered by any spec behavior
-- **STALE REF**: Spec references code or docs that no longer exist
+
+## Housekeeping
+
+Documentation, style, or organizational misalignment.
+
+- **STALE DOC**: Documentation references outdated APIs or behaviors
+- **STYLE**: Naming or organizational conventions diverged from spec
 
 If everything aligns, report: "No drift detected."

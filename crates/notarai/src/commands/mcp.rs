@@ -127,6 +127,19 @@ fn handle_initialize(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcRes
         info["projectNote"] = serde_json::Value::String(note);
     }
 
+    // Surface a drift score snapshot so agents can prioritize reconciliation work.
+    let scoring_config = crate::core::scoring::ScoringConfig::load(root);
+    if let Ok(score_result) = crate::core::scoring::compute_scores(root, &scoring_config, None) {
+        let most_drifted = score_result
+            .specs
+            .first()
+            .map(|s| s.spec_path.clone())
+            .unwrap_or_default();
+        info["driftScore"] = serde_json::json!((score_result.overall * 100.0).round() / 100.0);
+        info["driftStatus"] = serde_json::Value::String(score_result.status.to_string());
+        info["mostDrifted"] = serde_json::Value::String(most_drifted);
+    }
+
     JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
         id: req.id.clone(),

@@ -77,10 +77,10 @@ After the user responds:
 
 1. Create the `.notarai/` directory if it does not exist.
 
-2. Write `system.spec.yaml` using schema version `0.7`. Populate all fields from the interview answers:
+2. Write `system.spec.yaml` using schema version `0.8`. Populate all fields from the interview answers:
 
 ```yaml
-schema_version: '0.7'
+schema_version: '0.8'
 domain: '[from answer 1]'
 
 intent: >

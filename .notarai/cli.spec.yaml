@@ -1,4 +1,4 @@
-schema_version: '0.7'
+schema_version: '0.8'
 
 intent: >
   A CLI tool that validates NotarAI spec files against the JSON Schema
@@ -11,10 +11,16 @@ behaviors:
   - name: validate_single_file
     given: 'a path to a .spec.yaml file'
     then: 'validates it against the schema, prints PASS or FAIL with errors, exits 0 or 1'
+    tested_by:
+      - path: 'crates/notarai/tests/bin_test.rs'
+        assertion: 'validates_single_spec_file'
 
   - name: validate_directory
     given: 'a path to a directory (or no args, defaulting to .notarai/)'
     then: 'recursively finds all .spec.yaml files, validates each; exits 1 if any fail; exits 0 with a stderr warning if no .spec.yaml files are found'
+    tested_by:
+      - path: 'crates/notarai/tests/bin_test.rs'
+        assertion: 'validates_directory_recursively'
 
   - name: hook_validate_spec_file
     given: 'PostToolUse JSON on stdin with a file_path matching .notarai/**/*.spec.yaml'
@@ -234,6 +240,134 @@ behaviors:
     given: 'notarai export-context completes'
     then: 'exits 0 on success, 1 on error, 2 if .notarai/ does not exist (except --bootstrap which does not require it)'
 
+  - name: lint_runs
+    given: 'notarai lint is invoked in an initialized project'
+    then: 'runs all enabled lint rules (L001-L010) against every spec file in .notarai/; reports findings grouped by rule ID; exits 0 if no errors, 1 if any error-severity findings, 2 if .notarai/ does not exist'
+
+  - name: lint_L001_no_behaviors
+    given: 'a spec has tier full (default) and no behaviors array or an empty behaviors array'
+    then: 'reports L001 error: Tier 1 spec has zero behaviors'
+
+  - name: lint_L002_missing_given
+    given: 'a behavior entry has no given field or an empty given string'
+    then: 'reports L002 warning: Behavior missing given field'
+
+  - name: lint_L003_missing_then
+    given: 'a behavior entry has no then field or an empty then string'
+    then: 'reports L003 warning: Behavior missing then field'
+
+  - name: lint_L004_ref_missing
+    given: 'a $ref target in subsystems, applies, or dependencies resolves to a path that does not exist on disk'
+    then: 'reports L004 error: $ref target file does not exist'
+
+  - name: lint_L005_circular_ref
+    given: '$ref chains under subsystems, applies, or dependencies form a cycle'
+    then: 'reports L005 warning: circular $ref dependency detected'
+
+  - name: lint_L006_stale_decision
+    given: 'a decision entry is older than the configured threshold (default 90 days) and has no rationale field'
+    then: 'reports L006 warning: decision older than threshold with no rationale'
+
+  - name: lint_L007_open_questions
+    given: 'a spec has a non-empty open_questions array'
+    then: 'reports L007 info: spec has open questions to resolve'
+
+  - name: lint_L008_broad_glob
+    given: 'an artifact glob pattern is exactly **/* (matches everything)'
+    then: 'reports L008 warning: overly broad artifact glob'
+
+  - name: lint_L009_schema_mismatch
+    given: 'a spec schema_version does not match the bundled schema version'
+    then: 'reports L009 error: schema version mismatch'
+
+  - name: lint_L010_duplicate_behaviors
+    given: 'two or more behaviors in the same spec have identical name fields'
+    then: 'reports L010 warning: duplicate behavior names'
+
+  - name: lint_output_formats
+    given: 'notarai lint is invoked with --format human (default) or --format json'
+    then: 'human format prints colored output grouped by rule ID with a summary line; json format prints structured findings with rule_id, severity, spec_path, and message fields'
+
+  - name: lint_config
+    given: '.notarai/lint.yaml exists with per-rule overrides'
+    then: 'rules can be disabled (enabled: false) or have severity overridden; rule-specific parameters (e.g. L006 decision_age_days) are configurable'
+
+  - name: lint_integrated_into_check
+    given: 'notarai check is invoked'
+    then: 'lint rules are run alongside check rules; lint errors count as check errors; findings shared between lint and check (L002/L003 and BehaviorIncomplete, L005 and CircularRef) are deduplicated'
+
+  - name: severity_tiers
+    given: 'notarai check produces findings'
+    then: 'each finding is assigned a tier (critical, drift, or housekeeping); critical = behavioral/invariant violation or broken references; drift = code changed in ways that may not align with spec; housekeeping = documentation, style, or organizational misalignment'
+
+  - name: severity_tier_assignment
+    given: 'notarai check assigns tiers to check types'
+    then: 'CircularRef and OrphanedGlob and lint L004/L009 are critical; ChangedSinceReconciliation and lint L001/L010 are drift; CoverageGap, OverlappingCoverage, BehaviorIncomplete, and lint L006/L007/L008 are housekeeping'
+
+  - name: severity_tier_output_human
+    given: 'notarai check --format human produces output with severity tiers'
+    then: 'findings are grouped by tier (critical first, then drift, then housekeeping) with a tier header; within each tier, findings are grouped by check type'
+
+  - name: severity_tier_output_json
+    given: 'notarai check --format json produces output with severity tiers'
+    then: 'each finding object includes a tier field with value critical, drift, or housekeeping'
+
+  - name: check_config_file
+    given: '.notarai/check.yaml exists with fail_on and warn_on settings'
+    then: 'fail_on controls which tier causes exit code 1 (default: critical); warn_on controls which tier is shown (default: housekeeping); tiers below warn_on are suppressed from output'
+
+  - name: check_config_default
+    given: 'no .notarai/check.yaml exists'
+    then: 'default behavior: fail on error-severity findings (existing behavior), show all tiers'
+
+  - name: check_test_coverage_missing
+    given: 'a tier-1 (full) spec has a behavior without a tested_by entry'
+    then: 'emits T001 (housekeeping, warning) naming the behavior and spec'
+
+  - name: check_test_path_missing
+    given: 'a behavior lists a tested_by path that does not exist on disk'
+    then: 'emits T002 (critical, error) naming the missing path'
+
+  - name: check_test_stale
+    given: 'a behavior lists a tested_by path whose mtime is older than any governed code file'
+    then: 'emits T003 (drift, warning) naming the stale test file'
+
+  - name: score_command
+    given: 'notarai score is invoked'
+    then: 'computes a drift score (0.0-1.0) for each spec based on deterministic signals; outputs per-spec scores and an overall weighted average; exits 0 always (informational only)'
+
+  - name: score_signals
+    given: 'drift score is computed for a spec'
+    then: 'uses 6 weighted signals: files changed since reconciliation (0.3), days since reconciliation (0.2), unresolved decisions (0.15), orphaned globs (0.15), open questions (0.1), unspecced files in governed directories (0.1); weights are configurable via .notarai/scoring.yaml'
+
+  - name: score_thresholds
+    given: 'a drift score is computed'
+    then: 'scores map to status: 0.0-0.3 healthy (green), 0.3-0.6 review (yellow), 0.6-1.0 overdue (red)'
+
+  - name: score_output_formats
+    given: 'notarai score is invoked with --format human (default) or --format json'
+    then: 'human format prints a colored table with spec, score, and status columns; json format prints structured output with specs array and overall object'
+
+  - name: score_single_spec
+    given: 'notarai score --spec <path> is invoked'
+    then: 'computes and displays the score for only that spec'
+
+  - name: decisions_list
+    given: 'notarai decisions list is invoked'
+    then: 'reads .notarai/decision-log.json and prints all decision proposals in a human-readable table; --status flag filters by proposed/accepted/rejected; exits 0 on success, 2 if .notarai/ does not exist'
+
+  - name: decisions_accept
+    given: 'notarai decisions accept <spec> <index> is invoked'
+    then: 'removes the proposal at <index> from decision-log.json, appends { date, choice, rationale } to the spec YAML decisions array, validates the spec after modification, and prints confirmation; exits 0 on success, 1 on error'
+
+  - name: decisions_reject
+    given: 'notarai decisions reject <spec> <index> is invoked with optional --reason'
+    then: 'marks the proposal at <index> as rejected in decision-log.json (with optional reason); does not modify the spec; exits 0 on success, 1 on error'
+
+  - name: decisions_log_format
+    given: 'decisions are proposed, accepted, or rejected'
+    then: 'all proposals are stored in .notarai/decision-log.json as a JSON array; each entry has spec_path, date, choice, rationale, origin (reconciliation or human or bootstrap), status (proposed or accepted or rejected), and optional related_files and reject_reason'
+
   - name: reconcile_parallel_subagents
     given: 'the notarai-reconcile or notarai-bootstrap slash commands are invoked'
     then: >
@@ -261,6 +395,9 @@ constraints:
   - 'Before bumping the schema version: copy notarai.spec.json to schemas/<old_version>/spec.schema.json first; the docs workflow reads each version from its snapshot, not from notarai.spec.json'
   - 'Update checks use a global cache with 24h TTL; network requests use a 5s timeout for version checks and 120s for binary downloads'
   - 'The check command must never modify any files or the cache database'
+  - 'The lint command must never modify any files'
+  - 'Lint rule IDs (L001-L010) must be stable across versions (never renumber)'
+  - 'notarai lint must complete in under 500ms for 20 specs'
 
 invariants:
   - 'A valid spec file must never be reported as FAIL'

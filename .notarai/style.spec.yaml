@@ -1,4 +1,4 @@
-schema_version: '0.7'
+schema_version: '0.8'
 
 intent: >
   Maintain consistent American English dialect and keyboard-typable characters

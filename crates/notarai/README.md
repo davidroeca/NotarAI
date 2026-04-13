@@ -14,15 +14,24 @@ _Intent captured. Drift reconciled._
 
 NotarAI is a continuous intent reconciliation tool that keeps your specs, code, and documentation in sync as all three evolve. It uses LLMs as a bidirectional reconciliation engine, not just to generate code from specs, but to detect drift, surface conflicts, and propose updates across your entire artifact chain.
 
+## Why NotarAI?
+
+- **Post-generation drift detection.** Most SDD tools help generate code from specs, then stop. NotarAI keeps watching after generation, catching drift as specs, code, and docs evolve independently.
+- **Deterministic CI checks.** `notarai check` runs headless, LLM-free drift analysis in under 2 seconds. No API keys, no network access required.
+- **Agent-agnostic.** `notarai export-context` produces self-contained reconciliation prompts any LLM can process (Claude, GPT, Gemini, local models). The MCP server speaks a standard protocol.
+- **Structured YAML specs with JSON Schema validation.** Machine-readable specs, not Markdown. Enables deterministic tooling (lint, check, scoring) that freeform specs cannot support.
+- **Propose-and-approve only.** Never auto-modifies code or specs. Every change is surfaced for human review.
+- **Single static binary.** No runtime dependencies. Install and run.
+
 ## Getting started
 
 The docsite has detailed [docs for getting started](https://notarai.dev/docs/getting-started/installation).
 
-## Spec: complementary, not competing
+## Complementary, not competing
 
-Use whatever tools you would like to create your code base, then let NotarAI track alignment as the project evolves. The `.notarai/` spec format captures the same intent, behaviors, and constraints that Spec Driven Development (SDD) workflows produce. It just keeps watching after the initial generation is done. NotarAI can work downstream of any SDD tool.
+Use whatever tools you would like to create your codebase, then let NotarAI track alignment as the project evolves. The `.notarai/` spec format captures the same intent, behaviors, and constraints that SDD workflows produce. NotarAI works downstream of any SDD tool: use Spec Kit, OpenSpec, or Kiro to bootstrap your code, then install NotarAI to watch for drift.
 
-For the full reference, check [here](https://notarai.dev/docs/guides/spec-format).
+For the full spec format reference, see the [Spec Format guide](https://notarai.dev/docs/guides/spec-format).
 
 ## Coverage Model
 
@@ -39,17 +48,22 @@ Files not covered by any tier are flagged as "unspecced" -- a lint warning, not 
 
 This project is in early development. What's implemented:
 
-- Spec schema v0.7 (`notarai.spec.json`) with validation CLI — includes optional blocks for `output`, `content`, `states`, `design`, `audience`, `variants`, `pipeline`, `feedback`, and `compliance`; Tier 4 (Derived); per-artifact tier overrides; and extended `behaviors` with `interaction` and `state_transition`
-- `/notarai-reconcile` slash command for drift detection
-- `/notarai-bootstrap` slash command for bootstrapping specs from an existing codebase via developer interview
+- Spec schema v0.7 (`notarai.spec.json`) with validation CLI
+- `notarai check` -- deterministic drift detection (coverage gaps, orphaned globs, circular refs, behavior completeness, overlapping coverage, changed files)
+- `notarai lint` -- deterministic spec quality linting (10 rules, configurable severity)
+- `notarai export-context` -- agent-agnostic reconciliation prompt export
+- `/notarai-reconcile` slash command for interactive semantic drift detection
+- `/notarai-bootstrap` slash command for bootstrapping specs via developer interview
 - BLAKE3+SQLite hash cache (`notarai cache`) to skip unchanged files during reconciliation
-- MCP server (`notarai mcp`) that serves pre-filtered diffs and artifact lists, keeping reconciliation context proportional to what changed
-- Self-update (`notarai update`) with install method detection and passive version hints
+- MCP server (`notarai mcp`) with pre-filtered diffs and artifact lists
+- GitHub Action for automated PR drift checks
+- Self-update (`notarai update`) with install method detection
 
 Future goals include:
 
+- Drift scoring and severity tiers for prioritized remediation
+- Decision tracking with audit trail
 - Supporting other models and agentic ecosystems beyond Claude Code
-- Richer invariant elicitation and multi-repo support in the bootstrap flow
 
 ## Inspirations
 

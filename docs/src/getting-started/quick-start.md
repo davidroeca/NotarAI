@@ -121,3 +121,8 @@ For automated PR checks, add the [GitHub Action](../reference/github-action.md) 
 ## Reconcile with an LLM
 
 Use the `/notarai-reconcile` skill in Claude Code to perform a full semantic reconciliation: detect drift, propose spec/code/doc updates, and walk through each finding interactively.
+
+## Next steps
+
+- **Existing codebase?** See the [Brownfield Adoption Guide](../guides/brownfield-adoption.md) for a step-by-step walkthrough of adding NotarAI to a project that already has code.
+- **Not sure how much spec detail you need?** [Progressive Adoption](../guides/progressive-adoption.md) describes three maturity levels so you can start light and add depth where it matters.

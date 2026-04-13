@@ -1,4 +1,7 @@
-use crate::core::check::{CheckFinding, CheckResult, CheckType, Severity};
+use crate::core::check::{
+    CheckConfig, CheckFinding, CheckResult, CheckType, Severity, SeverityTier, tier_for_check_type,
+};
+use crate::core::lint::{LintConfig, LintRuleId, LintSeverity};
 
 pub fn run(format: &str, _base_branch: &str, strict: bool) -> i32 {
     let project_root = match std::env::current_dir() {
@@ -14,6 +17,8 @@ pub fn run(format: &str, _base_branch: &str, strict: bool) -> i32 {
         return 2;
     }
 
+    let check_config = CheckConfig::load(&project_root);
+
     let mut result = match crate::core::check::run_all_checks(&project_root) {
         Ok(r) => r,
         Err(e) => {
@@ -21,6 +26,41 @@ pub fn run(format: &str, _base_branch: &str, strict: bool) -> i32 {
             return 1;
         }
     };
+
+    // Run lint rules and merge non-overlapping findings into check results.
+    let lint_config = LintConfig::load(&project_root);
+    if let Ok(lint_findings) = crate::core::lint::run_all_lints(&project_root, &lint_config) {
+        for lf in lint_findings {
+            // Skip L002/L003 (overlap with BehaviorIncomplete) and L005 (overlap with CircularRef).
+            if matches!(
+                lf.rule_id,
+                LintRuleId::L002 | LintRuleId::L003 | LintRuleId::L005
+            ) {
+                continue;
+            }
+            let ct = CheckType::LintViolation(lf.rule_id);
+            let tier = tier_for_check_type(&ct);
+            result.findings.push(CheckFinding {
+                check_type: ct,
+                severity: match lf.severity {
+                    LintSeverity::Error => Severity::Error,
+                    LintSeverity::Warning => Severity::Warning,
+                    // Info-level lint findings are mapped to warnings in check context.
+                    LintSeverity::Info => Severity::Warning,
+                },
+                tier,
+                spec_path: Some(lf.spec_path),
+                file_path: None,
+                glob_pattern: None,
+                message: lf.message,
+            });
+        }
+    }
+
+    // Filter findings by warn_on threshold (suppress tiers below it).
+    result
+        .findings
+        .retain(|f| (f.tier as u8) <= (check_config.warn_on as u8));
 
     if strict {
         for f in &mut result.findings {
@@ -35,14 +75,29 @@ pub fn run(format: &str, _base_branch: &str, strict: bool) -> i32 {
         _ => print_human(&result),
     }
 
-    if has_errors(&result) { 1 } else { 0 }
+    should_fail(&result, &check_config, strict)
 }
 
-fn has_errors(result: &CheckResult) -> bool {
-    result
+/// Determine exit code based on check config and findings.
+fn should_fail(result: &CheckResult, config: &CheckConfig, strict: bool) -> i32 {
+    if strict {
+        // --strict: any finding = failure.
+        return if result.findings.is_empty() { 0 } else { 1 };
+    }
+    if let Some(fail_tier) = config.fail_on {
+        // fail_on config: fail if any finding at or above the configured tier.
+        let has_failing = result
+            .findings
+            .iter()
+            .any(|f| (f.tier as u8) <= (fail_tier as u8));
+        return if has_failing { 1 } else { 0 };
+    }
+    // Default: fail only on error-severity findings.
+    let has_errors = result
         .findings
         .iter()
-        .any(|f| matches!(f.severity, Severity::Error))
+        .any(|f| matches!(f.severity, Severity::Error));
+    if has_errors { 1 } else { 0 }
 }
 
 fn print_human(result: &CheckResult) {
@@ -51,53 +106,100 @@ fn print_human(result: &CheckResult) {
         return;
     }
 
+    let tiers = [
+        SeverityTier::Critical,
+        SeverityTier::Drift,
+        SeverityTier::Housekeeping,
+    ];
+    let tier_colors: [&str; 3] = ["\x1b[31m", "\x1b[33m", "\x1b[36m"];
+
+    // Check type groups within each tier.
     let groups: &[(CheckType, &str)] = &[
-        (CheckType::CoverageGap, "Coverage Gaps"),
+        (CheckType::CircularRef, "Circular $ref Cycles"),
         (CheckType::OrphanedGlob, "Orphaned Globs"),
         (
             CheckType::ChangedSinceReconciliation,
             "Changed Since Last Reconciliation",
         ),
+        (CheckType::CoverageGap, "Coverage Gaps"),
         (CheckType::OverlappingCoverage, "Overlapping Coverage"),
-        (CheckType::CircularRef, "Circular $ref Cycles"),
         (CheckType::BehaviorIncomplete, "Incomplete Behaviors"),
+        (CheckType::TestPathMissing, "Test Paths Missing"),
+        (CheckType::TestCoverageMissing, "Test Coverage Missing"),
+        (CheckType::TestStale, "Stale Tests"),
     ];
 
-    for (check_type, label) in groups {
-        let findings: Vec<&CheckFinding> = result
-            .findings
-            .iter()
-            .filter(|f| &f.check_type == check_type)
-            .collect();
-        if findings.is_empty() {
+    for (tier_idx, tier) in tiers.iter().enumerate() {
+        let tier_findings: Vec<&CheckFinding> =
+            result.findings.iter().filter(|f| &f.tier == tier).collect();
+        if tier_findings.is_empty() {
             continue;
         }
 
-        println!("\x1b[33m{label}\x1b[0m ({} findings)", findings.len());
-        for f in &findings {
-            let detail = f
-                .file_path
-                .as_deref()
-                .or(f.glob_pattern.as_deref())
-                .or(f.spec_path.as_deref())
-                .unwrap_or("(unknown)");
-            let prefix = match f.severity {
-                Severity::Warning => "\x1b[33m  warning\x1b[0m",
-                Severity::Error => "\x1b[31m  error  \x1b[0m",
-            };
-            println!("{prefix}: {detail}");
-            if !matches!(check_type, CheckType::CircularRef)
-                && let Some(spec) = &f.spec_path
-            {
-                println!("          in {spec}");
+        let color = tier_colors[tier_idx];
+        println!(
+            "{color}--- {} ({} findings) ---\x1b[0m",
+            tier.label(),
+            tier_findings.len()
+        );
+
+        // Print core check findings grouped by type within this tier.
+        for (check_type, label) in groups {
+            let findings: Vec<&&CheckFinding> = tier_findings
+                .iter()
+                .filter(|f| &f.check_type == check_type)
+                .collect();
+            if findings.is_empty() {
+                continue;
             }
-            if matches!(
-                check_type,
-                CheckType::CircularRef | CheckType::BehaviorIncomplete
-            ) {
-                println!("          {}", f.message);
+
+            println!("  {label} ({} findings)", findings.len());
+            for f in &findings {
+                let detail = f
+                    .file_path
+                    .as_deref()
+                    .or(f.glob_pattern.as_deref())
+                    .or(f.spec_path.as_deref())
+                    .unwrap_or("(unknown)");
+                let prefix = match f.severity {
+                    Severity::Warning => "\x1b[33m    warning\x1b[0m",
+                    Severity::Error => "\x1b[31m    error  \x1b[0m",
+                };
+                println!("{prefix}: {detail}");
+                if !matches!(check_type, CheckType::CircularRef)
+                    && let Some(spec) = &f.spec_path
+                {
+                    println!("            in {spec}");
+                }
+                if matches!(
+                    check_type,
+                    CheckType::CircularRef | CheckType::BehaviorIncomplete
+                ) {
+                    println!("            {}", f.message);
+                }
             }
         }
+
+        // Print lint findings within this tier.
+        let lint_in_tier: Vec<&&CheckFinding> = tier_findings
+            .iter()
+            .filter(|f| matches!(f.check_type, CheckType::LintViolation(_)))
+            .collect();
+        if !lint_in_tier.is_empty() {
+            println!("  Lint Violations ({} findings)", lint_in_tier.len());
+            for f in &lint_in_tier {
+                let prefix = match f.severity {
+                    Severity::Warning => "\x1b[33m    warning\x1b[0m",
+                    Severity::Error => "\x1b[31m    error  \x1b[0m",
+                };
+                let rule = match &f.check_type {
+                    CheckType::LintViolation(id) => id.as_str(),
+                    _ => "",
+                };
+                println!("{prefix} [{rule}]: {}", f.message);
+            }
+        }
+
         println!();
     }
 
@@ -125,24 +227,33 @@ fn count_severity(result: &CheckResult) -> (usize, usize) {
     (errors, warnings)
 }
 
+fn check_type_str(ct: &CheckType) -> String {
+    match ct {
+        CheckType::CoverageGap => "coverage_gap".to_string(),
+        CheckType::OrphanedGlob => "orphaned_glob".to_string(),
+        CheckType::ChangedSinceReconciliation => "changed_since_reconciliation".to_string(),
+        CheckType::OverlappingCoverage => "overlapping_coverage".to_string(),
+        CheckType::CircularRef => "circular_ref".to_string(),
+        CheckType::BehaviorIncomplete => "behavior_incomplete".to_string(),
+        CheckType::TestCoverageMissing => "test_coverage_missing".to_string(),
+        CheckType::TestPathMissing => "test_path_missing".to_string(),
+        CheckType::TestStale => "test_stale".to_string(),
+        CheckType::LintViolation(id) => format!("lint_{}", id.as_str().to_lowercase()),
+    }
+}
+
 fn print_json(result: &CheckResult) {
     let findings: Vec<serde_json::Value> = result
         .findings
         .iter()
         .map(|f| {
             serde_json::json!({
-                "type": match f.check_type {
-                    CheckType::CoverageGap => "coverage_gap",
-                    CheckType::OrphanedGlob => "orphaned_glob",
-                    CheckType::ChangedSinceReconciliation => "changed_since_reconciliation",
-                    CheckType::OverlappingCoverage => "overlapping_coverage",
-                    CheckType::CircularRef => "circular_ref",
-                    CheckType::BehaviorIncomplete => "behavior_incomplete",
-                },
+                "type": check_type_str(&f.check_type),
                 "severity": match f.severity {
                     Severity::Warning => "warning",
                     Severity::Error => "error",
                 },
+                "tier": f.tier.as_str(),
                 "spec_path": f.spec_path,
                 "file_path": f.file_path,
                 "glob_pattern": f.glob_pattern,
