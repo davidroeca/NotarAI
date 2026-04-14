@@ -68,6 +68,7 @@ exclude:
   - '.prettierignore'
   - 'LICENSE'
   - 'Cargo.lock'
+  - '.opencode/**'
   - '.claude/hooks/**'
   - '.claude/skills/**'
   - '.claude/settings.json'
