@@ -43,6 +43,8 @@ impl SkillFlavor {
     }
 }
 
+type InstallHook = fn(&Path) -> Result<(), String>;
+
 /// Per-agent install behavior. Adding a new agent = one entry in ADAPTERS.
 #[derive(Debug, Clone, Copy)]
 struct AgentAdapter {
@@ -54,7 +56,7 @@ struct AgentAdapter {
     /// Optional agent-specific skills directory (e.g. `.claude/skills`).
     skills_dir: Option<&'static str>,
     /// Optional agent-specific hook installer.
-    install_hook: Option<fn(&Path) -> Result<(), String>>,
+    install_hook: Option<InstallHook>,
     skill_flavor: SkillFlavor,
 }
 
