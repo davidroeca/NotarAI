@@ -1,10 +1,10 @@
 {
   "schema_version": "1",
-  "cli_version": "0.5.1",
+  "cli_version": "0.6.0",
   "last_reconciliation": {
-    "timestamp": "1775322231Z",
-    "git_hash": "4193478eee6f69f5d16e0d20280269120eeb666c",
-    "branch": "improvements"
+    "timestamp": "1776152792Z",
+    "git_hash": "5c2f8b36e9ae8b2c7580645aa3fa1963e8306988",
+    "branch": "restructure-and-improve"
   },
   "file_fingerprints": {
     ".claude/commands/notarai-bootstrap.md": {

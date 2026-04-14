@@ -1,9 +1,9 @@
-schema_version: '0.7'
+schema_version: '0.8'
 
 intent: >
   An mdBook documentation site published to GitHub Pages at
   https://notarai.dev. All documentation routes live
-  under /docs, the root / redirects to /docs, and /schema/0.7/spec.schema.json
+  under /docs, the root / redirects to /docs, and /schema/0.8/spec.schema.json
   serves the JSON Schema directly (matching the $id URL). Covers installation,
   quick-start, spec format reference, and reconciliation guides. Background/concept
   docs (motivation, design diagrams, comparison to SDD) are governed by the system
@@ -23,8 +23,8 @@ behaviors:
     then: 'all internal links and assets use the /docs/ site-url defined in book.toml'
 
   - name: schema_hosting
-    given: 'a client requests /schema/0.7/spec.schema.json'
-    then: 'the server returns the JSON Schema file matching the $id in notarai.spec.json, copied from the repo root during the CI build step'
+    given: 'a client requests /schema/0.8/spec.schema.json'
+    then: 'the server returns the JSON Schema file matching the $id in crates/notarai/notarai.spec.json, copied from the CLI crate directory during the CI build step'
 
   - name: mermaid_diagrams
     given: 'a docs page contains a mermaid code block'
@@ -33,7 +33,7 @@ behaviors:
 constraints:
   - 'Every new content page must be registered in docs/src/SUMMARY.md'
   - 'The mdBook site-url must match the deployment path (/docs/)'
-  - 'The repo root notarai.spec.json is the single source of truth for the schema; the hosted copy is produced by a CI step, never maintained by hand'
+  - 'crates/notarai/notarai.spec.json is the single source of truth for the schema; the hosted copy is produced by a CI step, never maintained by hand'
   - 'Background concept pages (background/**) are edited for content by the system spec; docs spec only controls their presentation'
   - 'Docs should be accessible to new programmers'
   - 'Docs should be concise and use clean language accessible to non-native English speakers'
@@ -62,6 +62,24 @@ artifacts:
       role: 'CLI command reference -- all subcommands, flags, and exit codes'
     - path: 'docs/src/reference/mcp-server.md'
       role: 'MCP server reference -- tool definitions, parameters, return shapes, and cache semantics'
+    - path: 'docs/src/reference/github-action.md'
+      role: 'GitHub Action reference -- setup, inputs, PR comment format, and strict mode'
+    - path: 'docs/src/reference/lint-rules.md'
+      role: 'Lint rules reference -- table of all rules (L001-L011), severities, descriptions, and configuration examples'
+    - path: 'docs/src/guides/brownfield-adoption.md'
+      role: 'Step-by-step guide for adopting NotarAI on an existing codebase'
+    - path: 'docs/src/guides/non-software-examples.md'
+      role: 'Guide to non-software projects'
+    - path: 'docs/src/guides/progressive-adoption.md'
+      role: 'Three maturity levels for progressive spec adoption (intent-only, behaviors, full SDD)'
+    - path: 'docs/src/guides/troubleshooting-reconciliation.md'
+      role: 'Common reconciliation issues and fixes'
+    - path: 'docs/src/guides/severity-tiers.md'
+      role: 'Guide explaining the three severity tiers (critical, drift, housekeeping) and check.yaml configuration'
+    - path: 'docs/src/guides/drift-scoring.md'
+      role: 'Guide explaining drift scoring signals, thresholds, scoring.yaml configuration, and MCP integration'
+    - path: 'docs/src/background/comparison.md'
+      role: 'Fair comparison of NotarAI against other SDD tools (Spec Kit, OpenSpec, Intent, Kiro)'
     - path: 'docs/src/contributing.md'
       role: 'Full contributing guide -- development setup, code style, and PR workflow'
 

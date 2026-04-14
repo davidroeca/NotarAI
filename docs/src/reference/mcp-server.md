@@ -49,6 +49,18 @@ When the project's NotarAI configs are behind the running CLI version (detected 
 
 This surfaces project config staleness to Claude at session start so reconciliation uses up-to-date slash commands and schema.
 
+The response also includes a drift score snapshot so agents can prioritize reconciliation work without calling a separate tool:
+
+```json
+{
+  "driftScore": 0.42,
+  "driftStatus": "review",
+  "mostDrifted": ".notarai/cli.spec.yaml"
+}
+```
+
+See the [Drift Scoring](../guides/drift-scoring.md) guide for signal details.
+
 ## Tools
 
 ### list_affected_specs

@@ -1,0 +1,81 @@
+schema_version: '0.8'
+
+intent: >
+  A composite GitHub Action that installs the matching notarai release binary
+  and runs notarai check on pull requests, posting (or updating) a PR comment
+  with a summary of drift findings. Consumers add a single uses: line to their
+  workflow; no Rust toolchain is required on the runner.
+
+behaviors:
+  - name: install_matching_binary
+    given: 'the action runs on a GitHub Actions runner'
+    then: 'detects the runner architecture via uname -m, downloads the matching notarai binary (linux-gnu target) from the GitHub release matching the version input, marks it executable, and adds it to PATH; currently Linux-only (no macOS or Windows support)'
+
+  - name: run_check_json
+    given: 'the notarai binary is installed'
+    then: 'runs notarai check --format json --base-branch <base-branch input> and captures the JSON output; passes --strict when the strict input is true'
+
+  - name: post_or_update_pr_comment
+    given: 'the check completes, the comment input is true, and the event is a pull request'
+    then: 'renders the JSON findings into a Markdown comment and posts it to the PR via gh pr comment; if a comment with the marker already exists, it is updated in place rather than duplicated'
+
+  - name: fail_on_errors
+    given: 'notarai check exits with code 1 (errors found)'
+    then: 'the action step fails, causing the workflow job to fail'
+
+  - name: honor_strict_input
+    given: 'the strict input is set to true'
+    then: 'passes --strict to notarai check so all warnings are promoted to errors'
+
+  - name: handle_uninitialized
+    given: 'notarai check exits with code 2 (no .notarai/ directory)'
+    then: 'the action emits a ::warning:: workflow annotation noting NotarAI is not initialized, posts a PR comment if comment input is true and the event is a pull request, and exits successfully (does not fail the workflow)'
+
+constraints:
+  - 'Runs on ubuntu-latest runners (Linux only); no Rust toolchain required on consumer runners'
+  - 'Comment is updated in place via a <!-- notarai-action --> HTML marker string'
+  - 'The action must not modify the checked-out repository (read-only operation)'
+  - 'Binary download uses the GitHub API, respecting rate limits via GITHUB_TOKEN'
+
+invariants:
+  - 'A PR comment must never be duplicated on re-runs; the marker ensures update-in-place'
+
+artifacts:
+  configs:
+    - path: 'crates/notarai-action/action.yml'
+      role: 'Composite action definition -- inputs, steps, and branding'
+    - path: 'crates/notarai-action/Cargo.toml'
+      role: 'Stub crate manifest (publish = false) so sampo tracks it in the workspace'
+    - path: 'crates/notarai-action/README.md'
+      role: 'GitHub Marketplace-facing README for the action'
+  code:
+    - path: 'crates/notarai-action/scripts/render-comment.sh'
+      role: 'Shell script that converts notarai check JSON output into the PR comment Markdown'
+    - path: 'crates/notarai-action/src/lib.rs'
+      role: 'Empty lib.rs so the crate compiles (no runtime code; all logic is in shell scripts)'
+  #tests:
+  # .github/workflows/dogfood-action.yml is an e2e test of this flow
+
+decisions:
+  - date: '2026-04-12'
+    choice: 'Composite action with shell scripts instead of a Node.js or Docker action'
+    rationale: >
+      The action only needs to download a binary and run shell commands. A composite
+      action with bash steps is the lightest-weight option: no build step, no container
+      pull, minimal maintenance surface. The render-comment.sh script uses jq for JSON
+      parsing, which is pre-installed on all GitHub-hosted runners.
+
+  - date: '2026-04-12'
+    choice: 'Stub Cargo crate (publish = false) for workspace tracking'
+    rationale: >
+      sampo requires each versioned component to be a workspace member. The crate
+      has no runtime Rust code (lib.rs is empty), but its Cargo.toml lets sampo
+      track the action version in lockstep with the CLI crate. publish = false
+      prevents accidental crate publication.
+
+  - date: '2026-04-12'
+    choice: 'In-repo crate instead of a separate davidroeca/notarai-action repository'
+    rationale: >
+      Shipping the action from the same repo as the CLI avoids cross-repo release
+      coordination. sampo versions both crates in lockstep. Consumers reference the
+      action via uses: davidroeca/NotarAI/crates/notarai-action@v<tag>.

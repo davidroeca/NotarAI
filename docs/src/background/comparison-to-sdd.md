@@ -31,3 +31,5 @@ The spec isn't just a blueprint. It's a **witness** -- a living contract the LLM
 | [**Superpowers**](https://github.com/obra/superpowers) | Spec-first (workflow methodology)     | Spec -> plan -> subagent execution   | Task / branch           | Git worktree isolation            |
 | [**Semcheck**](https://semcheck.ai/)                   | Compliance checking                   | Spec -> code (one-way check)         | Ongoing                 | Yes                               |
 | **NotarAI**                                            | Spec-anchored + active reconciliation | Spec <-> code <-> docs               | Feature lifetime        | Bootstrap flow with LLM interview |
+
+For a practical, feature-by-feature comparison of NotarAI against specific tools (Spec Kit, OpenSpec, Intent, Kiro), see [How NotarAI Compares](./comparison.md).

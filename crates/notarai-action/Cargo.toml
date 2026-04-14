@@ -1,0 +1,11 @@
+[package]
+name = "notarai-action"
+version = "0.6.0"
+edition = "2024"
+description = "GitHub Action for NotarAI drift detection on pull requests"
+license = "Apache-2.0"
+repository = "https://github.com/davidroeca/NotarAI"
+publish = false
+
+[lib]
+path = "src/lib.rs"

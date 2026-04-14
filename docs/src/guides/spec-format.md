@@ -6,10 +6,10 @@ Specs are YAML files validated against a JSON Schema (`notarai.spec.json`). The 
 
 ### `schema_version`
 
-Pins the JSON Schema version. Current version: `"0.7"`. Versions `"0.6"` and `"0.5"` are also accepted for backward compatibility.
+Pins the JSON Schema version. Current version: `"0.8"`. Versions `"0.7"`, `"0.6"`, and `"0.5"` are also accepted for backward compatibility.
 
 ```yaml
-schema_version: '0.7'
+schema_version: '0.8'
 ```
 
 ### `intent`
@@ -53,6 +53,25 @@ behaviors:
       from: editing
       to: confirmed
 ```
+
+Behaviors may also declare the tests that verify them via `tested_by`
+(introduced in schema 0.8). `notarai check` uses this to surface
+test-alignment drift:
+
+```yaml
+behaviors:
+  - name: 'signup'
+    given: 'valid email and password'
+    then: 'account created, welcome email sent'
+    tested_by:
+      - path: 'tests/auth/signup_test.rs'
+        assertion: 'signup_creates_account'
+```
+
+| Check | Severity | Trigger                                     |
+| ----- | -------- | ------------------------------------------- |
+| T001  | Warning  | A tier-1 behavior has no `tested_by` entry. |
+| T002  | Error    | A `tested_by.path` does not exist on disk.  |
 
 ### `artifacts`
 
@@ -374,3 +393,28 @@ Specs compose via `$ref` (borrowed from JSON Schema/OpenAPI):
 - `applies` — cross-cutting specs (e.g., security, logging) that apply to all subsystems
 
 A top-level `system.spec.yaml` serves as the manifest, referencing subsystem specs and declaring exclusion patterns for Tier 3 files.
+
+### Cross-cutting specs
+
+A spec that expresses concerns spanning multiple subsystems (style, security, logging, compliance) should set `cross_cutting: true`:
+
+```yaml
+schema_version: '0.8'
+cross_cutting: true
+intent: >
+  American English spelling across all code and documentation.
+behaviors:
+  - name: american_english
+    given: 'british spelling appears in a governed file'
+    then: 'reconciliation flags it as drift'
+invariants:
+  - 'All documentation uses American English spellings throughout'
+```
+
+Cross-cutting specs:
+
+- **Omit `artifacts`** — they govern no files directly. Their invariants and behaviors layer onto the specs that include them via `applies`.
+- **Cannot be top-level** — they must not declare `subsystems` or `exclude`.
+- **Must be referenced via `applies`, not `subsystems`** — L011 flags misplacement.
+
+This avoids glob overlap with subsystem specs (since two specs governing the same file raises an `OverlappingCoverage` finding) while still letting the spec layer its invariants across the whole system.

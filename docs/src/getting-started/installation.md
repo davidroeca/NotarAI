@@ -53,7 +53,7 @@ export PATH="$HOME/.local/bin:$PATH"
 ```sh
 git clone https://github.com/davidroeca/NotarAI
 cd NotarAI
-cargo build --release
+cargo build --release -p notarai
 # Binary is at target/release/notarai
 ```
 

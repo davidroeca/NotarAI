@@ -1,4 +1,6 @@
-schema_version: '0.7'
+schema_version: '0.8'
+
+cross_cutting: true
 
 intent: >
   Maintain consistent American English dialect and keyboard-typable characters
@@ -21,18 +23,3 @@ invariants:
   - 'Source code and inline comments use only characters typable on a standard QWERTY keyboard (printable ASCII, U+0020-U+007E)'
   - 'All documentation uses American English spellings throughout'
   - 'All source code identifiers use American English spellings throughout'
-
-artifacts:
-  code:
-    - path: 'src/**/*.rs'
-      role: 'source code and inline comments'
-  docs:
-    - path: 'docs/src/**/*.md'
-      role: 'user-facing documentation'
-    - path: 'commands/*.md'
-      role: 'slash command prompts'
-    - path: 'templates/*.md'
-      role: 'bundled templates'
-  configs:
-    - path: '.claude/rules/style.md'
-      role: 'Claude rule equivalent -- proactive prevention of style violations during generation'

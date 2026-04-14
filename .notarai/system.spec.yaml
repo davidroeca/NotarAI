@@ -1,4 +1,4 @@
-schema_version: '0.7'
+schema_version: '0.8'
 
 intent: >
   NotarAI is a continuous intent reconciliation platform. It represents a shift
@@ -47,18 +47,31 @@ subsystems:
   - $ref: './cli.spec.yaml'
   - $ref: './docs.spec.yaml'
   - $ref: './ci.spec.yaml'
+  - $ref: './action.spec.yaml'
 
 applies:
   - $ref: './style.spec.yaml'
 
 exclude:
   - 'img/**'
-  - '.claude/**'
   - 'docs/book/**'
   - 'docs/mermaid-init.js'
   - 'docs/mermaid.min.js'
+  - 'docs/.gitignore'
   - '.notarai/.cache/**'
   - '.notarai/reconciliation_state.json'
+  - '.sampo/changesets/**'
+  - '.sampo/changeset.md.example'
+  - '.sampo/README.md'
+  - '.gitignore'
+  - '.mcp.json'
+  - '.prettierignore'
+  - 'LICENSE'
+  - 'Cargo.lock'
+  - '.opencode/**'
+  - '.claude/hooks/**'
+  - '.claude/skills/**'
+  - '.claude/settings.json'
 
 artifacts:
   docs:
@@ -76,7 +89,7 @@ artifacts:
       role: 'Background page covering the tools and traditions that shaped NotarAI -- BDD, IaC, JSON Schema, Design by Contract, and ADRs'
   configs:
     - path: 'Cargo.toml'
-      role: 'Rust package manifest -- dependencies, build metadata, and binary target'
+      role: 'Top-level Cargo workspace manifest -- declares workspace members under crates/'
     - path: 'biome.json'
       role: 'Biome formatting config -- applies to non-Rust source files (JSON, JS/TS, CSS); excludes Markdown (handled by prettier pending biomejs/biome#3718)'
     - path: 'scripts/install.sh'
@@ -84,9 +97,13 @@ artifacts:
     - path: 'scripts/install.ps1'
       role: 'PowerShell install script for Windows'
     - path: 'CLAUDE.md'
-      role: 'Claude Code context file -- project description and NotarAI workflow instructions for AI-assisted development'
+      role: 'Claude Code pointer file -- single-line @AGENTS.md stub that redirects Claude Code to the canonical context file'
+    - path: 'AGENTS.md'
+      role: 'Agent-agnostic context file -- project description and NotarAI workflow instructions for AI-assisted development; section-merged by notarai init'
     - path: '.claude/rules/*.md'
       role: 'Modular Claude rules -- style, testing, and schema version conventions split from CLAUDE.md'
+    - path: '.sampo/config.toml'
+      role: 'sampo configuration -- linked packages, short tags, and changelog options'
     - path: '.pre-commit-config.yaml'
       role: 'pre-commit hook configuration -- runs code formatters and linters before each commit'
 
@@ -108,7 +125,7 @@ decisions:
     rationale: "ML, research, and infra projects use notebooks and config files as first-class artifacts; external datasets (e.g. HuggingFace) need a source field since they can't be expressed as local glob patterns"
   - date: '2026-02-22'
     choice: 'docs-site and CI each get their own subspecs'
-    rationale: 'docs-site.spec.yaml governs the Astro site infrastructure and user-facing guide content; ci.spec.yaml governs GitHub Actions workflows and Dependabot. System spec owns concept-level background docs and cross-cutting configs (package.json, scripts/) that touch multiple subsystems.'
+    rationale: 'docs.spec.yaml governs the mdBook site infrastructure and user-facing guide content; ci.spec.yaml governs GitHub Actions workflows and Dependabot. System spec owns concept-level background docs and cross-cutting configs (package.json, scripts/) that touch multiple subsystems.'
   - date: '2026-02-23'
     choice: 'Migrate CLI from Node.js/TypeScript to Rust'
     rationale: 'Single static binary eliminates Node.js runtime dependency; enables cross-platform distribution via direct download; project has not been released yet so this is a clean replacement with no migration concerns'
@@ -151,6 +168,25 @@ decisions:
       state_transition. All additions are optional -- existing specs validate
       without modification.
 
+  - date: '2026-04-12'
+    choice: 'sampo is the source of truth for versioning across all workspace crates'
+    rationale: >
+      Changesets (.sampo/changesets/*.md) capture version intent at PR time.
+      sampo release consumes them into version bumps, CHANGELOG.md entries, and
+      a release PR. sampo publish creates git tags and pushes to crates.io.
+      The CLI and action crates are linked so a single changeset bumps both.
+      This replaces the previous manual GitHub release trigger.
+
+  - date: '2026-04-11'
+    choice: 'Restructured into a Cargo workspace under crates/'
+    rationale: >
+      Adopting sampo (changesets-for-polyglot-monorepos) lets the CLI crate, the
+      forthcoming notarai-action crate, and any future tooling ship from one repo
+      with versions managed in lockstep. Restructuring the existing crate into
+      crates/notarai/ is a prerequisite for adding sibling crates without
+      rewriting paths later. The workspace root holds only the virtual workspace
+      manifest, shared CI/docs, and project-level documentation.
+
   - date: '2026-03-05'
     choice: 'Schema 0.7: multi-artifact platform expansion'
     rationale: >
@@ -160,3 +196,13 @@ decisions:
       conditionals, state transition guards/actions, and extended enums for
       output types, layout types, interaction triggers, and domains. All
       additions are backward-compatible -- v0.6 specs validate without changes.
+
+  - date: '2026-04-13'
+    choice: 'Schema 0.8: test-spec alignment via tested_by; richer decisions'
+    rationale: >
+      Adds optional `tested_by` array to behaviors so reconciliation can
+      flag test-coverage gaps (T001), missing test paths (T002), and stale
+      tests lagging governed code (T003). Decisions gain optional `origin`,
+      `status`, and `related_files` fields so in-spec decisions can mirror
+      the richer proposals tracked in decision-log.json. All additions are
+      backward-compatible -- v0.7 specs validate unchanged.

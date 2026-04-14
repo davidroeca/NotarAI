@@ -36,7 +36,7 @@ notarai validate .notarai/subsystems/
 
 ## notarai check
 
-Deterministic, LLM-free drift detection. Reports coverage gaps, orphaned globs, changed files, and overlapping coverage.
+Deterministic, LLM-free drift detection. Reports coverage gaps, orphaned globs, changed files, overlapping coverage, circular `$ref` chains, and incomplete behaviors.
 
 ```sh
 # Human-readable output (default)
@@ -47,27 +47,133 @@ notarai check --format json
 
 # Custom base branch
 notarai check --base-branch develop
+
+# Strict mode: promote all warnings to errors (useful for CI)
+notarai check --strict
 ```
 
 **Arguments:**
 
-| Flag            | Required | Default | Description                            |
-| --------------- | -------- | ------- | -------------------------------------- |
-| `--format`      | No       | `human` | Output format: `human` or `json`       |
-| `--base-branch` | No       | `main`  | Base branch for changed-file detection |
+| Flag            | Required | Default | Description                                        |
+| --------------- | -------- | ------- | -------------------------------------------------- |
+| `--format`      | No       | `human` | Output format: `human` or `json`                   |
+| `--base-branch` | No       | `main`  | Base branch for changed-file detection             |
+| `--strict`      | No       | `false` | Promote all warnings to errors (zero-tolerance CI) |
 
 **Checks performed:**
 
-| Check                        | Severity | Description                                             |
-| ---------------------------- | -------- | ------------------------------------------------------- |
-| Coverage gaps                | Warning  | Tracked files not governed by any spec (minus excludes) |
-| Orphaned globs               | Warning  | Artifact glob patterns matching zero files              |
-| Changed since reconciliation | Warning  | Governed files changed since last cache update          |
-| Overlapping coverage         | Warning  | Files governed by two or more specs                     |
+| Check                        | Severity | Tier         | Description                                                     |
+| ---------------------------- | -------- | ------------ | --------------------------------------------------------------- |
+| Orphaned globs               | Error    | Critical     | Artifact glob patterns matching zero files                      |
+| Circular `$ref` chains       | Error    | Critical     | Cycles in `subsystems`, `applies`, or `dependencies` references |
+| Changed since reconciliation | Warning  | Drift        | Governed files changed since last cache update                  |
+| Coverage gaps                | Warning  | Housekeeping | Tracked files not governed by any spec (minus excludes)         |
+| Overlapping coverage         | Warning  | Housekeeping | Files governed by two or more specs                             |
+| Behavior completeness        | Warning  | Housekeeping | Behaviors missing a `given` or `then` field                     |
+| T001 Test coverage missing   | Warning  | Housekeeping | Tier-1 behavior without a `tested_by` entry                     |
+| T002 Test path missing       | Error    | Critical     | `tested_by.path` does not exist on disk                         |
+
+Lint rules (L001-L011) are also run and merged into check output. See [Lint Rules](./lint-rules.md).
+
+**Severity tiers:** Each finding is classified as Critical, Drift, or Housekeeping. Human output groups findings by tier. JSON output includes a `tier` field. See [Severity Tiers](../guides/severity-tiers.md) for details.
+
+**Configuration:** Create `.notarai/check.yaml` to control CI thresholds:
+
+```yaml
+fail_on: drift # Fail on critical or drift findings
+warn_on: drift # Suppress housekeeping from output
+```
+
+With `--strict`, all warning-severity findings are promoted to errors and any finding causes exit code 1.
 
 The check command never modifies files or the cache database.
 
-**Exit codes:** `0` no error-severity findings, `1` errors found, `2` not initialized (`.notarai/` missing).
+**Exit codes:** `0` no error-severity findings (or no findings at or above `fail_on` tier), `1` errors found (including warnings promoted under `--strict`), `2` not initialized (`.notarai/` missing).
+
+---
+
+## notarai lint
+
+Lint spec files for quality issues beyond JSON Schema conformance. A superset of `notarai validate` that checks semantic quality.
+
+```sh
+# Human-readable output (default)
+notarai lint
+
+# JSON output
+notarai lint --format json
+```
+
+| Flag       | Default | Description                      |
+| ---------- | ------- | -------------------------------- |
+| `--format` | `human` | Output format: `human` or `json` |
+
+Runs 11 deterministic rules (L001-L011) covering missing behaviors, broken `$ref` targets, stale decisions, schema mismatches, and more. Rules can be configured via `.notarai/lint.yaml`. Lint results are also integrated into `notarai check`.
+
+See [Lint Rules](./lint-rules.md) for the full rule reference.
+
+**Exit codes:** `0` no error-severity findings, `1` errors found, `2` not initialized.
+
+---
+
+## notarai decisions
+
+Manage decision proposals from reconciliation. Proposals are stored in `.notarai/decision-log.json` and can be accepted (appended to the spec's `decisions` array) or rejected (marked in the log with an optional reason).
+
+### notarai decisions list
+
+```sh
+# List all decisions
+notarai decisions list
+
+# Filter by status
+notarai decisions list --status proposed
+```
+
+| Flag       | Default | Description                                   |
+| ---------- | ------- | --------------------------------------------- |
+| `--status` | (all)   | Filter: `proposed`, `accepted`, or `rejected` |
+
+### notarai decisions accept
+
+```sh
+notarai decisions accept .notarai/auth.spec.yaml 0
+```
+
+Accepts the proposal at the given index: removes it from the log, appends `{ date, choice, rationale }` to the spec's YAML `decisions` array, and validates the spec afterward.
+
+### notarai decisions reject
+
+```sh
+notarai decisions reject .notarai/auth.spec.yaml 0 --reason "Not relevant"
+```
+
+Marks the proposal as rejected in the log. Does not modify the spec. The optional `--reason` flag records why the decision was rejected.
+
+**Exit codes:** `0` success, `1` error, `2` not initialized.
+
+---
+
+## notarai score
+
+Compute drift scores for each spec. Deterministic, no LLM calls.
+Exit code is always `0` (informational). See the
+[Drift Scoring](../guides/drift-scoring.md) guide for signal details
+and configuration.
+
+```sh
+notarai score
+notarai score --format json
+notarai score --spec .notarai/cli.spec.yaml
+```
+
+| Flag       | Default | Description                       |
+| ---------- | ------- | --------------------------------- |
+| `--format` | `human` | Output format: `human` or `json`. |
+| `--spec`   | (all)   | Score a single spec by path.      |
+
+Scores are in `[0.0, 1.0]` with thresholds: `< 0.3` healthy,
+`< 0.6` review, otherwise overdue.
 
 ---
 
@@ -79,38 +185,46 @@ Set up NotarAI in a project. Running `init` again is safe: it always refreshes s
 # Interactive prompt (defaults to claude)
 notarai init
 
-# Claude Code mode (explicit)
-notarai init --agent claude
+# Explicit agent selection
+notarai init --agents claude
+notarai init --agents opencode
+notarai init --agents claude,gemini
 
-# Generic mode (any LLM agent)
+# All known adapters
+notarai init --agents all
+
+# Agent-agnostic artifacts only (no adapter-specific setup)
+notarai init --agents none
+
+# Deprecated alias (claude -> claude, generic -> opencode)
+notarai init --agent claude
 notarai init --agent generic
 ```
 
 **Arguments:**
 
-| Flag      | Required | Description                                                         |
-| --------- | -------- | ------------------------------------------------------------------- |
-| `--agent` | No       | Agent type: `claude` or `generic`. Prompts interactively if omitted |
+| Flag       | Required | Description                                                                                                                                                                                         |
+| ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--agents` | No       | Comma-separated list of agents: `claude`, `gemini`, `codex`, `opencode`, plus meta-tokens `all` and `none`. Prompts interactively if omitted and stdin is a TTY; auto-detects if stdin is not a TTY |
+| `--agent`  | No       | Deprecated alias for `--agents`. `claude` maps to `--agents claude`; `generic` maps to `--agents opencode`                                                                                          |
 
-**Shared setup (both modes):**
+**Shared setup (all modes):**
 
 1. Copies `notarai.spec.json` to `.notarai/notarai.spec.json` (always refreshed).
 2. Writes `.notarai/README.md` with workflow instructions (always overwritten).
-3. Appends `.notarai/.cache/` to `.gitignore`.
-4. Writes `.mcp.json` registering `notarai mcp` as a local [MCP server](./mcp-server.md).
+3. Writes `.notarai/reconcile-prompt.md` (reconciliation prompt template).
+4. Writes `.notarai/bootstrap-prompt.md` (bootstrap prompt template).
+5. Appends `.notarai/.cache/` to `.gitignore`.
+6. Writes `.mcp.json` registering `notarai mcp` as a local [MCP server](./mcp-server.md).
+7. Writes or section-merges `AGENTS.md` so user content outside the `## NotarAI` section is preserved.
 
-**Claude mode** (`--agent claude`):
+**Per-adapter setup** (for each selected adapter):
 
-5. Adds a **PostToolUse hook** to `.claude/settings.json` (command: `notarai hook validate`).
-6. Copies `notarai-reconcile` and `notarai-bootstrap` skills to `.claude/skills/`.
-7. Replaces the `## NotarAI` section in `CLAUDE.md` with a concise workflow description.
+8. If the adapter declares a pointer file (CLAUDE.md, GEMINI.md), creates it as a single-line `@AGENTS.md` stub when absent, leaves it unchanged when it already contains `@AGENTS.md`, or section-merges a `## NotarAI` block when it has other content.
+9. If the adapter declares a skills directory, always overwrites SKILL.md for `notarai-reconcile` and `notarai-bootstrap` (Claude-flavor for the claude adapter, generic-flavor for all others).
+10. If the adapter declares a hook installer, installs it (only claude installs a PostToolUse hook in `.claude/settings.json`).
 
-**Generic mode** (`--agent generic`):
-
-5. Writes `AGENTS.md` with agent-agnostic NotarAI workflow documentation.
-6. Writes `.notarai/reconcile-prompt.md` with a reconciliation prompt template containing `{{placeholders}}`.
-
-**Exit codes:** `0` success, `1` error.
+**Exit codes:** `0` success, `1` error (unparseable JSON, unknown agent, symlink pointer file, non-directory skills path).
 
 ---
 
@@ -285,11 +399,11 @@ notarai update
 
 The command queries the GitHub API for the latest release, compares its version against the current binary, and prints the result. Without `--check`, it also attempts to install the update:
 
-| Install method     | Detection                                  | Action                                     |
-| ------------------ | ------------------------------------------ | ------------------------------------------ |
-| **GitHub Release** | Binary is not in `.cargo/bin` or `target/` | Downloads and replaces the binary in place |
-| **cargo install**  | Binary path contains `.cargo/bin`          | Prints `cargo install notarai`             |
-| **Dev build**      | Debug build or path contains `target/`     | Prints `cargo install --path .`            |
+| Install method     | Detection                                  | Action                                       |
+| ------------------ | ------------------------------------------ | -------------------------------------------- |
+| **GitHub Release** | Binary is not in `.cargo/bin` or `target/` | Downloads and replaces the binary in place   |
+| **cargo install**  | Binary path contains `.cargo/bin`          | Prints `cargo install notarai`               |
+| **Dev build**      | Debug build or path contains `target/`     | Prints `cargo install --path crates/notarai` |
 
 **Passive update hints:**
 

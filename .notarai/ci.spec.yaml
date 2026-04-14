@@ -1,11 +1,11 @@
-schema_version: '0.7'
+schema_version: '0.8'
 
 intent: >
-  GitHub Actions workflows and Dependabot configuration for NotarAI. CI runs
-  on every PR and push to main; docs are deployed to GitHub Pages on every
-  push that touches docs/ or notarai.spec.json; cross-platform release
-  binaries are built and published to GitHub Releases and crates.io on every
-  GitHub release. Dependabot keeps GitHub Actions and Cargo dependency
+  GitHub Actions workflows, Dependabot configuration, and sampo-driven
+  release automation for NotarAI. CI runs on every PR and push to main;
+  docs are deployed to GitHub Pages on push; sampo prepares release PRs from
+  changesets on main and publishes to GitHub Releases + crates.io when a
+  release PR is merged. Dependabot keeps GitHub Actions and Cargo dependency
   versions current.
 
 behaviors:
@@ -14,24 +14,32 @@ behaviors:
     then: 'the CI workflow runs three parallel jobs — fmt (cargo fmt --check), clippy (cargo clippy -- -D warnings), and test (cargo test, which implicitly builds); the test job requires fmt and clippy to pass first'
 
   - name: docs_deploy_on_push
-    given: 'a push to main that touches any file under docs/ or notarai.spec.json'
-    then: 'the docs workflow installs mdbook and mdbook-mermaid via cargo, builds the book, copies the mdBook output into public/docs/, adds a redirect at public/index.html, copies each schemas/<version>/spec.schema.json to public/schema/<version>/spec.schema.json (frozen snapshots for 0.5 and 0.6) and copies notarai.spec.json to public/schema/0.7/spec.schema.json, and deploys the public/ directory to GitHub Pages; only one deploy runs at a time (cancel-in-progress)'
+    given: 'a push to main that touches any file under docs/, crates/notarai/notarai.spec.json, or crates/notarai/schemas/**'
+    then: 'the docs workflow installs mdbook and mdbook-mermaid via cargo, builds the book, copies the mdBook output into public/docs/, adds a redirect at public/index.html, copies each crates/notarai/schemas/<version>/spec.schema.json to public/schema/<version>/spec.schema.json (frozen snapshots for 0.5, 0.6, and 0.7) and copies crates/notarai/notarai.spec.json to public/schema/0.8/spec.schema.json, and deploys the public/ directory to GitHub Pages; only one deploy runs at a time (cancel-in-progress)'
 
   - name: init_sync_check
     given: 'the test job passes on a push to main or a PR targeting main'
     then: 'the init-sync job builds the release binary, runs notarai init, then checks git diff --exit-code .claude/skills/ to ensure the installed skills match the binary-embedded content; fails if any drift is detected'
 
-  - name: release_on_tag
-    given: 'a GitHub release is published'
-    then: 'the release workflow builds cross-platform binaries via cargo-zigbuild for 7 targets (x86_64/aarch64 linux-gnu, x86_64/aarch64 linux-musl, x86_64/aarch64 macos, x86_64 windows-gnu), uploads them as release assets, and publishes the crate to crates.io'
+  - name: release_prepare_on_main
+    given: '.sampo/changesets/*.md files are merged to main'
+    then: 'the release-pr workflow runs sampo-github-action with command: auto, which consumes changesets, bumps versions in Cargo.toml, updates CHANGELOG.md, opens (or updates) a release PR titled "Release v<version>", and (when the release PR is merged) creates a GitHub release and publishes to crates.io using cargo-token'
+
+  - name: release_publish_on_merge
+    given: 'a GitHub release is published (triggered by sampo creating the release after the release PR is merged)'
+    then: 'the release workflow builds cross-platform binaries via a matrix of native runners (ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-latest, windows-latest) using `cargo build --release --target <triple>` for 7 targets (x86_64/aarch64 linux-gnu, x86_64/aarch64 linux-musl, x86_64/aarch64 macos, x86_64 windows-gnu) and uploads them to the GitHub release via softprops/action-gh-release; sampo publish (crate tagging + crates.io publish) runs in the release-pr workflow, not here'
 
   - name: dependabot_updates
     given: 'a new version of a GitHub Actions action, Cargo dependency, or npm dependency is available'
     then: 'Dependabot opens a PR to update the pinned version'
 
+  - name: dogfood_action
+    given: 'a pull request targeting main'
+    then: 'the dogfood-action workflow builds notarai from source, runs notarai check --format json --base-branch main, and posts (or updates) a PR comment with the drift findings via render-comment.sh; does not fail the workflow on findings'
+
 constraints:
-  - 'Release binaries are cross-compiled on ubuntu-latest using cargo-zigbuild for all 7 targets'
-  - 'Crates.io publish uses CARGO_REGISTRY_TOKEN secret'
+  - 'Release binaries are built on a matrix of native runners (one per target triple), not via cargo-zigbuild'
+  - 'Crates.io publish uses CARGO_REGISTRY_TOKEN secret, passed as cargo-token input to sampo-github-action'
   - 'Docs deployment targets the github-pages environment and requires pages write + id-token write permissions'
   - 'CI must pass cargo fmt, clippy, and all tests before merge'
 
@@ -44,15 +52,37 @@ artifacts:
       role: 'CI workflow — build + test + fmt + clippy on push and PR'
     - path: '.github/workflows/docs.yml'
       role: 'Docs deploy workflow -- mdBook build + schema copy + GitHub Pages deploy on docs/ changes'
+    - path: '.github/workflows/release-pr.yml'
+      role: 'Release PR workflow -- runs sampo-github-action (command: auto) on main to prepare version-bump PR, create GitHub release, and publish to crates.io'
     - path: '.github/workflows/release.yml'
-      role: 'Release workflow — cargo-zigbuild cross-compile + GitHub Releases + crates.io publish'
+      role: 'Release workflow -- builds native matrix binaries and uploads them to the GitHub release via softprops/action-gh-release'
+    - path: '.github/workflows/dogfood-action.yml'
+      role: 'Dogfood workflow -- builds notarai from source and runs the action comment flow on every PR'
     - path: '.github/dependabot.yml'
       role: 'Dependabot config for keeping GitHub Actions and Cargo dependency versions current'
 
 decisions:
+  - date: '2026-04-11'
+    choice: 'Drift correction: release matrix uses native runners, not cargo-zigbuild'
+    rationale: >
+      The 2026-02-23 zigbuild decision below was reverted at some point without
+      a corresponding spec update. The release workflow currently uses a matrix
+      of native runners (ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-latest,
+      windows-latest) with stock `cargo build --release --target <triple>`. This
+      decision records the correction so the spec, the workflow, and the
+      behaviors match.
+
+  - date: '2026-04-11'
+    choice: 'CI workflows operate on a Cargo workspace under crates/'
+    rationale: >
+      As part of the monorepo restructure, all cargo invocations target -p notarai
+      (or pass --manifest-path crates/notarai/Cargo.toml when needed). The init-sync
+      job runs the binary from the workspace target dir; .claude/skills/ stays at
+      the repo root because Claude Code expects per-project (not per-crate) config.
+
   - date: '2026-02-23'
-    choice: 'cargo-zigbuild for cross-compilation on ubuntu-latest'
-    rationale: 'All 7 targets (including macOS and Windows) build on a single ubuntu-latest runner without needing native macOS/Windows runners, reducing CI cost and complexity'
+    choice: 'cargo-zigbuild for cross-compilation on ubuntu-latest (SUPERSEDED)'
+    rationale: 'Originally chosen so all 7 targets could build on a single ubuntu-latest runner without native macOS/Windows runners. Reverted in favor of native matrix runners; see 2026-04-11 drift correction.'
   - date: '2026-02-23'
     choice: 'Dual distribution: GitHub Releases + crates.io'
     rationale: 'GitHub Releases provides direct binary downloads for users without Rust; crates.io serves Rust users who prefer cargo install'
@@ -65,3 +95,13 @@ decisions:
   - date: '2026-03-08'
     choice: 'Migrate init-sync drift check from .claude/commands/ to .claude/skills/'
     rationale: 'Claude Code promotes .claude/skills/<name>/SKILL.md as the recommended location over .claude/commands/<name>.md; skills support additional capabilities including frontmatter, context: fork for subagents, and directory structure for supporting files'
+
+  - date: '2026-04-12'
+    choice: 'Adopted sampo for versioning, changelogs, and publishing'
+    rationale: >
+      sampo (changesets-for-polyglot-monorepos) replaces the manual GitHub release
+      trigger with a changeset-driven flow: contributors drop .sampo/changesets/*.md
+      files, sampo release consumes them into a release PR with version bumps and
+      CHANGELOG updates, and sampo publish creates tags and pushes to crates.io.
+      The CLI and action crates are linked so they version in lockstep. Short tags
+      (v0.7.0) are used for the CLI crate since it is the primary artifact.

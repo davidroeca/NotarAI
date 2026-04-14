@@ -1,0 +1,329 @@
+use crate::core::mcp_tools;
+use serde::{Deserialize, Serialize};
+use std::io::BufRead;
+use std::io::Write;
+
+#[allow(dead_code)]
+#[derive(Deserialize)]
+struct JsonRpcRequest {
+    jsonrpc: String,
+    id: Option<serde_json::Value>,
+    method: String,
+    params: Option<serde_json::Value>,
+}
+
+#[derive(Serialize)]
+struct JsonRpcResponse {
+    jsonrpc: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<JsonRpcErrorObj>,
+}
+
+#[derive(Serialize)]
+struct JsonRpcErrorObj {
+    code: i32,
+    message: String,
+}
+
+pub fn run() -> i32 {
+    let stdin = std::io::stdin();
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+    let root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+
+    for line in stdin.lock().lines() {
+        let line = match line {
+            Ok(l) => l,
+            Err(_) => break,
+        };
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        let req: JsonRpcRequest = match serde_json::from_str(line) {
+            Ok(r) => r,
+            Err(e) => {
+                let resp = error_response(None, -32700, format!("Parse error: {e}"));
+                writeln!(
+                    out,
+                    "{}",
+                    serde_json::to_string(&resp).expect("JSON serialization")
+                )
+                .ok();
+                continue;
+            }
+        };
+
+        // Notifications don't get responses
+        if req.method.starts_with("notifications/") {
+            continue;
+        }
+
+        let resp = dispatch(&req, &root);
+        writeln!(
+            out,
+            "{}",
+            serde_json::to_string(&resp).expect("JSON serialization")
+        )
+        .ok();
+    }
+
+    0
+}
+
+fn dispatch(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcResponse {
+    match req.method.as_str() {
+        "initialize" => handle_initialize(req, root),
+        "tools/list" => handle_tools_list(req),
+        "tools/call" => handle_tools_call(req, root),
+        _ => error_response(
+            req.id.clone(),
+            -32601,
+            format!("Method not found: {}", req.method),
+        ),
+    }
+}
+
+fn check_schema_staleness(root: &std::path::Path) -> Option<String> {
+    let local_path = root.join(".notarai/notarai.spec.json");
+    let local_content = std::fs::read_to_string(local_path).ok()?;
+    let local: serde_json::Value = serde_json::from_str(&local_content).ok()?;
+
+    let bundled_id = crate::core::schema::schema_id();
+    let local_id = local.get("$id").and_then(|v| v.as_str());
+
+    if bundled_id != local_id {
+        Some(format!(
+            "Schema is out of date (local: {}, bundled: {}). Run `notarai init` to update.",
+            local_id.unwrap_or("unknown"),
+            bundled_id.unwrap_or("unknown"),
+        ))
+    } else {
+        None
+    }
+}
+
+fn handle_initialize(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcResponse {
+    let mut info = serde_json::json!({
+        "protocolVersion": "2024-11-05",
+        "capabilities": {"tools": {}},
+        "serverInfo": {
+            "name": "notarai",
+            "version": env!("CARGO_PKG_VERSION"),
+        },
+        "tools": tools_list(),
+    });
+
+    if let Some(note) = check_schema_staleness(root) {
+        info["schemaNote"] = serde_json::Value::String(note);
+    }
+
+    if let Some(note) = crate::core::update::check_project_staleness(root) {
+        info["projectNote"] = serde_json::Value::String(note);
+    }
+
+    // Surface a drift score snapshot so agents can prioritize reconciliation work.
+    let scoring_config = crate::core::scoring::ScoringConfig::load(root);
+    if let Ok(score_result) = crate::core::scoring::compute_scores(root, &scoring_config, None) {
+        let most_drifted = score_result
+            .specs
+            .first()
+            .map(|s| s.spec_path.clone())
+            .unwrap_or_default();
+        info["driftScore"] = serde_json::json!((score_result.overall * 100.0).round() / 100.0);
+        info["driftStatus"] = serde_json::Value::String(score_result.status.to_string());
+        info["mostDrifted"] = serde_json::Value::String(most_drifted);
+    }
+
+    JsonRpcResponse {
+        jsonrpc: "2.0".to_string(),
+        id: req.id.clone(),
+        result: Some(info),
+        error: None,
+    }
+}
+
+fn handle_tools_list(req: &JsonRpcRequest) -> JsonRpcResponse {
+    JsonRpcResponse {
+        jsonrpc: "2.0".to_string(),
+        id: req.id.clone(),
+        result: Some(serde_json::json!({"tools": tools_list()})),
+        error: None,
+    }
+}
+
+fn tools_list() -> serde_json::Value {
+    serde_json::json!([
+        {
+            "name": "list_affected_specs",
+            "description": "List specs affected by changes on the current branch vs base branch",
+            "inputSchema": {
+                "type": "object",
+                "required": ["base_branch"],
+                "properties": {
+                    "base_branch": {"type": "string", "description": "The base branch to diff against"}
+                }
+            }
+        },
+        {
+            "name": "get_spec_diff",
+            "description": "Get the git diff filtered to files governed by a specific spec. Files already reconciled (per cache) are skipped; the response includes a 'skipped' field listing them. A cold or absent cache causes all governed files to be diffed (safe fallback). Pass bypass_cache: true to force a full diff regardless of cache state. Spec files (.notarai/**/*.spec.yaml) in the governed set are split into a separate 'spec_changes' field with full file content (not diff hunks); the 'diff' field contains only non-spec artifact diffs. When spec_changes is non-empty, 'system_spec' is also included with the full content of the system spec (the spec with a subsystems key), even if the system spec itself did not change. Binary files (images, PPTX, PDF, etc.) are listed in 'binary_changes' and excluded from 'diff' since their diffs are uninformative. 'file_categories' maps each changed file path to its artifact category from the spec (e.g. 'code', 'docs', 'assets'). 'spec_invalidated' lists cached artifact paths whose governing spec has changed since last reconciliation, indicating they need review even though the artifacts themselves have not changed on disk.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["spec_path", "base_branch"],
+                "properties": {
+                    "spec_path": {"type": "string", "description": "Relative path to the spec file"},
+                    "base_branch": {"type": "string", "description": "The base branch to diff against"},
+                    "exclude_patterns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Glob patterns to exclude from the diff via git :(exclude) pathspecs (e.g. [\"Cargo.lock\", \"*.lock\"])"
+                    },
+                    "bypass_cache": {
+                        "type": "boolean",
+                        "description": "If true, skip cache filtering and diff all governed files regardless of prior reconciliation state"
+                    }
+                }
+            }
+        },
+        {
+            "name": "get_changed_artifacts",
+            "description": "Get artifacts governed by a spec that have changed since last cache update. 'spec_invalidated' lists cached artifact paths whose governing spec has changed, indicating they need review even though the artifacts themselves have not changed on disk.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["spec_path"],
+                "properties": {
+                    "spec_path": {"type": "string", "description": "Relative path to the spec file"},
+                    "artifact_type": {"type": "string", "description": "Optional artifact type filter (e.g. 'docs', 'code')"}
+                }
+            }
+        },
+        {
+            "name": "mark_reconciled",
+            "description": "Update the cache for files after reconciliation",
+            "inputSchema": {
+                "type": "object",
+                "required": ["files"],
+                "properties": {
+                    "files": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Relative file paths to cache"
+                    }
+                }
+            }
+        },
+        {
+            "name": "clear_cache",
+            "description": "Delete the reconciliation cache database, forcing the next get_spec_diff call to diff all governed files",
+            "inputSchema": {
+                "type": "object",
+                "properties": {}
+            }
+        },
+        {
+            "name": "snapshot_state",
+            "description": "Snapshot the current reconciliation cache into .notarai/reconciliation_state.json. Call this at the end of a successful reconciliation pass.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    ])
+}
+
+fn handle_tools_call(req: &JsonRpcRequest, root: &std::path::Path) -> JsonRpcResponse {
+    let Some(params) = req.params.as_ref() else {
+        return error_response(req.id.clone(), -32602, "Missing params".to_string());
+    };
+
+    let Some(tool_name) = params.get("name").and_then(|n| n.as_str()) else {
+        return error_response(req.id.clone(), -32602, "Missing tool name".to_string());
+    };
+
+    let empty = serde_json::json!({});
+    let args = params.get("arguments").unwrap_or(&empty);
+
+    let result = match tool_name {
+        "list_affected_specs" => {
+            let base = args
+                .get("base_branch")
+                .and_then(|b| b.as_str())
+                .unwrap_or("main");
+            mcp_tools::list_affected_specs(base, root)
+        }
+        "get_spec_diff" => {
+            let Some(spec) = args.get("spec_path").and_then(|s| s.as_str()) else {
+                return error_response(req.id.clone(), -32602, "Missing spec_path".to_string());
+            };
+            let base = args
+                .get("base_branch")
+                .and_then(|b| b.as_str())
+                .unwrap_or("main");
+            let exclude_patterns: Vec<String> = args
+                .get("exclude_patterns")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let bypass_cache = args
+                .get("bypass_cache")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            mcp_tools::get_spec_diff(spec, base, &exclude_patterns, bypass_cache, root)
+        }
+        "get_changed_artifacts" => {
+            let Some(spec) = args.get("spec_path").and_then(|s| s.as_str()) else {
+                return error_response(req.id.clone(), -32602, "Missing spec_path".to_string());
+            };
+            let art_type = args.get("artifact_type").and_then(|t| t.as_str());
+            mcp_tools::get_changed_artifacts(spec, art_type, root)
+        }
+        "mark_reconciled" => {
+            let Some(arr) = args.get("files").and_then(|f| f.as_array()) else {
+                return error_response(req.id.clone(), -32602, "Missing files".to_string());
+            };
+            let files: Vec<String> = arr
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect();
+            mcp_tools::mark_reconciled(&files, root)
+        }
+        "clear_cache" => mcp_tools::clear_cache(root),
+        "snapshot_state" => mcp_tools::snapshot_state(root),
+        _ => Err(mcp_tools::McpError {
+            code: -32601,
+            message: format!("Unknown tool: {tool_name}"),
+        }),
+    };
+
+    match result {
+        Ok(value) => JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: req.id.clone(),
+            result: Some(serde_json::json!({
+                "content": [{"type": "text", "text": value.to_string()}]
+            })),
+            error: None,
+        },
+        Err(e) => error_response(req.id.clone(), e.code, e.message),
+    }
+}
+
+fn error_response(id: Option<serde_json::Value>, code: i32, message: String) -> JsonRpcResponse {
+    JsonRpcResponse {
+        jsonrpc: "2.0".to_string(),
+        id,
+        result: None,
+        error: Some(JsonRpcErrorObj { code, message }),
+    }
+}

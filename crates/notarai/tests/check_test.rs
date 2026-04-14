@@ -1,0 +1,962 @@
+use assert_cmd::cargo::cargo_bin_cmd;
+use predicates::prelude::*;
+use tempfile::TempDir;
+
+fn setup_git_repo(dir: &std::path::Path) {
+    std::process::Command::new("git")
+        .args(["init"])
+        .current_dir(dir)
+        .output()
+        .expect("git init");
+    std::process::Command::new("git")
+        .args(["config", "user.email", "test@test.com"])
+        .current_dir(dir)
+        .output()
+        .expect("git config email");
+    std::process::Command::new("git")
+        .args(["config", "user.name", "Test"])
+        .current_dir(dir)
+        .output()
+        .expect("git config name");
+}
+
+fn git_commit_all(dir: &std::path::Path, msg: &str) {
+    std::process::Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(dir)
+        .output()
+        .expect("git add");
+    std::process::Command::new("git")
+        .args(["commit", "-m", msg, "--allow-empty"])
+        .current_dir(dir)
+        .output()
+        .expect("git commit");
+}
+
+const MINIMAL_SPEC: &str = "\
+schema_version: '0.8'
+intent: 'Test spec'
+tier: registered
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source code'
+";
+
+const SYSTEM_SPEC: &str = "\
+schema_version: '0.8'
+intent: 'System spec'
+tier: registered
+artifacts:
+  configs:
+    - path: 'config.toml'
+      role: 'config'
+subsystems:
+  - $ref: '.notarai/app.spec.yaml'
+exclude:
+  - 'vendor/**'
+  - 'build/**'
+";
+
+#[test]
+fn check_exits_2_when_not_initialized() {
+    let tmp = TempDir::new().unwrap();
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .current_dir(tmp.path())
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(".notarai/"));
+}
+
+#[test]
+fn check_exits_0_when_clean() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    // Create .notarai with a spec that governs existing files.
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+
+    // System spec excludes nothing and governs the only other file.
+    let system_spec = "\
+schema_version: '0.8'
+intent: 'System'
+tier: registered
+artifacts:
+  configs:
+    - path: '.gitignore'
+      role: 'git ignore'
+subsystems:
+  - $ref: '.notarai/app.spec.yaml'
+exclude:
+  - '.eslint*'
+";
+    std::fs::write(tmp.path().join(".notarai/system.spec.yaml"), system_spec).unwrap();
+    std::fs::write(tmp.path().join(".gitignore"), "").unwrap();
+
+    git_commit_all(tmp.path(), "initial");
+
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .current_dir(tmp.path())
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("All checks passed"));
+}
+
+#[test]
+fn check_detects_coverage_gap() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+
+    // Create an ungoverned file.
+    std::fs::write(tmp.path().join("orphan.txt"), "ungoverned").unwrap();
+
+    git_commit_all(tmp.path(), "initial");
+
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .current_dir(tmp.path())
+        .assert()
+        .code(0) // Warnings only, not errors.
+        .stdout(predicate::str::contains("orphan.txt"));
+}
+
+#[test]
+fn check_detects_orphaned_glob() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+
+    // Spec references a glob that matches nothing.
+    let spec = "\
+schema_version: '0.8'
+intent: 'Test spec'
+tier: registered
+artifacts:
+  code:
+    - path: 'nonexistent/**/*.rs'
+      role: 'phantom code'
+";
+    std::fs::write(tmp.path().join(".notarai/phantom.spec.yaml"), spec).unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    // Orphaned globs are now error-severity, so exit code is 1.
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .current_dir(tmp.path())
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("nonexistent/**/*.rs"));
+}
+
+#[test]
+fn check_detects_overlapping_coverage() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+
+    // Two specs governing the same file.
+    let spec_a = "\
+schema_version: '0.8'
+intent: 'Spec A'
+tier: registered
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source'
+";
+    let spec_b = "\
+schema_version: '0.8'
+intent: 'Spec B'
+tier: registered
+artifacts:
+  code:
+    - path: 'src/main.rs'
+      role: 'entry point'
+";
+    std::fs::write(tmp.path().join(".notarai/a.spec.yaml"), spec_a).unwrap();
+    std::fs::write(tmp.path().join(".notarai/b.spec.yaml"), spec_b).unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .current_dir(tmp.path())
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("src/main.rs"))
+        .stdout(predicate::str::contains("Overlapping Coverage"));
+}
+
+#[test]
+fn check_json_output_is_valid() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+    std::fs::write(tmp.path().join("ungoverned.txt"), "test").unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check command");
+
+    // Coverage gap is a warning, exit 0.
+    assert!(output.status.success());
+
+    let json: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("valid JSON output");
+    assert!(json.get("findings").unwrap().is_array());
+    assert!(json.get("summary").unwrap().is_object());
+    assert!(json["summary"]["warnings"].is_number());
+    assert!(json["summary"]["errors"].is_number());
+
+    // Verify finding structure.
+    let findings = json["findings"].as_array().unwrap();
+    assert!(!findings.is_empty());
+    let first = &findings[0];
+    assert!(first.get("type").is_some());
+    assert!(first.get("severity").is_some());
+    assert!(first.get("message").is_some());
+}
+
+#[test]
+fn check_detects_circular_ref_cycle() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+
+    // a -> b -> a cycle via $ref. Use ./ form (relative to spec parent dir),
+    // matching the convention used in the real system.spec.yaml.
+    let spec_a = "\
+schema_version: '0.8'
+intent: 'Spec A'
+tier: registered
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source'
+subsystems:
+  - $ref: './b.spec.yaml'
+";
+    let spec_b = "\
+schema_version: '0.8'
+intent: 'Spec B'
+tier: registered
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source'
+dependencies:
+  - $ref: './a.spec.yaml'
+";
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    std::fs::write(tmp.path().join(".notarai/a.spec.yaml"), spec_a).unwrap();
+    std::fs::write(tmp.path().join(".notarai/b.spec.yaml"), spec_b).unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check command");
+
+    // Cycle is error-severity, so exit code is 1.
+    assert_eq!(output.status.code(), Some(1));
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let cycles: Vec<&serde_json::Value> = findings
+        .iter()
+        .filter(|f| f["type"] == "circular_ref")
+        .collect();
+    assert_eq!(cycles.len(), 1, "expected exactly one circular_ref finding");
+    assert_eq!(cycles[0]["severity"], "error");
+    let msg = cycles[0]["message"].as_str().unwrap();
+    assert!(msg.contains("a.spec.yaml") && msg.contains("b.spec.yaml"));
+}
+
+#[test]
+fn check_detects_behavior_missing_given() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+
+    let spec = "\
+schema_version: '0.8'
+intent: 'Test spec'
+behaviors:
+  - name: incomplete_behavior
+    then: 'something happens'
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source'
+";
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), spec).unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check command");
+
+    // Warning-severity by default, exit 0.
+    assert_eq!(output.status.code(), Some(0));
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let incomplete: Vec<&serde_json::Value> = findings
+        .iter()
+        .filter(|f| f["type"] == "behavior_incomplete")
+        .collect();
+    assert_eq!(incomplete.len(), 1);
+    assert_eq!(incomplete[0]["severity"], "warning");
+    let msg = incomplete[0]["message"].as_str().unwrap();
+    assert!(msg.contains("incomplete_behavior") && msg.contains("given"));
+}
+
+#[test]
+fn check_strict_promotes_warnings_to_errors() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+    // Coverage gap: file not in any spec, no exclude patterns.
+    std::fs::write(tmp.path().join("orphan.txt"), "ungoverned").unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    // Without --strict: warning severity, exit 0.
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .current_dir(tmp.path())
+        .assert()
+        .code(0);
+
+    // With --strict: warning is promoted to error, exit 1.
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--strict", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check --strict");
+    assert_eq!(output.status.code(), Some(1));
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let coverage_gaps: Vec<&serde_json::Value> = findings
+        .iter()
+        .filter(|f| f["type"] == "coverage_gap")
+        .collect();
+    assert!(!coverage_gaps.is_empty());
+    for g in &coverage_gaps {
+        assert_eq!(g["severity"], "error");
+    }
+    assert!(json["summary"]["errors"].as_u64().unwrap() >= 1);
+    assert_eq!(json["summary"]["warnings"].as_u64().unwrap(), 0);
+}
+
+#[test]
+fn check_respects_exclude_patterns() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("vendor")).unwrap();
+    std::fs::write(tmp.path().join("vendor/lib.js"), "external").unwrap();
+    std::fs::write(tmp.path().join(".notarai/system.spec.yaml"), SYSTEM_SPEC).unwrap();
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+    std::fs::write(tmp.path().join("config.toml"), "").unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check command");
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+
+    // vendor/lib.js should NOT appear as a coverage gap (excluded by system spec).
+    let coverage_gaps: Vec<&serde_json::Value> = findings
+        .iter()
+        .filter(|f| f["type"] == "coverage_gap")
+        .collect();
+    let gap_files: Vec<&str> = coverage_gaps
+        .iter()
+        .filter_map(|f| f["file_path"].as_str())
+        .collect();
+    assert!(
+        !gap_files.contains(&"vendor/lib.js"),
+        "vendor/lib.js should be excluded by system spec exclude patterns, found in: {gap_files:?}"
+    );
+}
+
+#[test]
+fn check_json_output_includes_tier_field() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+    std::fs::write(tmp.path().join("ungoverned.txt"), "test").unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check command");
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    assert!(!findings.is_empty());
+
+    // Every finding must have a tier field with a valid value.
+    for f in findings {
+        let tier = f["tier"].as_str().expect("tier field must be a string");
+        assert!(
+            ["critical", "drift", "housekeeping"].contains(&tier),
+            "unexpected tier value: {tier}"
+        );
+    }
+
+    // Coverage gap should be housekeeping tier.
+    let coverage_gaps: Vec<&serde_json::Value> = findings
+        .iter()
+        .filter(|f| f["type"] == "coverage_gap")
+        .collect();
+    assert!(!coverage_gaps.is_empty());
+    for g in &coverage_gaps {
+        assert_eq!(g["tier"], "housekeeping");
+    }
+}
+
+#[test]
+fn check_orphaned_glob_is_critical_tier() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+
+    let spec = "\
+schema_version: '0.8'
+intent: 'Test spec'
+tier: registered
+artifacts:
+  code:
+    - path: 'nonexistent/**/*.rs'
+      role: 'phantom code'
+";
+    std::fs::write(tmp.path().join(".notarai/phantom.spec.yaml"), spec).unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check command");
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let orphaned: Vec<&serde_json::Value> = findings
+        .iter()
+        .filter(|f| f["type"] == "orphaned_glob")
+        .collect();
+    assert_eq!(orphaned.len(), 1);
+    assert_eq!(orphaned[0]["tier"], "critical");
+}
+
+#[test]
+fn check_circular_ref_is_critical_tier() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+
+    let spec_a = "\
+schema_version: '0.8'
+intent: 'Spec A'
+tier: registered
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source'
+subsystems:
+  - $ref: './b.spec.yaml'
+";
+    let spec_b = "\
+schema_version: '0.8'
+intent: 'Spec B'
+tier: registered
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source'
+dependencies:
+  - $ref: './a.spec.yaml'
+";
+    std::fs::write(tmp.path().join(".notarai/a.spec.yaml"), spec_a).unwrap();
+    std::fs::write(tmp.path().join(".notarai/b.spec.yaml"), spec_b).unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check command");
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let cycles: Vec<&serde_json::Value> = findings
+        .iter()
+        .filter(|f| f["type"] == "circular_ref")
+        .collect();
+    assert_eq!(cycles.len(), 1);
+    assert_eq!(cycles[0]["tier"], "critical");
+}
+
+#[test]
+fn check_config_fail_on_tier() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+    // Create a coverage gap (housekeeping tier, warning severity).
+    std::fs::write(tmp.path().join("orphan.txt"), "ungoverned").unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    // Without check.yaml: warning-only = exit 0.
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .current_dir(tmp.path())
+        .assert()
+        .code(0);
+
+    // With fail_on: housekeeping, the coverage gap should cause exit 1.
+    std::fs::write(
+        tmp.path().join(".notarai/check.yaml"),
+        "fail_on: housekeeping\n",
+    )
+    .unwrap();
+
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .current_dir(tmp.path())
+        .assert()
+        .code(1);
+}
+
+#[test]
+fn check_config_warn_on_suppresses_tiers() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+    std::fs::write(tmp.path().join("orphan.txt"), "ungoverned").unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    // Without config: coverage gap appears.
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check command");
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let count = json["findings"].as_array().unwrap().len();
+    assert!(count > 0, "expected at least one finding");
+
+    // With warn_on: critical, housekeeping findings should be suppressed.
+    std::fs::write(
+        tmp.path().join(".notarai/check.yaml"),
+        "warn_on: critical\n",
+    )
+    .unwrap();
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("check command");
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    // All remaining findings should be critical tier only.
+    for f in findings {
+        assert_eq!(
+            f["tier"], "critical",
+            "expected only critical findings when warn_on: critical"
+        );
+    }
+}
+
+#[test]
+fn check_human_output_shows_tier_headers() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+    std::fs::write(tmp.path().join("orphan.txt"), "ungoverned").unwrap();
+    git_commit_all(tmp.path(), "initial");
+
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .current_dir(tmp.path())
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("Housekeeping"));
+}
+
+// -- T001-T002: Test-spec alignment checks -----------------------------------
+
+const TIER1_SPEC_NO_TESTED_BY: &str = "\
+schema_version: '0.8'
+intent: 'Tier 1 spec'
+artifacts:
+  code:
+    - path: 'src/lib.rs'
+      role: 'src'
+behaviors:
+  - name: does_thing
+    given: 'input'
+    then: 'output'
+";
+
+#[test]
+fn check_t001_warns_on_missing_tested_by() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/lib.rs"), "pub fn x() {}\n").unwrap();
+    std::fs::write(
+        tmp.path().join(".notarai/app.spec.yaml"),
+        TIER1_SPEC_NO_TESTED_BY,
+    )
+    .unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .assert()
+        .stdout(predicate::str::contains("test_coverage_missing"));
+}
+
+#[test]
+fn check_t002_errors_on_missing_tested_by_path() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/lib.rs"), "pub fn x() {}\n").unwrap();
+
+    let spec = "\
+schema_version: '0.8'
+intent: 'Tier 1 spec'
+artifacts:
+  code:
+    - path: 'src/lib.rs'
+      role: 'src'
+behaviors:
+  - name: does_thing
+    given: 'input'
+    then: 'output'
+    tested_by:
+      - path: 'tests/does_not_exist.rs'
+";
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), spec).unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("test_path_missing"), "stdout: {stdout}");
+    // T002 is Critical, default fail_on is error severity -> exit 1.
+    assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
+fn check_t001_suppressed_for_registered_tier() {
+    // Registered/derived specs do not require tested_by.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), MINIMAL_SPEC).unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("test_coverage_missing"),
+        "T001 should not fire on registered-tier specs: {stdout}"
+    );
+}
+
+#[test]
+fn check_t001_suppressed_for_cross_cutting() {
+    // Cross-cutting specs have no artifacts and their behaviors describe
+    // invariants applied to other specs, so T001 must not fire.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+
+    // A governing spec for the code file, plus a cross-cutting spec applied to it.
+    let governing = "\
+schema_version: '0.8'
+intent: 'App'
+tier: registered
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'src'
+applies:
+  - $ref: './style.spec.yaml'
+";
+    let cross_cutting = "\
+schema_version: '0.8'
+cross_cutting: true
+intent: 'Style invariants'
+behaviors:
+  - name: american_english
+    given: 'british spelling appears'
+    then: 'reconciliation flags it'
+";
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), governing).unwrap();
+    std::fs::write(tmp.path().join(".notarai/style.spec.yaml"), cross_cutting).unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("test_coverage_missing"),
+        "T001 should not fire on cross-cutting specs: {stdout}"
+    );
+}
+
+#[test]
+fn check_t001_suppressed_for_docs_only_spec() {
+    // A tier-1 spec with only docs artifacts (no artifacts.code) describes
+    // non-code outputs; T001 does not apply.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("docs")).unwrap();
+    std::fs::write(tmp.path().join("docs/README.md"), "# docs\n").unwrap();
+
+    let docs_spec = "\
+schema_version: '0.8'
+intent: 'Documentation spec'
+artifacts:
+  docs:
+    - path: 'docs/README.md'
+      role: 'entry point'
+behaviors:
+  - name: readme_exists
+    given: 'project is initialized'
+    then: 'a top-level README exists'
+";
+    std::fs::write(tmp.path().join(".notarai/docs.spec.yaml"), docs_spec).unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("test_coverage_missing"),
+        "T001 should not fire on docs-only specs: {stdout}"
+    );
+}
+
+#[test]
+fn check_t001_suppressed_for_configs_only_spec() {
+    // A tier-1 spec governing only configs (e.g. CI workflows) has no code
+    // to unit-test; T001 should stay silent.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join(".github/workflows")).unwrap();
+    std::fs::write(
+        tmp.path().join(".github/workflows/ci.yml"),
+        "name: ci\non: [push]\njobs: {}\n",
+    )
+    .unwrap();
+
+    let ci_spec = "\
+schema_version: '0.8'
+intent: 'CI config'
+artifacts:
+  configs:
+    - path: '.github/workflows/ci.yml'
+      role: 'ci workflow'
+behaviors:
+  - name: ci_runs
+    given: 'push event'
+    then: 'workflow runs'
+";
+    std::fs::write(tmp.path().join(".notarai/ci.spec.yaml"), ci_spec).unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("test_coverage_missing"),
+        "T001 should not fire on configs-only specs: {stdout}"
+    );
+}
+
+#[test]
+fn check_t001_fires_when_code_artifacts_present_without_docs() {
+    // Sanity: the suppression must be a proper subset. A spec with code
+    // artifacts but no docs still fires T001.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/lib.rs"), "pub fn x() {}\n").unwrap();
+    std::fs::write(
+        tmp.path().join(".notarai/app.spec.yaml"),
+        TIER1_SPEC_NO_TESTED_BY,
+    )
+    .unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("test_coverage_missing"),
+        "T001 should fire when code artifacts exist: {stdout}"
+    );
+}
+
+// -- Output formatting -------------------------------------------------------
+
+#[test]
+fn check_human_output_elides_redundant_spec_locator() {
+    // When the finding's detail line already is the spec path, the
+    // `in <spec>` locator would be a duplicate; it should be elided.
+    // T001 findings have no file_path, so the detail resolves to spec_path.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/lib.rs"), "pub fn x() {}\n").unwrap();
+    std::fs::write(
+        tmp.path().join(".notarai/app.spec.yaml"),
+        TIER1_SPEC_NO_TESTED_BY,
+    )
+    .unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .arg("check")
+        .env("NO_COLOR", "1")
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Find the T001 warning line and assert the next non-empty line is NOT
+    // "            in .notarai/app.spec.yaml".
+    let lines: Vec<&str> = stdout.lines().collect();
+    let warn_idx = lines
+        .iter()
+        .position(|l| l.contains(".notarai/app.spec.yaml") && l.contains("warning"))
+        .expect("expected a warning line naming app.spec.yaml");
+    let next_meaningful = lines[warn_idx + 1..]
+        .iter()
+        .find(|l| !l.trim().is_empty())
+        .expect("expected a follow-up line after the warning");
+    assert!(
+        !next_meaningful.contains("in .notarai/app.spec.yaml"),
+        "redundant `in <spec>` locator should be elided; got: {next_meaningful}"
+    );
+}
+
+#[test]
+fn check_human_output_surfaces_behavior_name_for_t001() {
+    // T001's value is naming which behavior lacks coverage; the human
+    // output must print the message line so the behavior name shows.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/lib.rs"), "pub fn x() {}\n").unwrap();
+    std::fs::write(
+        tmp.path().join(".notarai/app.spec.yaml"),
+        TIER1_SPEC_NO_TESTED_BY,
+    )
+    .unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .env("NO_COLOR", "1")
+        .current_dir(tmp.path())
+        .assert()
+        .stdout(predicate::str::contains("T001"))
+        .stdout(predicate::str::contains("does_thing"));
+}
