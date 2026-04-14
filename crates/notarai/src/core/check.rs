@@ -59,7 +59,6 @@ pub enum CheckType {
     LintViolation(LintRuleId),
     TestCoverageMissing,
     TestPathMissing,
-    TestStale,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -136,7 +135,6 @@ pub fn tier_for_check_type(ct: &CheckType) -> SeverityTier {
         | CheckType::TestCoverageMissing => SeverityTier::Housekeeping,
         // Test alignment checks.
         CheckType::TestPathMissing => SeverityTier::Critical,
-        CheckType::TestStale => SeverityTier::Drift,
         // Lint rules mapped individually.
         CheckType::LintViolation(rule_id) => match rule_id {
             LintRuleId::L004 | LintRuleId::L009 => SeverityTier::Critical,
@@ -195,11 +193,7 @@ pub fn run_all_checks(project_root: &Path) -> Result<CheckResult, String> {
     findings.extend(check_overlapping_coverage(&spec_files));
     findings.extend(check_circular_refs(&loaded_specs));
     findings.extend(check_behavior_completeness(&loaded_specs));
-    findings.extend(check_test_alignment(
-        project_root,
-        &loaded_specs,
-        &spec_files,
-    ));
+    findings.extend(check_test_alignment(project_root, &loaded_specs));
 
     Ok(CheckResult { findings })
 }
@@ -405,21 +399,21 @@ fn check_behavior_completeness(loaded_specs: &[(String, serde_json::Value)]) -> 
         .collect()
 }
 
-/// T001-T003: Test-spec alignment checks.
+/// T001-T002: Test-spec alignment checks.
 ///
 /// - T001 (Housekeeping): A tier-1 behavior has no `tested_by` entry.
 /// - T002 (Critical): A `tested_by.path` does not exist on disk.
-/// - T003 (Drift): The test file's mtime is older than any governed code file.
+///
+/// T003 (mtime-based staleness) was removed: filesystem timestamps cannot
+/// distinguish a test written before its code (TDD) from a genuinely stale
+/// test, producing false positives in normal TDD workflows. A reliable
+/// replacement would need the hash cache to determine whether code changed
+/// after the last reconciliation; that is tracked as an open question.
 fn check_test_alignment(
     project_root: &Path,
     loaded_specs: &[(String, serde_json::Value)],
-    spec_files: &[(String, Vec<String>)],
 ) -> Vec<CheckFinding> {
     let mut findings = Vec::new();
-
-    // Build a per-spec map of governed-code newest mtime for T003.
-    let spec_files_map: HashMap<&str, &Vec<String>> =
-        spec_files.iter().map(|(r, f)| (r.as_str(), f)).collect();
 
     for (spec_rel, spec_value) in loaded_specs {
         // Only tier-1 (full) specs participate. Absent tier field defaults to full.
@@ -443,12 +437,6 @@ fn check_test_alignment(
         let Some(behaviors) = spec_value.get("behaviors").and_then(|b| b.as_array()) else {
             continue;
         };
-
-        // Compute newest mtime of governed code for T003 (once per spec).
-        let newest_code_mtime = spec_files_map
-            .get(spec_rel.as_str())
-            .map(|files| newest_mtime(project_root, files))
-            .unwrap_or(None);
 
         for b in behaviors {
             let name = b
@@ -489,24 +477,6 @@ fn check_test_alignment(
                                     "T002: Test path does not exist: {path} (behavior '{name}' in {spec_rel})"
                                 ),
                             });
-                            continue;
-                        }
-                        // T003: stale test file vs code.
-                        if let (Some(code_mtime), Some(test_mtime)) =
-                            (newest_code_mtime, file_mtime(&full))
-                            && test_mtime < code_mtime
-                        {
-                            findings.push(CheckFinding {
-                                    check_type: CheckType::TestStale,
-                                    severity: Severity::Warning,
-                                    tier: SeverityTier::Drift,
-                                    spec_path: Some(spec_rel.clone()),
-                                    file_path: Some(path.to_string()),
-                                    glob_pattern: None,
-                                    message: format!(
-                                        "T003: Test file {path} is older than governed code (behavior '{name}' in {spec_rel})"
-                                    ),
-                                });
                         }
                     }
                 }
@@ -515,15 +485,4 @@ fn check_test_alignment(
     }
 
     findings
-}
-
-fn file_mtime(path: &Path) -> Option<std::time::SystemTime> {
-    std::fs::metadata(path).ok().and_then(|m| m.modified().ok())
-}
-
-fn newest_mtime(project_root: &Path, rel_paths: &[String]) -> Option<std::time::SystemTime> {
-    rel_paths
-        .iter()
-        .filter_map(|rel| file_mtime(&project_root.join(rel)))
-        .max()
 }

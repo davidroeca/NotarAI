@@ -553,6 +553,21 @@ decisions:
       delay actionable feedback with no design benefit. When lint lands, it can absorb this rule
       or leave it in place; the rule ID will be stable either way.
 
+  - date: '2026-04-13'
+    choice: 'Remove T003 (mtime-based test staleness) from notarai check'
+    rationale: >
+      T003 compared test file mtime against governed code mtime to flag potentially stale tests.
+      Filesystem timestamps cannot distinguish a test written before its code (standard TDD) from
+      a test that genuinely has not been updated since the code changed -- any TDD workflow
+      produces a false positive by design. A reliable replacement would need to use the hash cache
+      to determine whether code changed after the last reconciliation, which is a more complex
+      design. Removed for now; the ChangedSinceReconciliation check already surfaces drifted code
+      files. T003 may be re-introduced with a cache-backed implementation.
+    related_files:
+      - 'crates/notarai/src/core/check.rs'
+      - 'crates/notarai/src/commands/check.rs'
+      - 'crates/notarai/tests/check_test.rs'
+
   - date: '2026-04-04'
     choice: 'export-context --bootstrap outputs bootstrap-prompt.md for generic agents; does not require .notarai/'
     rationale: >

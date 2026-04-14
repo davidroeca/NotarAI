@@ -646,7 +646,7 @@ fn check_human_output_shows_tier_headers() {
         .stdout(predicate::str::contains("Housekeeping"));
 }
 
-// -- T001-T003: Test-spec alignment checks -----------------------------------
+// -- T001-T002: Test-spec alignment checks -----------------------------------
 
 const TIER1_SPEC_NO_TESTED_BY: &str = "\
 schema_version: '0.8'
@@ -716,45 +716,6 @@ behaviors:
     assert!(stdout.contains("test_path_missing"), "stdout: {stdout}");
     // T002 is Critical, default fail_on is error severity -> exit 1.
     assert_eq!(output.status.code(), Some(1));
-}
-
-#[test]
-fn check_t003_warns_when_test_older_than_code() {
-    let tmp = TempDir::new().unwrap();
-    setup_git_repo(tmp.path());
-    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
-    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
-    std::fs::create_dir_all(tmp.path().join("tests")).unwrap();
-
-    // Write test first, then wait, then write code so code mtime > test mtime.
-    std::fs::write(tmp.path().join("tests/lib_test.rs"), "// test\n").unwrap();
-    std::thread::sleep(std::time::Duration::from_millis(1100));
-    std::fs::write(tmp.path().join("src/lib.rs"), "pub fn x() {}\n").unwrap();
-
-    let spec = "\
-schema_version: '0.8'
-intent: 'Tier 1 spec'
-artifacts:
-  code:
-    - path: 'src/lib.rs'
-      role: 'src'
-behaviors:
-  - name: does_thing
-    given: 'input'
-    then: 'output'
-    tested_by:
-      - path: 'tests/lib_test.rs'
-";
-    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), spec).unwrap();
-    git_commit_all(tmp.path(), "init");
-
-    let output = cargo_bin_cmd!("notarai")
-        .args(["check", "--format", "json"])
-        .current_dir(tmp.path())
-        .output()
-        .expect("run check");
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("test_stale"), "stdout: {stdout}");
 }
 
 #[test]

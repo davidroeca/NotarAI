@@ -126,7 +126,6 @@ fn print_human(result: &CheckResult) {
         (CheckType::BehaviorIncomplete, "Incomplete Behaviors"),
         (CheckType::TestPathMissing, "Test Paths Missing"),
         (CheckType::TestCoverageMissing, "Test Coverage Missing"),
-        (CheckType::TestStale, "Stale Tests"),
     ];
 
     for (tier_idx, tier) in tiers.iter().enumerate() {
@@ -237,7 +236,6 @@ fn check_type_str(ct: &CheckType) -> String {
         CheckType::BehaviorIncomplete => "behavior_incomplete".to_string(),
         CheckType::TestCoverageMissing => "test_coverage_missing".to_string(),
         CheckType::TestPathMissing => "test_path_missing".to_string(),
-        CheckType::TestStale => "test_stale".to_string(),
         CheckType::LintViolation(id) => format!("lint_{}", id.as_str().to_lowercase()),
     }
 }
