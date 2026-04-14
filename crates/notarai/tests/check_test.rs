@@ -785,3 +785,178 @@ behaviors:
         "T001 should not fire on cross-cutting specs: {stdout}"
     );
 }
+
+#[test]
+fn check_t001_suppressed_for_docs_only_spec() {
+    // A tier-1 spec with only docs artifacts (no artifacts.code) describes
+    // non-code outputs; T001 does not apply.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("docs")).unwrap();
+    std::fs::write(tmp.path().join("docs/README.md"), "# docs\n").unwrap();
+
+    let docs_spec = "\
+schema_version: '0.8'
+intent: 'Documentation spec'
+artifacts:
+  docs:
+    - path: 'docs/README.md'
+      role: 'entry point'
+behaviors:
+  - name: readme_exists
+    given: 'project is initialized'
+    then: 'a top-level README exists'
+";
+    std::fs::write(tmp.path().join(".notarai/docs.spec.yaml"), docs_spec).unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("test_coverage_missing"),
+        "T001 should not fire on docs-only specs: {stdout}"
+    );
+}
+
+#[test]
+fn check_t001_suppressed_for_configs_only_spec() {
+    // A tier-1 spec governing only configs (e.g. CI workflows) has no code
+    // to unit-test; T001 should stay silent.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join(".github/workflows")).unwrap();
+    std::fs::write(
+        tmp.path().join(".github/workflows/ci.yml"),
+        "name: ci\non: [push]\njobs: {}\n",
+    )
+    .unwrap();
+
+    let ci_spec = "\
+schema_version: '0.8'
+intent: 'CI config'
+artifacts:
+  configs:
+    - path: '.github/workflows/ci.yml'
+      role: 'ci workflow'
+behaviors:
+  - name: ci_runs
+    given: 'push event'
+    then: 'workflow runs'
+";
+    std::fs::write(tmp.path().join(".notarai/ci.spec.yaml"), ci_spec).unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("test_coverage_missing"),
+        "T001 should not fire on configs-only specs: {stdout}"
+    );
+}
+
+#[test]
+fn check_t001_fires_when_code_artifacts_present_without_docs() {
+    // Sanity: the suppression must be a proper subset. A spec with code
+    // artifacts but no docs still fires T001.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/lib.rs"), "pub fn x() {}\n").unwrap();
+    std::fs::write(
+        tmp.path().join(".notarai/app.spec.yaml"),
+        TIER1_SPEC_NO_TESTED_BY,
+    )
+    .unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("test_coverage_missing"),
+        "T001 should fire when code artifacts exist: {stdout}"
+    );
+}
+
+// -- Output formatting -------------------------------------------------------
+
+#[test]
+fn check_human_output_elides_redundant_spec_locator() {
+    // When the finding's detail line already is the spec path, the
+    // `in <spec>` locator would be a duplicate; it should be elided.
+    // T001 findings have no file_path, so the detail resolves to spec_path.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/lib.rs"), "pub fn x() {}\n").unwrap();
+    std::fs::write(
+        tmp.path().join(".notarai/app.spec.yaml"),
+        TIER1_SPEC_NO_TESTED_BY,
+    )
+    .unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .arg("check")
+        .env("NO_COLOR", "1")
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Find the T001 warning line and assert the next non-empty line is NOT
+    // "            in .notarai/app.spec.yaml".
+    let lines: Vec<&str> = stdout.lines().collect();
+    let warn_idx = lines
+        .iter()
+        .position(|l| l.contains(".notarai/app.spec.yaml") && l.contains("warning"))
+        .expect("expected a warning line naming app.spec.yaml");
+    let next_meaningful = lines[warn_idx + 1..]
+        .iter()
+        .find(|l| !l.trim().is_empty())
+        .expect("expected a follow-up line after the warning");
+    assert!(
+        !next_meaningful.contains("in .notarai/app.spec.yaml"),
+        "redundant `in <spec>` locator should be elided; got: {next_meaningful}"
+    );
+}
+
+#[test]
+fn check_human_output_surfaces_behavior_name_for_t001() {
+    // T001's value is naming which behavior lacks coverage; the human
+    // output must print the message line so the behavior name shows.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/lib.rs"), "pub fn x() {}\n").unwrap();
+    std::fs::write(
+        tmp.path().join(".notarai/app.spec.yaml"),
+        TIER1_SPEC_NO_TESTED_BY,
+    )
+    .unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    cargo_bin_cmd!("notarai")
+        .arg("check")
+        .env("NO_COLOR", "1")
+        .current_dir(tmp.path())
+        .assert()
+        .stdout(predicate::str::contains("T001"))
+        .stdout(predicate::str::contains("does_thing"));
+}

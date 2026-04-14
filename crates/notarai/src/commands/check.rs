@@ -165,14 +165,23 @@ fn print_human(result: &CheckResult) {
                     Severity::Error => "\x1b[31m    error  \x1b[0m",
                 };
                 println!("{prefix}: {detail}");
+                // Only show the `in {spec}` locator when it adds information:
+                // skip it when the detail is already the spec path (would be
+                // a redundant repeat) and when CircularRef formatting owns the
+                // message line below.
                 if !matches!(check_type, CheckType::CircularRef)
                     && let Some(spec) = &f.spec_path
+                    && spec.as_str() != detail
                 {
                     println!("            in {spec}");
                 }
+                // Surface the finding message when the detail alone doesn't
+                // identify the problem (e.g. the behavior name in T001).
                 if matches!(
                     check_type,
-                    CheckType::CircularRef | CheckType::BehaviorIncomplete
+                    CheckType::CircularRef
+                        | CheckType::BehaviorIncomplete
+                        | CheckType::TestCoverageMissing
                 ) {
                     println!("            {}", f.message);
                 }

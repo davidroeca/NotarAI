@@ -345,8 +345,12 @@ behaviors:
     then: 'default behavior: fail on error-severity findings (existing behavior), show all tiers'
 
   - name: check_test_coverage_missing
-    given: 'a tier-1 (full) spec has a behavior without a tested_by entry'
-    then: 'emits T001 (housekeeping, warning) naming the behavior and spec'
+    given: 'a tier-1 (full) spec with at least one artifacts.code entry has a behavior without a tested_by entry'
+    then: >
+      emits T001 (housekeeping, warning) naming the behavior and spec;
+      suppressed for cross_cutting specs and for specs whose artifacts block
+      declares no code entries (docs-only, config-only, or umbrella specs),
+      since those govern artifacts that are not code-tested
 
   - name: check_test_path_missing
     given: 'a behavior lists a tested_by path that does not exist on disk'

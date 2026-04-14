@@ -434,6 +434,15 @@ fn check_test_alignment(
         {
             continue;
         }
+        // Specs with no `artifacts.code` entries govern docs/configs/assets
+        // that aren't code-tested; T001 doesn't apply to them. T002 (test path
+        // missing) still fires below, since it only runs on behaviors that
+        // explicitly declare `tested_by`.
+        let has_code_artifacts = spec_value
+            .get("artifacts")
+            .and_then(|a| a.get("code"))
+            .and_then(|c| c.as_array())
+            .is_some_and(|arr| !arr.is_empty());
         let Some(behaviors) = spec_value.get("behaviors").and_then(|b| b.as_array()) else {
             continue;
         };
@@ -446,7 +455,7 @@ fn check_test_alignment(
             let tested_by = b.get("tested_by").and_then(|t| t.as_array());
 
             match tested_by {
-                None => {
+                None if has_code_artifacts => {
                     findings.push(CheckFinding {
                         check_type: CheckType::TestCoverageMissing,
                         severity: Severity::Warning,
@@ -454,11 +463,10 @@ fn check_test_alignment(
                         spec_path: Some(spec_rel.clone()),
                         file_path: None,
                         glob_pattern: None,
-                        message: format!(
-                            "T001: Behavior '{name}' has no tested_by entry (in {spec_rel})"
-                        ),
+                        message: format!("T001: Behavior '{name}' has no tested_by entry"),
                     });
                 }
+                None => {}
                 Some(arr) => {
                     for entry in arr {
                         let Some(path) = entry.get("path").and_then(|p| p.as_str()) else {
