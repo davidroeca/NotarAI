@@ -4,9 +4,14 @@
   "title": "NotarAI Spec File",
   "description": "A structured intent specification that serves as the canonical source of truth for a system, feature, or artifact. The LLM reconciliation engine uses this schema to validate specs, detect drift between spec and implementation, and propose updates.",
   "type": "object",
-  "required": ["schema_version", "intent", "artifacts"],
+  "required": ["schema_version", "intent"],
   "additionalProperties": false,
   "properties": {
+    "cross_cutting": {
+      "type": "boolean",
+      "description": "Marks this spec as a cross-cutting concern (e.g. style, security, logging) that layers invariants/constraints/behaviors onto including specs via `applies` rather than governing files directly. Cross-cutting specs omit `artifacts` and must not appear as a top-level system spec (no `subsystems` or `exclude`). They may only be referenced via another spec's `applies` list.",
+      "default": false
+    },
     "schema_version": {
       "type": "string",
       "description": "The version of the spec schema this file conforms to. Used for forward compatibility as the schema evolves.",
@@ -1033,13 +1038,35 @@
       }
     }
   },
-  "if": {
-    "properties": {
-      "tier": { "enum": ["registered", "derived"] }
+  "allOf": [
+    {
+      "if": {
+        "properties": { "cross_cutting": { "const": true } },
+        "required": ["cross_cutting"]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["subsystems"] },
+            { "required": ["exclude"] },
+            { "required": ["artifacts"] }
+          ]
+        }
+      },
+      "else": {
+        "required": ["artifacts"]
+      }
     },
-    "required": ["tier"]
-  },
-  "else": {
-    "required": ["behaviors"]
-  }
+    {
+      "if": {
+        "properties": {
+          "tier": { "enum": ["registered", "derived"] }
+        },
+        "required": ["tier"]
+      },
+      "else": {
+        "required": ["behaviors"]
+      }
+    }
+  ]
 }

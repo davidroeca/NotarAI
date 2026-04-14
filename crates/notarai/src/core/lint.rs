@@ -15,6 +15,7 @@ pub enum LintRuleId {
     L008,
     L009,
     L010,
+    L011,
 }
 
 impl LintRuleId {
@@ -30,6 +31,7 @@ impl LintRuleId {
             Self::L008 => "L008",
             Self::L009 => "L009",
             Self::L010 => "L010",
+            Self::L011 => "L011",
         }
     }
 }
@@ -159,6 +161,7 @@ fn parse_rule_id(s: &str) -> Option<LintRuleId> {
         "L008" => Some(LintRuleId::L008),
         "L009" => Some(LintRuleId::L009),
         "L010" => Some(LintRuleId::L010),
+        "L011" => Some(LintRuleId::L011),
         _ => None,
     }
 }
@@ -217,6 +220,9 @@ pub fn run_all_lints(project_root: &Path, config: &LintConfig) -> Result<Vec<Lin
     }
     if config.is_enabled(LintRuleId::L010) {
         findings.extend(lint_l010_duplicate_behaviors(&loaded_specs, config));
+    }
+    if config.is_enabled(LintRuleId::L011) {
+        findings.extend(lint_l011_cross_cutting_as_subsystem(&loaded_specs, config));
     }
 
     Ok(findings)
@@ -741,6 +747,61 @@ fn lint_l010_duplicate_behaviors(
                     spec_path: spec_rel.clone(),
                     message: format!(
                         "Duplicate behavior name '{name}' ({count} occurrences, in {spec_rel})"
+                    ),
+                });
+            }
+        }
+    }
+
+    findings
+}
+
+/// L011: A spec marked `cross_cutting: true` is referenced from another spec's
+/// `subsystems` list. Cross-cutting specs must only be referenced via `applies`
+/// since they describe concerns that layer onto a governing spec, not
+/// hierarchical children.
+fn lint_l011_cross_cutting_as_subsystem(
+    loaded_specs: &[(String, serde_json::Value)],
+    config: &LintConfig,
+) -> Vec<LintFinding> {
+    let severity = config.effective_severity(LintRuleId::L011, LintSeverity::Error);
+
+    // Build a set of cross-cutting spec paths (relative to project root).
+    let cross_cutting: HashSet<String> = loaded_specs
+        .iter()
+        .filter(|(_, v)| {
+            v.get("cross_cutting")
+                .and_then(|b| b.as_bool())
+                .unwrap_or(false)
+        })
+        .map(|(rel, _)| rel.clone())
+        .collect();
+
+    if cross_cutting.is_empty() {
+        return vec![];
+    }
+
+    let mut findings = Vec::new();
+    for (spec_rel, spec_value) in loaded_specs {
+        let Some(subsystems) = spec_value.get("subsystems").and_then(|v| v.as_array()) else {
+            continue;
+        };
+        let parent_dir = Path::new(spec_rel)
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_default();
+        for item in subsystems {
+            let Some(ref_str) = item.get("$ref").and_then(|r| r.as_str()) else {
+                continue;
+            };
+            let resolved = resolve_ref_path(&parent_dir, ref_str);
+            if cross_cutting.contains(&resolved) {
+                findings.push(LintFinding {
+                    rule_id: LintRuleId::L011,
+                    severity,
+                    spec_path: spec_rel.clone(),
+                    message: format!(
+                        "Cross-cutting spec '{resolved}' referenced in subsystems of {spec_rel}; move it to `applies`"
                     ),
                 });
             }

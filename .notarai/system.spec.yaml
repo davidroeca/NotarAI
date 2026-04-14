@@ -69,7 +69,6 @@ exclude:
   - 'LICENSE'
   - 'Cargo.lock'
   - '.claude/hooks/**'
-  - '.claude/notarai.spec.json'
   - '.claude/skills/**'
   - '.claude/settings.json'
 

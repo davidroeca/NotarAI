@@ -147,6 +147,8 @@ decisions: # omit if no notable decisions emerged
 
 3. **Write subspecs** for any subsystems the user confirmed. Each subspec is a separate `.notarai/[name].spec.yaml` using the same schema but scoped to that module. Include it in the system spec via `subsystems.$ref`.
 
+   For concerns that span multiple subsystems (style, security, logging, compliance), write a **cross-cutting spec** with `cross_cutting: true` at the top level. Cross-cutting specs omit the `artifacts` block and must be referenced via `applies.$ref`, not `subsystems.$ref`. This prevents glob overlap with subsystem specs while still letting the invariants layer across the whole system.
+
 4. **Validate** by running: `notarai validate .notarai/`
    - If validation fails, read the errors, fix the YAML, and re-run until it passes.
    - Do not present results to the user until validation passes.

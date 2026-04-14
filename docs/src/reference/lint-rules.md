@@ -16,6 +16,7 @@
 | L008 | warning          | Artifact glob is `**/*` (overly broad). Likely matches unintended files.                                           |
 | L009 | error            | `schema_version` does not match the bundled schema. Run `notarai schema-bump` to update.                           |
 | L010 | warning          | Duplicate behavior names within a spec. Each behavior should have a unique name.                                   |
+| L011 | error            | Cross-cutting spec (`cross_cutting: true`) referenced from another spec's `subsystems`. Move it to `applies`.      |
 
 ## Usage
 

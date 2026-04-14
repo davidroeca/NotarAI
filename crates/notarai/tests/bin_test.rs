@@ -958,3 +958,124 @@ artifacts:
         .success()
         .stdout(predicate::str::contains("PASS"));
 }
+
+// -- cross_cutting -----------------------------------------------------------
+
+#[test]
+fn validate_accepts_cross_cutting_without_artifacts() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.8\"
+cross_cutting: true
+intent: \"Style invariants\"
+behaviors:
+  - name: american_english
+    given: \"british spelling\"
+    then: \"flag as drift\"
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PASS"));
+}
+
+#[test]
+fn validate_rejects_cross_cutting_with_artifacts() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.8\"
+cross_cutting: true
+intent: \"Bad: has artifacts\"
+behaviors:
+  - name: b
+    given: g
+    then: t
+artifacts:
+  code:
+    - path: \"src/**/*.rs\"
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("FAIL"));
+}
+
+#[test]
+fn validate_rejects_cross_cutting_with_subsystems() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.8\"
+cross_cutting: true
+intent: \"Bad: has subsystems\"
+behaviors:
+  - name: b
+    given: g
+    then: t
+subsystems:
+  - $ref: \"./other.spec.yaml\"
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("FAIL"));
+}
+
+#[test]
+fn validate_rejects_cross_cutting_with_exclude() {
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.8\"
+cross_cutting: true
+intent: \"Bad: has exclude\"
+behaviors:
+  - name: b
+    given: g
+    then: t
+exclude:
+  - \"vendor/**\"
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("FAIL"));
+}
+
+#[test]
+fn validate_still_requires_artifacts_when_not_cross_cutting() {
+    // Absent cross_cutting => artifacts is required (existing guarantee).
+    let tmp = TempDir::new().unwrap();
+    write_spec(
+        &tmp,
+        "\
+schema_version: \"0.8\"
+intent: \"No artifacts, not cross-cutting\"
+behaviors:
+  - name: b
+    given: g
+    then: t
+",
+    );
+    notarai()
+        .args(["validate", tmp.path().join(".notarai").to_str().unwrap()])
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains(
+            "\"artifacts\" is a required property",
+        ));
+}

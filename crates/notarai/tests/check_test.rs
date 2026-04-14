@@ -777,3 +777,50 @@ fn check_t001_suppressed_for_registered_tier() {
         "T001 should not fire on registered-tier specs: {stdout}"
     );
 }
+
+#[test]
+fn check_t001_suppressed_for_cross_cutting() {
+    // Cross-cutting specs have no artifacts and their behaviors describe
+    // invariants applied to other specs, so T001 must not fire.
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+    std::fs::create_dir_all(tmp.path().join(".notarai")).unwrap();
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+
+    // A governing spec for the code file, plus a cross-cutting spec applied to it.
+    let governing = "\
+schema_version: '0.8'
+intent: 'App'
+tier: registered
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'src'
+applies:
+  - $ref: './style.spec.yaml'
+";
+    let cross_cutting = "\
+schema_version: '0.8'
+cross_cutting: true
+intent: 'Style invariants'
+behaviors:
+  - name: american_english
+    given: 'british spelling appears'
+    then: 'reconciliation flags it'
+";
+    std::fs::write(tmp.path().join(".notarai/app.spec.yaml"), governing).unwrap();
+    std::fs::write(tmp.path().join(".notarai/style.spec.yaml"), cross_cutting).unwrap();
+    git_commit_all(tmp.path(), "init");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["check", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .expect("run check");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("test_coverage_missing"),
+        "T001 should not fire on cross-cutting specs: {stdout}"
+    );
+}

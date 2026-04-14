@@ -394,3 +394,28 @@ Specs compose via `$ref` (borrowed from JSON Schema/OpenAPI):
 - `applies` — cross-cutting specs (e.g., security, logging) that apply to all subsystems
 
 A top-level `system.spec.yaml` serves as the manifest, referencing subsystem specs and declaring exclusion patterns for Tier 3 files.
+
+### Cross-cutting specs
+
+A spec that expresses concerns spanning multiple subsystems (style, security, logging, compliance) should set `cross_cutting: true`:
+
+```yaml
+schema_version: '0.8'
+cross_cutting: true
+intent: >
+  American English spelling across all code and documentation.
+behaviors:
+  - name: american_english
+    given: 'british spelling appears in a governed file'
+    then: 'reconciliation flags it as drift'
+invariants:
+  - 'All documentation uses American English spellings throughout'
+```
+
+Cross-cutting specs:
+
+- **Omit `artifacts`** — they govern no files directly. Their invariants and behaviors layer onto the specs that include them via `applies`.
+- **Cannot be top-level** — they must not declare `subsystems` or `exclude`.
+- **Must be referenced via `applies`, not `subsystems`** — L011 flags misplacement.
+
+This avoids glob overlap with subsystem specs (since two specs governing the same file raises an `OverlappingCoverage` finding) while still letting the spec layer its invariants across the whole system.

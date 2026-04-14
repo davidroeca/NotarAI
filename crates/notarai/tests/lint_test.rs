@@ -563,3 +563,112 @@ artifacts:
     assert!(first.get("spec_path").is_some());
     assert!(first.get("message").is_some());
 }
+
+#[test]
+fn lint_l011_cross_cutting_in_subsystems() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    // Cross-cutting spec wrongly referenced via subsystems instead of applies.
+    let system_spec = "\
+schema_version: '0.8'
+intent: 'System'
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source'
+subsystems:
+  - $ref: './style.spec.yaml'
+behaviors:
+  - name: b
+    given: g
+    then: t
+";
+    let cross_cutting = "\
+schema_version: '0.8'
+cross_cutting: true
+intent: 'Style'
+behaviors:
+  - name: american_english
+    given: 'british spelling appears'
+    then: 'reconciliation flags it'
+";
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    write_spec(tmp.path(), "system.spec.yaml", system_spec);
+    write_spec(tmp.path(), "style.spec.yaml", cross_cutting);
+    git_commit_all(tmp.path(), "initial");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["lint", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .unwrap();
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let l011: Vec<_> = findings.iter().filter(|f| f["rule_id"] == "L011").collect();
+    assert_eq!(
+        l011.len(),
+        1,
+        "expected one L011 finding, got: {findings:?}"
+    );
+    assert_eq!(l011[0]["severity"], "error");
+    assert!(
+        l011[0]["message"]
+            .as_str()
+            .unwrap()
+            .contains(".notarai/style.spec.yaml")
+    );
+}
+
+#[test]
+fn lint_l011_silent_when_cross_cutting_in_applies() {
+    let tmp = TempDir::new().unwrap();
+    setup_git_repo(tmp.path());
+
+    // Correct placement: cross-cutting spec referenced via applies.
+    let system_spec = "\
+schema_version: '0.8'
+intent: 'System'
+artifacts:
+  code:
+    - path: 'src/*.rs'
+      role: 'source'
+applies:
+  - $ref: './style.spec.yaml'
+behaviors:
+  - name: b
+    given: g
+    then: t
+";
+    let cross_cutting = "\
+schema_version: '0.8'
+cross_cutting: true
+intent: 'Style'
+behaviors:
+  - name: american_english
+    given: 'british spelling appears'
+    then: 'reconciliation flags it'
+";
+    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}").unwrap();
+    write_spec(tmp.path(), "system.spec.yaml", system_spec);
+    write_spec(tmp.path(), "style.spec.yaml", cross_cutting);
+    git_commit_all(tmp.path(), "initial");
+
+    let output = cargo_bin_cmd!("notarai")
+        .args(["lint", "--format", "json"])
+        .current_dir(tmp.path())
+        .output()
+        .unwrap();
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let l011: Vec<_> = findings.iter().filter(|f| f["rule_id"] == "L011").collect();
+    assert_eq!(
+        l011.len(),
+        0,
+        "L011 should not fire for applies: {findings:?}"
+    );
+}

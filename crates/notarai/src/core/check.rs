@@ -141,6 +141,7 @@ pub fn tier_for_check_type(ct: &CheckType) -> SeverityTier {
         CheckType::LintViolation(rule_id) => match rule_id {
             LintRuleId::L004 | LintRuleId::L009 => SeverityTier::Critical,
             LintRuleId::L001 | LintRuleId::L010 => SeverityTier::Drift,
+            LintRuleId::L011 => SeverityTier::Critical,
             LintRuleId::L002
             | LintRuleId::L003
             | LintRuleId::L005
@@ -427,6 +428,16 @@ fn check_test_alignment(
             .and_then(|v| v.as_str())
             .unwrap_or("full");
         if tier != "full" {
+            continue;
+        }
+        // Cross-cutting specs govern no code directly; their behaviors express
+        // invariants applied via `applies` to other specs, so per-behavior
+        // tested_by entries don't carry the same meaning.
+        if spec_value
+            .get("cross_cutting")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             continue;
         }
         let Some(behaviors) = spec_value.get("behaviors").and_then(|b| b.as_array()) else {
