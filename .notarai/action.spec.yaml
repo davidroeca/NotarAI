@@ -53,9 +53,8 @@ artifacts:
       role: 'Shell script that converts notarai check JSON output into the PR comment Markdown'
     - path: 'crates/notarai-action/src/lib.rs'
       role: 'Empty lib.rs so the crate compiles (no runtime code; all logic is in shell scripts)'
-  tests:
-    - path: '.github/workflows/dogfood-action.yml'
-      role: 'Dogfood workflow that runs the local action on every PR to this repo'
+  #tests:
+  # .github/workflows/dogfood-action.yml is an e2e test of this flow
 
 decisions:
   - date: '2026-04-12'

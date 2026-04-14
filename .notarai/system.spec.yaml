@@ -54,15 +54,24 @@ applies:
 
 exclude:
   - 'img/**'
-  - '.claude/**'
   - 'docs/book/**'
   - 'docs/mermaid-init.js'
   - 'docs/mermaid.min.js'
+  - 'docs/.gitignore'
   - '.notarai/.cache/**'
   - '.notarai/reconciliation_state.json'
   - '.sampo/changesets/**'
   - '.sampo/changeset.md.example'
   - '.sampo/README.md'
+  - '.gitignore'
+  - '.mcp.json'
+  - '.prettierignore'
+  - 'LICENSE'
+  - 'Cargo.lock'
+  - '.claude/hooks/**'
+  - '.claude/notarai.spec.json'
+  - '.claude/skills/**'
+  - '.claude/settings.json'
 
 artifacts:
   docs:

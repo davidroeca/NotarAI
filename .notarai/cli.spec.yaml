@@ -599,10 +599,6 @@ artifacts:
       role: 'Bundled lean reconciliation prompt template; includes spec and changed files but not the diff'
     - path: 'crates/notarai/templates/bootstrap-prompt.md'
       role: 'Bundled agent-agnostic bootstrap prompt output by export-context --bootstrap'
-    - path: '.claude/rules/rust.md'
-      role: 'Claude rule equivalent -- proactive enforcement of Rust coding constraints during generation'
-    - path: '.claude/rules/testing.md'
-      role: 'Claude rule equivalent -- test workflow conventions for AI-assisted development'
   tests:
     - path: 'crates/notarai/tests/**/*.rs'
       role: 'Integration tests (assert_cmd CLI tests, tempdir-based init tests)'
