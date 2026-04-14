@@ -36,8 +36,13 @@ enum Commands {
     },
     /// Set up NotarAI in a project
     Init {
-        /// Agent type: claude or generic (interactive prompt if omitted)
-        #[arg(long)]
+        /// Comma-separated agents: claude, gemini, codex, opencode, all, none.
+        /// Omit for interactive prompt (TTY) or filesystem auto-detect (non-TTY).
+        #[arg(long, value_delimiter = ',')]
+        agents: Option<Vec<String>>,
+        /// Deprecated: alias for --agents. `claude` maps to `--agents claude`;
+        /// `generic` maps to `--agents opencode`.
+        #[arg(long, hide = true)]
         agent: Option<String>,
     },
     /// Internal hook commands
@@ -121,17 +126,18 @@ fn main() {
             base_branch,
             strict,
         }) => commands::check::run(&format, &base_branch, strict),
-        Some(Commands::Init { agent }) => {
-            let agent_kind = match agent.as_deref() {
-                Some("claude") => Some(commands::init::AgentKind::Claude),
-                Some("generic") => Some(commands::init::AgentKind::Generic),
-                Some(other) => {
-                    eprintln!("Error: unknown agent '{other}'. Expected 'claude' or 'generic'.");
-                    std::process::exit(1);
+        Some(Commands::Init { agents, agent }) => {
+            let agents_raw: Option<Vec<String>> = match (agents, agent) {
+                (Some(a), _) => Some(a),
+                (None, Some(legacy)) => {
+                    eprintln!(
+                        "Warning: --agent is deprecated; use --agents. Forwarding '{legacy}'."
+                    );
+                    Some(vec![legacy])
                 }
-                None => None,
+                (None, None) => None,
             };
-            commands::init::run(None, agent_kind)
+            commands::init::run(None, agents_raw)
         }
         Some(Commands::Hook { action }) => match action {
             HookAction::Validate => commands::hook_validate::run(),

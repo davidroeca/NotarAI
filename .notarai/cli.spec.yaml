@@ -34,33 +34,56 @@ behaviors:
     given: 'invalid JSON on stdin or a missing file'
     then: 'exits 0 silently without error'
 
-  - name: init_agent_flag
-    given: 'notarai init is invoked with --agent claude or --agent generic'
-    then: 'uses the specified agent mode without prompting; claude is the default if --agent is omitted and stdin is not a TTY'
+  - name: init_agents_flag
+    given: 'notarai init is invoked with --agents <list> (comma-separated)'
+    then: >
+      accepts any subset of claude, gemini, codex, opencode plus the meta-tokens "all"
+      (expand to every known adapter) and "none" (install only agent-agnostic artifacts);
+      unknown names cause a hard exit 1 listing valid options; deduplicates repeated names
+
+  - name: init_agent_alias
+    given: 'notarai init is invoked with the deprecated --agent flag'
+    then: >
+      prints a deprecation warning and forwards the value to --agents; "claude" maps to
+      --agents claude; "generic" maps to --agents opencode (AGENTS.md + .opencode/skills
+      with no pointer file and no hook)
 
   - name: init_interactive_prompt
-    given: 'notarai init is invoked without --agent and stdin is a TTY'
-    then: 'prompts on stderr "Which agent? [claude/generic] (default: claude):" and reads one line from stdin; empty input or "claude" selects claude mode; "generic" selects generic mode'
+    given: 'notarai init is invoked without --agents/--agent and stdin is a TTY'
+    then: 'prompts on stderr for a comma-separated agent list; empty input defaults to claude'
 
-  - name: init_fresh
-    given: 'no existing .claude/settings.json and agent mode is claude'
+  - name: init_autodetect
+    given: 'notarai init is invoked without --agents/--agent and stdin is not a TTY'
     then: >
-      creates .claude/settings.json with the PostToolUse validation hook (command: notarai
-      hook validate); copies SKILL.md for notarai-reconcile and notarai-bootstrap to
-      .claude/skills/<name>/ (always overwriting); copies notarai.spec.json to
-      .notarai/notarai.spec.json; writes .notarai/README.md from the bundled template with
-      the current CLI version injected; creates or updates CLAUDE.md with the NotarAI section
-      (inline description of the workflow); appends .notarai/.cache/ to
-      .gitignore; writes .mcp.json registering notarai mcp as a local MCP server
+      auto-detects installed agents by scanning for pointer files (CLAUDE.md, GEMINI.md)
+      and agent-root directories (.claude/, .gemini/, .codex/, .opencode/); installs for
+      each detected adapter; falls back to claude if none are detected
 
-  - name: init_generic_mode
-    given: 'agent mode is generic'
+  - name: init_always_installed_artifacts
+    given: 'notarai init is invoked with any agent selection (including none)'
     then: >
-      copies notarai.spec.json to .notarai/notarai.spec.json; writes .notarai/README.md;
-      writes .notarai/reconcile-prompt.md from the bundled template with {{placeholders}};
-      writes AGENTS.md with agent-agnostic NotarAI workflow documentation;
-      appends .notarai/.cache/ to .gitignore; writes .mcp.json registering notarai mcp;
-      does NOT create .claude/ directory or any Claude-specific files
+      always writes .notarai/notarai.spec.json, .notarai/README.md (with the current CLI
+      version), .notarai/reconcile-prompt.md, .notarai/bootstrap-prompt.md, .mcp.json
+      (registering notarai mcp), and the .notarai/.cache/ line in .gitignore; always
+      writes or section-merges AGENTS.md so user content outside the ## NotarAI section
+      is preserved
+
+  - name: init_per_adapter_install
+    given: 'an agent adapter is selected'
+    then: >
+      for each selected adapter: (1) if the adapter declares a pointer file (CLAUDE.md,
+      GEMINI.md), create it as a single-line `@AGENTS.md` stub when absent, leave
+      unchanged when it already contains `@AGENTS.md`, or section-merge a `## NotarAI`
+      block pointing at AGENTS.md when it exists with other content; (2) if the adapter
+      declares a skills directory, always overwrite SKILL.md for notarai-reconcile and
+      notarai-bootstrap, using Claude-flavor content for the claude adapter and
+      generic-flavor content for gemini/codex/opencode; (3) if the adapter declares a
+      hook installer, install it (only claude installs a PostToolUse hook in
+      .claude/settings.json)
+
+  - name: init_fail_fast
+    given: 'init encounters an unparseable .claude/settings.json or .mcp.json, an unknown agent name, a pointer file that is a symlink, or a skills-dir path that is not a directory'
+    then: 'exits 1 with a helpful error message; no partial-success silent warnings'
 
   - name: validate_warns_stale_schema
     given: 'notarai validate runs and .notarai/notarai.spec.json exists but its $id differs from the bundled schema'
@@ -73,14 +96,15 @@ behaviors:
   - name: init_idempotent
     given: 'notarai init has already been run'
     then: >
-      detects existing hook and MCP entry and reports already configured; always overwrites
-      .claude/skills/ (no existence check); always overwrites .notarai/notarai.spec.json and
-      .notarai/README.md; replaces the ## NotarAI section in CLAUDE.md with the current
-      template content; idempotently checks .gitignore and .mcp.json
+      detects existing hook and MCP entry and reports already configured; always
+      overwrites agent-specific skills directories; always overwrites
+      .notarai/notarai.spec.json, .notarai/README.md, .notarai/reconcile-prompt.md, and
+      .notarai/bootstrap-prompt.md; section-merges AGENTS.md and pointer files
+      (CLAUDE.md, GEMINI.md) idempotently; idempotently checks .gitignore and .mcp.json
 
-  - name: init_replace_claude_section
-    given: "CLAUDE.md already contains a '## NotarAI' heading"
-    then: 'replaces the content between ## NotarAI and the next ## heading (or EOF) with the current template; does not skip or warn'
+  - name: init_replace_notarai_section
+    given: "a markdown file (AGENTS.md, CLAUDE.md, GEMINI.md) already contains a '## NotarAI' heading"
+    then: 'replaces the content between ## NotarAI and the next ## heading (or EOF) with the current template; user content outside the section is preserved'
 
   - name: schema_bump
     given: 'notarai schema-bump is invoked in a project with an older schema version'
@@ -585,6 +609,30 @@ decisions:
       The CLAUDE.md NotarAI section was also changed from @-imports of README and schema
       to an inline workflow description to avoid loading irrelevant content into every session.
 
+  - date: '2026-04-13'
+    choice: 'AGENTS.md as canonical context + agent adapter registry (claude, gemini, codex, opencode)'
+    rationale: >
+      The binary --agent claude|generic switch treated non-Claude agents as second class:
+      AGENTS.md was overwritten wholesale, no bootstrap skill shipped for generic agents,
+      and .claude/ was only touched for Claude. The ecosystem has converged on shared
+      standards: AGENTS.md is read natively by opencode and codex, while CLAUDE.md and
+      GEMINI.md both support `@AGENTS.md` imports. AGENTS.md now holds the canonical
+      NotarAI context (section-merged, not overwritten). Each known agent becomes a row in
+      a static adapter table (pointer_file, skills_dir, install_hook, skill_flavor);
+      adding a new agent is a one-struct change. --agents takes a comma-separated list
+      plus "all"/"none"; --agent is kept as a deprecated alias (claude->claude,
+      generic->opencode). Init fails fast on unparseable JSON, unknown agents, unexpected
+      symlinks, and non-directory skills paths rather than warning silently. Breaking
+      change accepted: prior --agent generic runs that produced a user-edited AGENTS.md
+      will now section-merge on re-run rather than full-overwrite.
+    related_files:
+      - 'crates/notarai/src/commands/init.rs'
+      - 'crates/notarai/src/main.rs'
+      - 'crates/notarai/skills-generic/notarai-reconcile/SKILL.md'
+      - 'crates/notarai/skills-generic/notarai-bootstrap/SKILL.md'
+      - 'crates/notarai/templates/agents.md'
+      - 'crates/notarai/tests/init_test.rs'
+
 artifacts:
   code:
     - path: 'crates/notarai/src/main.rs'
@@ -603,17 +651,21 @@ artifacts:
     - path: 'crates/notarai/schemas/*/spec.schema.json'
       role: 'Frozen snapshots of old schema versions; copied by the docs workflow to serve each version at its canonical $id URL'
     - path: 'crates/notarai/skills/notarai-reconcile/SKILL.md'
-      role: 'Bundled Claude Code skill copied by init'
+      role: 'Claude-flavor reconcile skill (uses Claude-specific tool names); installed into .claude/skills/ for the claude adapter'
     - path: 'crates/notarai/skills/notarai-bootstrap/SKILL.md'
-      role: 'Bundled Claude Code skill for bootstrap interview, copied by init'
+      role: 'Claude-flavor bootstrap skill (uses Claude-specific tool names); installed into .claude/skills/ for the claude adapter'
+    - path: 'crates/notarai/skills-generic/notarai-reconcile/SKILL.md'
+      role: 'Tool-agnostic reconcile skill installed into .gemini/skills, .codex/skills, .opencode/skills for their respective adapters'
+    - path: 'crates/notarai/skills-generic/notarai-bootstrap/SKILL.md'
+      role: 'Tool-agnostic bootstrap skill installed into .gemini/skills, .codex/skills, .opencode/skills for their respective adapters'
     - path: 'crates/notarai/templates/notarai-readme.md'
       role: 'Bundled .notarai/README.md template written by notarai init to target projects'
     - path: 'crates/notarai/templates/agents.md'
-      role: 'Bundled AGENTS.md template written by notarai init --agent generic'
+      role: 'Bundled ## NotarAI section injected into AGENTS.md by notarai init (section-merged, not overwritten)'
     - path: 'crates/notarai/templates/reconcile-prompt.md'
       role: 'Bundled lean reconciliation prompt template; includes spec and changed files but not the diff'
     - path: 'crates/notarai/templates/bootstrap-prompt.md'
-      role: 'Bundled agent-agnostic bootstrap prompt output by export-context --bootstrap'
+      role: 'Bundled agent-agnostic bootstrap prompt; written to .notarai/bootstrap-prompt.md by init and output by export-context --bootstrap'
   tests:
     - path: 'crates/notarai/tests/**/*.rs'
       role: 'Integration tests (assert_cmd CLI tests, tempdir-based init tests)'

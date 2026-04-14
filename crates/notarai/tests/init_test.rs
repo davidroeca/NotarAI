@@ -11,169 +11,101 @@ fn read_settings(tmp: &TempDir) -> serde_json::Value {
     serde_json::from_str(&content).unwrap()
 }
 
+// -----------------------------------------------------------------
+// Always-installed artifacts (agent-agnostic)
+// -----------------------------------------------------------------
+
 #[test]
-fn creates_claude_dir_when_missing() {
+fn always_installs_agents_md_and_notarai_dir() {
     let tmp = TempDir::new().unwrap();
     notarai()
-        .args(["init", "--agent", "claude"])
+        .args(["init", "--agents", "none"])
         .current_dir(tmp.path())
         .assert()
         .success();
-    assert!(tmp.path().join(".claude").exists());
+
+    assert!(tmp.path().join("AGENTS.md").exists());
+    assert!(tmp.path().join(".notarai/notarai.spec.json").exists());
+    assert!(tmp.path().join(".notarai/README.md").exists());
+    assert!(tmp.path().join(".notarai/reconcile-prompt.md").exists());
+    assert!(tmp.path().join(".notarai/bootstrap-prompt.md").exists());
+    assert!(tmp.path().join(".mcp.json").exists());
+
+    let gitignore = fs::read_to_string(tmp.path().join(".gitignore")).unwrap();
+    assert!(gitignore.contains(".notarai/.cache/"));
 }
 
 #[test]
-fn creates_settings_with_hook() {
+fn agents_md_contains_notarai_section() {
     let tmp = TempDir::new().unwrap();
     notarai()
-        .args(["init", "--agent", "claude"])
+        .args(["init", "--agents", "none"])
         .current_dir(tmp.path())
         .assert()
         .success();
 
-    let settings = read_settings(&tmp);
-    let hooks = settings["hooks"]["PostToolUse"].as_array().unwrap();
-    assert_eq!(hooks.len(), 1);
-    assert_eq!(hooks[0]["matcher"], "Write|Edit");
-    assert_eq!(hooks[0]["hooks"][0]["command"], "notarai hook validate");
-}
-
-#[test]
-fn preserves_existing_settings_keys() {
-    let tmp = TempDir::new().unwrap();
-    let claude_dir = tmp.path().join(".claude");
-    fs::create_dir_all(&claude_dir).unwrap();
-    fs::write(
-        claude_dir.join("settings.json"),
-        r#"{"customKey": "preserved"}"#,
-    )
-    .unwrap();
-
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let settings = read_settings(&tmp);
-    assert_eq!(settings["customKey"], "preserved");
-    assert_eq!(
-        settings["hooks"]["PostToolUse"].as_array().unwrap().len(),
-        1
-    );
-}
-
-#[test]
-fn idempotent_second_run_no_duplicate_hook() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let settings = read_settings(&tmp);
-    assert_eq!(
-        settings["hooks"]["PostToolUse"].as_array().unwrap().len(),
-        1
-    );
-}
-
-#[test]
-fn creates_claude_md_when_missing() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let claude_md = tmp.path().join("CLAUDE.md");
-    assert!(claude_md.exists());
-    let content = fs::read_to_string(claude_md).unwrap();
+    let content = fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap();
     assert!(content.contains("## NotarAI"));
-    assert!(content.contains("/notarai-reconcile"));
     assert!(content.contains("notarai validate"));
+    assert!(content.contains("export-context"));
 }
 
 #[test]
-fn appends_to_existing_claude_md() {
+fn agents_md_section_merge_preserves_user_content() {
     let tmp = TempDir::new().unwrap();
     fs::write(
-        tmp.path().join("CLAUDE.md"),
-        "# My Project\n\nExisting content.\n",
+        tmp.path().join("AGENTS.md"),
+        "# My Project\n\n## Intro\n\nMy prose here.\n",
     )
     .unwrap();
 
     notarai()
-        .args(["init", "--agent", "claude"])
+        .args(["init", "--agents", "none"])
         .current_dir(tmp.path())
         .assert()
         .success();
 
-    let content = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
+    let content = fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap();
     assert!(content.contains("# My Project"));
+    assert!(content.contains("My prose here."));
     assert!(content.contains("## NotarAI"));
 }
 
 #[test]
-fn replaces_existing_notarai_section_in_claude_md() {
+fn none_selection_installs_no_agent_artifacts() {
     let tmp = TempDir::new().unwrap();
-    fs::write(
-        tmp.path().join("CLAUDE.md"),
-        "## NotarAI\n\nThis is outdated content.\n",
-    )
-    .unwrap();
-
     notarai()
-        .args(["init", "--agent", "claude"])
+        .args(["init", "--agents", "none"])
         .current_dir(tmp.path())
         .assert()
         .success();
 
-    let content = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
-    // Outdated content is replaced
-    assert!(!content.contains("This is outdated content."));
-    // New section present
-    assert!(content.contains("/notarai-reconcile"));
-    assert!(content.contains("notarai validate"));
+    assert!(!tmp.path().join("CLAUDE.md").exists());
+    assert!(!tmp.path().join("GEMINI.md").exists());
+    assert!(!tmp.path().join(".claude").exists());
+    assert!(!tmp.path().join(".gemini").exists());
+    assert!(!tmp.path().join(".codex").exists());
+    assert!(!tmp.path().join(".opencode").exists());
 }
 
-#[test]
-fn replaces_notarai_section_on_second_run() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let content = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
-    // Section still present, not duplicated
-    let count = content.matches("## NotarAI").count();
-    assert_eq!(count, 1);
-}
+// -----------------------------------------------------------------
+// Claude adapter
+// -----------------------------------------------------------------
 
 #[test]
-fn copies_slash_commands() {
+fn claude_creates_pointer_and_skills_and_hook() {
     let tmp = TempDir::new().unwrap();
     notarai()
-        .args(["init", "--agent", "claude"])
+        .args(["init", "--agents", "claude"])
         .current_dir(tmp.path())
         .assert()
         .success();
 
+    // Pointer file imports AGENTS.md.
+    let claude_md = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
+    assert!(claude_md.contains("@AGENTS.md"));
+
+    // Skills installed.
     assert!(
         tmp.path()
             .join(".claude/skills/notarai-reconcile/SKILL.md")
@@ -184,10 +116,300 @@ fn copies_slash_commands() {
             .join(".claude/skills/notarai-bootstrap/SKILL.md")
             .exists()
     );
+
+    // Hook configured.
+    let settings = read_settings(&tmp);
+    let hooks = settings["hooks"]["PostToolUse"].as_array().unwrap();
+    assert_eq!(hooks.len(), 1);
+    assert_eq!(hooks[0]["hooks"][0]["command"], "notarai hook validate");
 }
 
 #[test]
-fn always_overwrites_slash_commands_on_rerun() {
+fn claude_pointer_stub_created_when_absent() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .args(["init", "--agents", "claude"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let content = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
+    assert_eq!(content.trim(), "@AGENTS.md");
+}
+
+#[test]
+fn claude_pointer_existing_with_import_left_alone() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(tmp.path().join("CLAUDE.md"), "# My Claude\n\n@AGENTS.md\n").unwrap();
+
+    notarai()
+        .args(["init", "--agents", "claude"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let content = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
+    assert_eq!(content, "# My Claude\n\n@AGENTS.md\n");
+}
+
+#[test]
+fn claude_pointer_merges_section_when_existing_has_no_import() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("CLAUDE.md"),
+        "# Claude Rules\n\nHand-tuned prose.\n",
+    )
+    .unwrap();
+
+    notarai()
+        .args(["init", "--agents", "claude"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let content = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
+    assert!(content.contains("# Claude Rules"));
+    assert!(content.contains("Hand-tuned prose."));
+    assert!(content.contains("## NotarAI"));
+    assert!(content.contains("@AGENTS.md"));
+}
+
+#[test]
+fn claude_idempotent_second_run_no_duplicate_hook() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .args(["init", "--agents", "claude"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+    notarai()
+        .args(["init", "--agents", "claude"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let settings = read_settings(&tmp);
+    assert_eq!(
+        settings["hooks"]["PostToolUse"].as_array().unwrap().len(),
+        1
+    );
+}
+
+#[test]
+fn claude_preserves_other_settings_keys() {
+    let tmp = TempDir::new().unwrap();
+    let claude_dir = tmp.path().join(".claude");
+    fs::create_dir_all(&claude_dir).unwrap();
+    fs::write(
+        claude_dir.join("settings.json"),
+        r#"{"customKey": "preserved"}"#,
+    )
+    .unwrap();
+
+    notarai()
+        .args(["init", "--agents", "claude"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let settings = read_settings(&tmp);
+    assert_eq!(settings["customKey"], "preserved");
+}
+
+#[test]
+fn claude_unparseable_settings_is_hard_error() {
+    let tmp = TempDir::new().unwrap();
+    let claude_dir = tmp.path().join(".claude");
+    fs::create_dir_all(&claude_dir).unwrap();
+    fs::write(claude_dir.join("settings.json"), "not json{{{").unwrap();
+
+    notarai()
+        .args(["init", "--agents", "claude"])
+        .current_dir(tmp.path())
+        .assert()
+        .failure();
+}
+
+#[test]
+fn claude_overwrites_skills_on_rerun() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .args(["init", "--agents", "claude"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let skill = tmp.path().join(".claude/skills/notarai-reconcile/SKILL.md");
+    fs::write(&skill, "sentinel").unwrap();
+
+    notarai()
+        .args(["init", "--agents", "claude"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let content = fs::read_to_string(&skill).unwrap();
+    assert_ne!(content, "sentinel");
+}
+
+// -----------------------------------------------------------------
+// Gemini adapter
+// -----------------------------------------------------------------
+
+#[test]
+fn gemini_creates_pointer_and_skills_no_hook() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .args(["init", "--agents", "gemini"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let gemini_md = fs::read_to_string(tmp.path().join("GEMINI.md")).unwrap();
+    assert!(gemini_md.contains("@AGENTS.md"));
+
+    assert!(
+        tmp.path()
+            .join(".gemini/skills/notarai-reconcile/SKILL.md")
+            .exists()
+    );
+    assert!(
+        tmp.path()
+            .join(".gemini/skills/notarai-bootstrap/SKILL.md")
+            .exists()
+    );
+
+    // No Claude artifacts.
+    assert!(!tmp.path().join("CLAUDE.md").exists());
+    assert!(!tmp.path().join(".claude").exists());
+}
+
+// -----------------------------------------------------------------
+// Codex adapter
+// -----------------------------------------------------------------
+
+#[test]
+fn codex_installs_skills_no_pointer_file() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .args(["init", "--agents", "codex"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    assert!(
+        tmp.path()
+            .join(".codex/skills/notarai-reconcile/SKILL.md")
+            .exists()
+    );
+    assert!(
+        tmp.path()
+            .join(".codex/skills/notarai-bootstrap/SKILL.md")
+            .exists()
+    );
+    // Codex has no pointer file; it reads AGENTS.md natively.
+    assert!(!tmp.path().join("CODEX.md").exists());
+}
+
+// -----------------------------------------------------------------
+// Opencode adapter
+// -----------------------------------------------------------------
+
+#[test]
+fn opencode_installs_skills_no_pointer_file() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .args(["init", "--agents", "opencode"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    assert!(
+        tmp.path()
+            .join(".opencode/skills/notarai-reconcile/SKILL.md")
+            .exists()
+    );
+    assert!(
+        tmp.path()
+            .join(".opencode/skills/notarai-bootstrap/SKILL.md")
+            .exists()
+    );
+    assert!(!tmp.path().join("OPENCODE.md").exists());
+    assert!(!tmp.path().join(".claude").exists());
+}
+
+// -----------------------------------------------------------------
+// Multi-agent + all
+// -----------------------------------------------------------------
+
+#[test]
+fn multi_agent_side_by_side() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .args(["init", "--agents", "claude,gemini"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    assert!(tmp.path().join("CLAUDE.md").exists());
+    assert!(tmp.path().join("GEMINI.md").exists());
+    assert!(tmp.path().join(".claude/skills").exists());
+    assert!(tmp.path().join(".gemini/skills").exists());
+}
+
+#[test]
+fn all_installs_every_adapter() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .args(["init", "--agents", "all"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    assert!(tmp.path().join("CLAUDE.md").exists());
+    assert!(tmp.path().join("GEMINI.md").exists());
+    assert!(
+        tmp.path()
+            .join(".claude/skills/notarai-reconcile/SKILL.md")
+            .exists()
+    );
+    assert!(
+        tmp.path()
+            .join(".gemini/skills/notarai-reconcile/SKILL.md")
+            .exists()
+    );
+    assert!(
+        tmp.path()
+            .join(".codex/skills/notarai-reconcile/SKILL.md")
+            .exists()
+    );
+    assert!(
+        tmp.path()
+            .join(".opencode/skills/notarai-reconcile/SKILL.md")
+            .exists()
+    );
+}
+
+// -----------------------------------------------------------------
+// Validation errors
+// -----------------------------------------------------------------
+
+#[test]
+fn unknown_agent_is_hard_error() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .args(["init", "--agents", "bogus"])
+        .current_dir(tmp.path())
+        .assert()
+        .failure();
+}
+
+// -----------------------------------------------------------------
+// Back-compat: --agent alias
+// -----------------------------------------------------------------
+
+#[test]
+fn agent_alias_claude_still_works() {
     let tmp = TempDir::new().unwrap();
     notarai()
         .args(["init", "--agent", "claude"])
@@ -195,211 +417,98 @@ fn always_overwrites_slash_commands_on_rerun() {
         .assert()
         .success();
 
-    let reconcile_path = tmp.path().join(".claude/skills/notarai-reconcile/SKILL.md");
-    fs::write(&reconcile_path, "sentinel content").unwrap();
-
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let content = fs::read_to_string(&reconcile_path).unwrap();
-    // Sentinel was overwritten
-    assert_ne!(content, "sentinel content");
+    assert!(tmp.path().join("CLAUDE.md").exists());
+    assert!(tmp.path().join(".claude/settings.json").exists());
 }
 
 #[test]
-fn copies_schema_to_notarai_dir() {
+fn agent_alias_generic_maps_to_opencode() {
     let tmp = TempDir::new().unwrap();
     notarai()
-        .args(["init", "--agent", "claude"])
+        .args(["init", "--agent", "generic"])
         .current_dir(tmp.path())
         .assert()
         .success();
 
-    assert!(tmp.path().join(".notarai/notarai.spec.json").exists());
+    assert!(
+        tmp.path()
+            .join(".opencode/skills/notarai-reconcile/SKILL.md")
+            .exists()
+    );
+    // Should NOT install Claude artifacts.
+    assert!(!tmp.path().join(".claude").exists());
+    assert!(!tmp.path().join("CLAUDE.md").exists());
 }
 
-#[test]
-fn always_overwrites_schema_on_rerun() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let schema_path = tmp.path().join(".notarai/notarai.spec.json");
-    fs::write(&schema_path, "{}").unwrap();
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let content = fs::read_to_string(schema_path).unwrap();
-    assert_ne!(content, "{}");
-}
+// -----------------------------------------------------------------
+// Auto-detect on non-TTY
+// -----------------------------------------------------------------
 
 #[test]
-fn writes_notarai_readme() {
+fn autodetect_installs_for_existing_gemini_dir() {
     let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
+    fs::create_dir_all(tmp.path().join(".gemini")).unwrap();
 
-    let readme = tmp.path().join(".notarai/README.md");
-    assert!(readme.exists());
-    let content = fs::read_to_string(readme).unwrap();
-    assert!(content.contains("# NotarAI"));
-    assert!(content.contains("notarai validate"));
-}
-
-#[test]
-fn gitignore_entry_added() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let gitignore = fs::read_to_string(tmp.path().join(".gitignore")).unwrap();
-    assert!(gitignore.contains(".notarai/.cache/"));
-}
-
-#[test]
-fn mcp_json_created() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let mcp = tmp.path().join(".mcp.json");
-    assert!(mcp.exists());
-    let content = fs::read_to_string(mcp).unwrap();
-    assert!(content.contains("notarai"));
-    assert!(content.contains("mcp"));
-}
-
-#[test]
-fn init_defaults_to_claude_when_stdin_not_tty() {
-    let tmp = TempDir::new().unwrap();
-    // No --agent flag; piped stdin (test harness) is not a TTY,
-    // so it should default to claude mode without prompting.
     notarai()
         .args(["init"])
         .current_dir(tmp.path())
         .assert()
         .success();
 
-    // Claude-specific artifacts must exist.
-    assert!(tmp.path().join(".claude/settings.json").exists());
-    assert!(tmp.path().join("CLAUDE.md").exists());
-    // Generic-specific artifacts must NOT exist.
-    assert!(!tmp.path().join("AGENTS.md").exists());
-}
-
-// --- Generic mode tests ---
-
-#[test]
-fn init_generic_creates_agents_md() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "generic"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let agents_md = tmp.path().join("AGENTS.md");
-    assert!(agents_md.exists());
-    let content = fs::read_to_string(agents_md).unwrap();
-    assert!(content.contains("NotarAI"));
-    assert!(content.contains("export-context"));
-}
-
-#[test]
-fn init_generic_creates_reconcile_prompt() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "generic"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let prompt = tmp.path().join(".notarai/reconcile-prompt.md");
-    assert!(prompt.exists());
-    let content = fs::read_to_string(prompt).unwrap();
-    assert!(content.contains("spec_content"));
-    assert!(content.contains("base_branch"));
-}
-
-#[test]
-fn init_generic_no_claude_dir() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "generic"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    assert!(!tmp.path().join(".claude").exists());
-    assert!(!tmp.path().join("CLAUDE.md").exists());
-}
-
-#[test]
-fn init_generic_creates_mcp_and_gitignore() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "generic"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    assert!(tmp.path().join(".mcp.json").exists());
-    let gitignore = fs::read_to_string(tmp.path().join(".gitignore")).unwrap();
-    assert!(gitignore.contains(".notarai/.cache/"));
-}
-
-#[test]
-fn init_generic_creates_schema() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "generic"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    assert!(tmp.path().join(".notarai/notarai.spec.json").exists());
-    assert!(tmp.path().join(".notarai/README.md").exists());
-}
-
-#[test]
-fn init_claude_backward_compatible() {
-    let tmp = TempDir::new().unwrap();
-    notarai()
-        .args(["init", "--agent", "claude"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    // All Claude-specific files should exist.
-    assert!(tmp.path().join(".claude/settings.json").exists());
     assert!(
         tmp.path()
-            .join(".claude/skills/notarai-reconcile/SKILL.md")
+            .join(".gemini/skills/notarai-reconcile/SKILL.md")
             .exists()
     );
-    assert!(tmp.path().join("CLAUDE.md").exists());
-    assert!(tmp.path().join(".mcp.json").exists());
-    assert!(tmp.path().join(".notarai/notarai.spec.json").exists());
+    // Should not install claude since no claude markers exist.
+    assert!(!tmp.path().join(".claude").exists());
+}
 
-    // Generic-specific files should NOT exist.
-    assert!(!tmp.path().join("AGENTS.md").exists());
-    assert!(!tmp.path().join(".notarai/reconcile-prompt.md").exists());
+#[test]
+fn autodetect_falls_back_to_claude_when_empty() {
+    let tmp = TempDir::new().unwrap();
+    notarai()
+        .args(["init"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    assert!(tmp.path().join(".claude/settings.json").exists());
+    assert!(tmp.path().join("CLAUDE.md").exists());
+}
+
+// -----------------------------------------------------------------
+// MCP json preservation
+// -----------------------------------------------------------------
+
+#[test]
+fn mcp_json_preserves_other_servers() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join(".mcp.json"),
+        r#"{"mcpServers":{"other":{"type":"stdio","command":"other"}}}"#,
+    )
+    .unwrap();
+
+    notarai()
+        .args(["init", "--agents", "none"])
+        .current_dir(tmp.path())
+        .assert()
+        .success();
+
+    let content = fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
+    assert!(content.contains("\"other\""));
+    assert!(content.contains("\"notarai\""));
+}
+
+#[test]
+fn mcp_json_unparseable_is_hard_error() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(tmp.path().join(".mcp.json"), "not json{").unwrap();
+
+    notarai()
+        .args(["init", "--agents", "none"])
+        .current_dir(tmp.path())
+        .assert()
+        .failure();
 }

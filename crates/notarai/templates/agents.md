@@ -1,17 +1,17 @@
-# NotarAI
+## NotarAI
 
 NotarAI is a continuous intent reconciliation tool that keeps specs, code, and docs aligned.
 
-## Specs
+### Specs
 
 Specs live in `.notarai/*.spec.yaml` and are the canonical source of truth.
 The JSON Schema is at `.notarai/notarai.spec.json`.
 
-## Validation
+### Validation
 
 Run `notarai validate .notarai/` to validate all specs against the schema.
 
-## Drift Detection
+### Drift Detection
 
 Run `notarai check` for deterministic, LLM-free drift analysis:
 
@@ -22,7 +22,7 @@ Run `notarai check` for deterministic, LLM-free drift analysis:
 
 Run `notarai check --format json` for machine-readable output.
 
-## Reconciliation
+### Reconciliation
 
 If you have MCP tool access, use the NotarAI MCP tools directly. They are more efficient
 than export-context because they fetch diffs lazily, one spec at a time:
@@ -50,7 +50,7 @@ For a single spec:
 notarai export-context --spec .notarai/<name>.spec.yaml --base-branch main
 ```
 
-## Bootstrap
+### Bootstrap
 
 If this is a new project with no specs yet, run:
 
@@ -59,9 +59,10 @@ notarai export-context --bootstrap
 ```
 
 and follow the instructions in the output to discover the project, interview the developer,
-and draft an initial `.notarai/` spec directory.
+and draft an initial `.notarai/` spec directory. See `.notarai/bootstrap-prompt.md` for the
+prompt template used by the bootstrap skill.
 
-## MCP Server Configuration
+### MCP Server Configuration
 
 The MCP server is configured in `.mcp.json`:
 
