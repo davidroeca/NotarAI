@@ -10,7 +10,7 @@ show_acknowledgments = true
 
 [git]
 # Use short tags (v0.7.0) instead of package-prefixed tags (notarai-v0.7.0).
-short_tags = "cargo/notarai"
+short_tags = "notarai"
 
 [packages]
 # Skip publish=false crates during sampo publish, but still track them
