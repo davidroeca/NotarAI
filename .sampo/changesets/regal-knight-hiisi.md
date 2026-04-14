@@ -1,5 +1,5 @@
 ---
-cargo/notarai: major
+cargo/notarai: minor
 ---
 
 - Add --strict circular ref detection and behavior completeness
