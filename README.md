@@ -48,9 +48,9 @@ Files not covered by any tier are flagged as "unspecced" -- a lint warning, not 
 
 This project is in early development. What's implemented:
 
-- Spec schema v0.7 (`notarai.spec.json`) with validation CLI
+- Spec schema v0.8 (`notarai.spec.json`) with validation CLI
 - `notarai check` -- deterministic drift detection (coverage gaps, orphaned globs, circular refs, behavior completeness, overlapping coverage, changed files)
-- `notarai lint` -- deterministic spec quality linting (10 rules, configurable severity)
+- `notarai lint` -- deterministic spec quality linting (11 rules, configurable severity)
 - `notarai export-context` -- agent-agnostic reconciliation prompt export
 - `/notarai-reconcile` slash command for interactive semantic drift detection
 - `/notarai-bootstrap` slash command for bootstrapping specs via developer interview

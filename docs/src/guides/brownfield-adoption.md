@@ -21,7 +21,7 @@ Start with a system spec that explicitly excludes files you do not want to track
 
 ```yaml
 # .notarai/system.spec.yaml
-schema_version: '0.7'
+schema_version: '0.8'
 intent: >
   Top-level system spec for the project. Defines subsystem
   composition and excludes vendor, generated, and config files.

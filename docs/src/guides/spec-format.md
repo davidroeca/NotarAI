@@ -6,10 +6,10 @@ Specs are YAML files validated against a JSON Schema (`notarai.spec.json`). The 
 
 ### `schema_version`
 
-Pins the JSON Schema version. Current version: `"0.7"`. Versions `"0.6"` and `"0.5"` are also accepted for backward compatibility.
+Pins the JSON Schema version. Current version: `"0.8"`. Versions `"0.7"`, `"0.6"`, and `"0.5"` are also accepted for backward compatibility.
 
 ```yaml
-schema_version: '0.7'
+schema_version: '0.8'
 ```
 
 ### `intent`
@@ -68,11 +68,10 @@ behaviors:
         assertion: 'signup_creates_account'
 ```
 
-| Check | Severity | Trigger                                               |
-| ----- | -------- | ----------------------------------------------------- |
-| T001  | Warning  | A tier-1 behavior has no `tested_by` entry.           |
-| T002  | Error    | A `tested_by.path` does not exist on disk.            |
-| T003  | Warning  | A `tested_by` file is older than governed code files. |
+| Check | Severity | Trigger                                     |
+| ----- | -------- | ------------------------------------------- |
+| T001  | Warning  | A tier-1 behavior has no `tested_by` entry. |
+| T002  | Error    | A `tested_by.path` does not exist on disk.  |
 
 ### `artifacts`
 

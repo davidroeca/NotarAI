@@ -65,7 +65,7 @@ artifacts:
     - path: 'docs/src/reference/github-action.md'
       role: 'GitHub Action reference -- setup, inputs, PR comment format, and strict mode'
     - path: 'docs/src/reference/lint-rules.md'
-      role: 'Lint rules reference -- table of all rules (L001-L010), severities, descriptions, and configuration examples'
+      role: 'Lint rules reference -- table of all rules (L001-L011), severities, descriptions, and configuration examples'
     - path: 'docs/src/guides/brownfield-adoption.md'
       role: 'Step-by-step guide for adopting NotarAI on an existing codebase'
     - path: 'docs/src/guides/non-software-examples.md'

@@ -7,7 +7,7 @@ You do not need full behavioral specs to get value from NotarAI. This guide desc
 The simplest useful spec. Maps files to a purpose without describing behaviors.
 
 ```yaml
-schema_version: '0.7'
+schema_version: '0.8'
 intent: >
   HTTP client library with retry logic, connection pooling,
   and timeout configuration.
@@ -37,7 +37,7 @@ artifacts:
 Add `given`/`then` behavior descriptions for the paths that matter most: error handling, security boundaries, data validation, and user-facing features.
 
 ```yaml
-schema_version: '0.7'
+schema_version: '0.8'
 intent: >
   HTTP client library with retry logic, connection pooling,
   and timeout configuration.
@@ -79,7 +79,7 @@ artifacts:
 Add constraints, invariants, decisions, and cross-cutting concerns. This is the full power of the spec format.
 
 ```yaml
-schema_version: '0.7'
+schema_version: '0.8'
 intent: >
   HTTP client library with retry logic, connection pooling,
   and timeout configuration.

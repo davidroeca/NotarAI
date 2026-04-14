@@ -72,9 +72,8 @@ notarai check --strict
 | Behavior completeness        | Warning  | Housekeeping | Behaviors missing a `given` or `then` field                     |
 | T001 Test coverage missing   | Warning  | Housekeeping | Tier-1 behavior without a `tested_by` entry                     |
 | T002 Test path missing       | Error    | Critical     | `tested_by.path` does not exist on disk                         |
-| T003 Test stale              | Warning  | Drift        | `tested_by` file older than any governed code file              |
 
-Lint rules (L001-L010) are also run and merged into check output. See [Lint Rules](./lint-rules.md).
+Lint rules (L001-L011) are also run and merged into check output. See [Lint Rules](./lint-rules.md).
 
 **Severity tiers:** Each finding is classified as Critical, Drift, or Housekeeping. Human output groups findings by tier. JSON output includes a `tier` field. See [Severity Tiers](../guides/severity-tiers.md) for details.
 
@@ -109,7 +108,7 @@ notarai lint --format json
 | ---------- | ------- | -------------------------------- |
 | `--format` | `human` | Output format: `human` or `json` |
 
-Runs 10 deterministic rules (L001-L010) covering missing behaviors, broken `$ref` targets, stale decisions, schema mismatches, and more. Rules can be configured via `.notarai/lint.yaml`. Lint results are also integrated into `notarai check`.
+Runs 11 deterministic rules (L001-L011) covering missing behaviors, broken `$ref` targets, stale decisions, schema mismatches, and more. Rules can be configured via `.notarai/lint.yaml`. Lint results are also integrated into `notarai check`.
 
 See [Lint Rules](./lint-rules.md) for the full rule reference.
 
@@ -186,38 +185,46 @@ Set up NotarAI in a project. Running `init` again is safe: it always refreshes s
 # Interactive prompt (defaults to claude)
 notarai init
 
-# Claude Code mode (explicit)
-notarai init --agent claude
+# Explicit agent selection
+notarai init --agents claude
+notarai init --agents opencode
+notarai init --agents claude,gemini
 
-# Generic mode (any LLM agent)
+# All known adapters
+notarai init --agents all
+
+# Agent-agnostic artifacts only (no adapter-specific setup)
+notarai init --agents none
+
+# Deprecated alias (claude -> claude, generic -> opencode)
+notarai init --agent claude
 notarai init --agent generic
 ```
 
 **Arguments:**
 
-| Flag      | Required | Description                                                         |
-| --------- | -------- | ------------------------------------------------------------------- |
-| `--agent` | No       | Agent type: `claude` or `generic`. Prompts interactively if omitted |
+| Flag       | Required | Description                                                                                                                                                                                         |
+| ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--agents` | No       | Comma-separated list of agents: `claude`, `gemini`, `codex`, `opencode`, plus meta-tokens `all` and `none`. Prompts interactively if omitted and stdin is a TTY; auto-detects if stdin is not a TTY |
+| `--agent`  | No       | Deprecated alias for `--agents`. `claude` maps to `--agents claude`; `generic` maps to `--agents opencode`                                                                                          |
 
-**Shared setup (both modes):**
+**Shared setup (all modes):**
 
 1. Copies `notarai.spec.json` to `.notarai/notarai.spec.json` (always refreshed).
 2. Writes `.notarai/README.md` with workflow instructions (always overwritten).
-3. Appends `.notarai/.cache/` to `.gitignore`.
-4. Writes `.mcp.json` registering `notarai mcp` as a local [MCP server](./mcp-server.md).
+3. Writes `.notarai/reconcile-prompt.md` (reconciliation prompt template).
+4. Writes `.notarai/bootstrap-prompt.md` (bootstrap prompt template).
+5. Appends `.notarai/.cache/` to `.gitignore`.
+6. Writes `.mcp.json` registering `notarai mcp` as a local [MCP server](./mcp-server.md).
+7. Writes or section-merges `AGENTS.md` so user content outside the `## NotarAI` section is preserved.
 
-**Claude mode** (`--agent claude`):
+**Per-adapter setup** (for each selected adapter):
 
-5. Adds a **PostToolUse hook** to `.claude/settings.json` (command: `notarai hook validate`).
-6. Copies `notarai-reconcile` and `notarai-bootstrap` skills to `.claude/skills/`.
-7. Replaces the `## NotarAI` section in `CLAUDE.md` with a concise workflow description.
+8. If the adapter declares a pointer file (CLAUDE.md, GEMINI.md), creates it as a single-line `@AGENTS.md` stub when absent, leaves it unchanged when it already contains `@AGENTS.md`, or section-merges a `## NotarAI` block when it has other content.
+9. If the adapter declares a skills directory, always overwrites SKILL.md for `notarai-reconcile` and `notarai-bootstrap` (Claude-flavor for the claude adapter, generic-flavor for all others).
+10. If the adapter declares a hook installer, installs it (only claude installs a PostToolUse hook in `.claude/settings.json`).
 
-**Generic mode** (`--agent generic`):
-
-5. Writes `AGENTS.md` with agent-agnostic NotarAI workflow documentation.
-6. Writes `.notarai/reconcile-prompt.md` with a reconciliation prompt template containing `{{placeholders}}`.
-
-**Exit codes:** `0` success, `1` error.
+**Exit codes:** `0` success, `1` error (unparseable JSON, unknown agent, symlink pointer file, non-directory skills path).
 
 ---
 

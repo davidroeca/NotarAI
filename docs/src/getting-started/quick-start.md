@@ -10,16 +10,16 @@ notarai init
 
 This does several things:
 
-1. Adds a **PostToolUse hook** to `.claude/settings.json` so spec files are automatically validated when Claude Code writes or edits them.
-2. Copies the `/notarai-reconcile` skill to `.claude/skills/` for drift detection.
-3. Copies the `/notarai-bootstrap` skill to `.claude/skills/` for bootstrapping specs from an existing codebase.
-4. Copies `notarai.spec.json` to `.notarai/notarai.spec.json` so the schema is available for validation.
-5. Writes `.notarai/README.md` with workflow instructions.
-6. Replaces the `## NotarAI` section in `CLAUDE.md` with a concise description of the workflow.
-7. Appends `.notarai/.cache/` to `.gitignore` so the hash cache DB is never committed.
-8. Writes `.mcp.json` registering `notarai mcp` as a local MCP server, so [MCP-accelerated reconciliation](../reference/mcp-server.md) works out of the box.
+1. Copies `notarai.spec.json` to `.notarai/notarai.spec.json` so the schema is available for validation.
+2. Writes `.notarai/README.md` with workflow instructions.
+3. Writes `.notarai/reconcile-prompt.md` (reconciliation prompt template).
+4. Writes `.notarai/bootstrap-prompt.md` (bootstrap prompt template).
+5. Appends `.notarai/.cache/` to `.gitignore` so the hash cache DB is never committed.
+6. Writes `.mcp.json` registering `notarai mcp` as a local MCP server, so [MCP-accelerated reconciliation](../reference/mcp-server.md) works out of the box.
+7. Writes or section-merges `AGENTS.md` with a `## NotarAI` section describing the workflow.
+8. For the Claude adapter: adds a **PostToolUse hook** to `.claude/settings.json` so spec files are automatically validated when Claude Code writes or edits them; copies reconcile and bootstrap skills to `.claude/skills/`; creates or section-merges `CLAUDE.md` as an `@AGENTS.md` pointer.
 
-Running `init` again is safe: it always refreshes skills and the schema copy, and replaces the `## NotarAI` section in CLAUDE.md with the current content.
+Running `init` again is safe: it always refreshes skills, templates, and the schema copy, and replaces the `## NotarAI` section in AGENTS.md (and adapter pointer files) with the current content.
 
 ## Create your first spec
 
@@ -41,7 +41,7 @@ Here's a minimal spec:
 
 ```yaml
 # .notarai/auth.spec.yaml
-schema_version: '0.6'
+schema_version: '0.8'
 
 intent: |
   Users can sign up, log in, and reset passwords.

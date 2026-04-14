@@ -14,8 +14,8 @@ behaviors:
     then: 'the CI workflow runs three parallel jobs — fmt (cargo fmt --check), clippy (cargo clippy -- -D warnings), and test (cargo test, which implicitly builds); the test job requires fmt and clippy to pass first'
 
   - name: docs_deploy_on_push
-    given: 'a push to main that touches any file under docs/ or notarai.spec.json'
-    then: 'the docs workflow installs mdbook and mdbook-mermaid via cargo, builds the book, copies the mdBook output into public/docs/, adds a redirect at public/index.html, copies each schemas/<version>/spec.schema.json to public/schema/<version>/spec.schema.json (frozen snapshots for 0.5 and 0.6) and copies notarai.spec.json to public/schema/0.7/spec.schema.json, and deploys the public/ directory to GitHub Pages; only one deploy runs at a time (cancel-in-progress)'
+    given: 'a push to main that touches any file under docs/, crates/notarai/notarai.spec.json, or crates/notarai/schemas/**'
+    then: 'the docs workflow installs mdbook and mdbook-mermaid via cargo, builds the book, copies the mdBook output into public/docs/, adds a redirect at public/index.html, copies each crates/notarai/schemas/<version>/spec.schema.json to public/schema/<version>/spec.schema.json (frozen snapshots for 0.5, 0.6, and 0.7) and copies crates/notarai/notarai.spec.json to public/schema/0.8/spec.schema.json, and deploys the public/ directory to GitHub Pages; only one deploy runs at a time (cancel-in-progress)'
 
   - name: init_sync_check
     given: 'the test job passes on a push to main or a PR targeting main'
@@ -23,19 +23,23 @@ behaviors:
 
   - name: release_prepare_on_main
     given: '.sampo/changesets/*.md files are merged to main'
-    then: 'the release-pr workflow runs sampo release which consumes changesets, bumps versions in Cargo.toml, updates CHANGELOG.md, and opens (or updates) a release PR titled "Release v<version>"'
+    then: 'the release-pr workflow runs sampo-github-action with command: auto, which consumes changesets, bumps versions in Cargo.toml, updates CHANGELOG.md, opens (or updates) a release PR titled "Release v<version>", and (when the release PR is merged) creates a GitHub release and publishes to crates.io using cargo-token'
 
   - name: release_publish_on_merge
-    given: 'a release PR (created by sampo release) is merged to main'
-    then: 'the release workflow builds cross-platform binaries via a matrix of native runners (ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-latest, windows-latest) using `cargo build --release --target <triple>` for 7 targets (x86_64/aarch64 linux-gnu, x86_64/aarch64 linux-musl, x86_64/aarch64 macos, x86_64 windows-gnu), then runs sampo publish which creates a GitHub release with the binaries attached, creates a git tag, and publishes the notarai crate to crates.io'
+    given: 'a GitHub release is published (triggered by sampo creating the release after the release PR is merged)'
+    then: 'the release workflow builds cross-platform binaries via a matrix of native runners (ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-latest, windows-latest) using `cargo build --release --target <triple>` for 7 targets (x86_64/aarch64 linux-gnu, x86_64/aarch64 linux-musl, x86_64/aarch64 macos, x86_64 windows-gnu) and uploads them to the GitHub release via softprops/action-gh-release; sampo publish (crate tagging + crates.io publish) runs in the release-pr workflow, not here'
 
   - name: dependabot_updates
     given: 'a new version of a GitHub Actions action, Cargo dependency, or npm dependency is available'
     then: 'Dependabot opens a PR to update the pinned version'
 
+  - name: dogfood_action
+    given: 'a pull request targeting main'
+    then: 'the dogfood-action workflow builds notarai from source, runs notarai check --format json --base-branch main, and posts (or updates) a PR comment with the drift findings via render-comment.sh; does not fail the workflow on findings'
+
 constraints:
   - 'Release binaries are built on a matrix of native runners (one per target triple), not via cargo-zigbuild'
-  - 'Crates.io publish uses CARGO_REGISTRY_TOKEN secret'
+  - 'Crates.io publish uses CARGO_REGISTRY_TOKEN secret, passed as cargo-token input to sampo-github-action'
   - 'Docs deployment targets the github-pages environment and requires pages write + id-token write permissions'
   - 'CI must pass cargo fmt, clippy, and all tests before merge'
 
@@ -49,9 +53,9 @@ artifacts:
     - path: '.github/workflows/docs.yml'
       role: 'Docs deploy workflow -- mdBook build + schema copy + GitHub Pages deploy on docs/ changes'
     - path: '.github/workflows/release-pr.yml'
-      role: 'Release PR workflow -- runs sampo release on main to prepare a version-bump PR from changesets'
+      role: 'Release PR workflow -- runs sampo-github-action (command: auto) on main to prepare version-bump PR, create GitHub release, and publish to crates.io'
     - path: '.github/workflows/release.yml'
-      role: 'Release workflow -- native matrix cross-compile + sampo publish (GitHub Releases + crates.io)'
+      role: 'Release workflow -- builds native matrix binaries and uploads them to the GitHub release via softprops/action-gh-release'
     - path: '.github/workflows/dogfood-action.yml'
       role: 'Dogfood workflow -- builds notarai from source and runs the action comment flow on every PR'
     - path: '.github/dependabot.yml'

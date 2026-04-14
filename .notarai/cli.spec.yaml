@@ -93,6 +93,10 @@ behaviors:
     given: 'MCP server initializes and .notarai/notarai.spec.json exists but its $id differs from the bundled schema'
     then: 'includes a schemaNote field in the initialize response containing the local and bundled $id values and a suggestion to run `notarai init`; parallels validate_warns_stale_schema for MCP clients'
 
+  - name: mcp_drift_score_on_init
+    given: 'the MCP server initializes and at least one spec has a cached drift score'
+    then: 'includes driftScore (0.0-1.0 weighted average), driftStatus (healthy/review/overdue), and mostDrifted (spec with highest score) fields in the initialize response; parallels the notarai score command for MCP clients'
+
   - name: init_idempotent
     given: 'notarai init has already been run'
     then: >
@@ -116,11 +120,12 @@ behaviors:
   - name: schema_version_archive
     given: 'a developer bumps the schema version in notarai.spec.json'
     then: >
-      before editing notarai.spec.json, copies the current notarai.spec.json to
-      schemas/<old_version>/spec.schema.json to create a frozen snapshot; the docs workflow
-      then copies each schemas/<version>/spec.schema.json to its corresponding
-      docs/book/schema/<version>/ path, so every version URL serves the correct schema;
-      notarai.spec.json always reflects the current (newest) version only
+      before running schema-bump, the developer manually copies the current
+      notarai.spec.json to crates/notarai/schemas/<old_version>/spec.schema.json to create
+      a frozen snapshot for documentation; the docs workflow then copies each
+      schemas/<version>/spec.schema.json to its corresponding public path, so every
+      version URL serves the correct schema; notarai.spec.json always reflects the
+      current (newest) version only
 
   - name: cache_status
     given: 'notarai cache status is invoked'
@@ -230,6 +235,10 @@ behaviors:
     given: 'notarai check completes'
     then: 'exits 0 if no error-severity findings, 1 if any errors (including warnings promoted under --strict), 2 if .notarai/ does not exist'
 
+  - name: check_base_branch_flag
+    given: 'notarai check is invoked with --base-branch <branch>'
+    then: 'accepts the flag for future changed-since-detection; currently unused (parameter is reserved but not wired to any check logic)'
+
   - name: export_context_single_spec
     given: 'notarai export-context --spec <path> --base-branch <branch>'
     then: 'outputs reconciliation context for that spec: spec content and changed files'
@@ -266,7 +275,7 @@ behaviors:
 
   - name: lint_runs
     given: 'notarai lint is invoked in an initialized project'
-    then: 'runs all enabled lint rules (L001-L010) against every spec file in .notarai/; reports findings grouped by rule ID; exits 0 if no errors, 1 if any error-severity findings, 2 if .notarai/ does not exist'
+    then: 'runs all enabled lint rules (L001-L011) against every spec file in .notarai/; reports findings grouped by rule ID; exits 0 if no errors, 1 if any error-severity findings, 2 if .notarai/ does not exist'
 
   - name: lint_L001_no_behaviors
     given: 'a spec has tier full (default) and no behaviors array or an empty behaviors array'
@@ -308,6 +317,10 @@ behaviors:
     given: 'two or more behaviors in the same spec have identical name fields'
     then: 'reports L010 warning: duplicate behavior names'
 
+  - name: lint_L011_cross_cutting_as_subsystem
+    given: 'a spec references a cross-cutting spec in its subsystems array instead of its applies array'
+    then: 'reports L011 error: cross-cutting spec referenced in subsystems instead of applies'
+
   - name: lint_output_formats
     given: 'notarai lint is invoked with --format human (default) or --format json'
     then: 'human format prints colored output grouped by rule ID with a summary line; json format prints structured findings with rule_id, severity, spec_path, and message fields'
@@ -318,7 +331,7 @@ behaviors:
 
   - name: lint_integrated_into_check
     given: 'notarai check is invoked'
-    then: 'lint rules are run alongside check rules; lint errors count as check errors; findings shared between lint and check (L002/L003 and BehaviorIncomplete, L005 and CircularRef) are deduplicated'
+    then: 'lint rules are run alongside check rules; lint errors count as check errors; findings shared between lint and check (L002/L003 and BehaviorIncomplete, L005 and CircularRef, L011 and CrossCuttingAsSubsystem) are deduplicated'
 
   - name: severity_tiers
     given: 'notarai check produces findings'
@@ -326,7 +339,7 @@ behaviors:
 
   - name: severity_tier_assignment
     given: 'notarai check assigns tiers to check types'
-    then: 'CircularRef and OrphanedGlob and lint L004/L009 are critical; ChangedSinceReconciliation and lint L001/L010 are drift; CoverageGap, OverlappingCoverage, BehaviorIncomplete, and lint L006/L007/L008 are housekeeping'
+    then: 'CircularRef, OrphanedGlob, TestPathMissing, and lint L004/L009/L011 are critical; ChangedSinceReconciliation and lint L001/L010 are drift; CoverageGap, OverlappingCoverage, BehaviorIncomplete, TestCoverageMissing, and lint L006/L007/L008 are housekeeping'
 
   - name: severity_tier_output_human
     given: 'notarai check --format human produces output with severity tiers'
@@ -355,10 +368,6 @@ behaviors:
   - name: check_test_path_missing
     given: 'a behavior lists a tested_by path that does not exist on disk'
     then: 'emits T002 (critical, error) naming the missing path'
-
-  - name: check_test_stale
-    given: 'a behavior lists a tested_by path whose mtime is older than any governed code file'
-    then: 'emits T003 (drift, warning) naming the stale test file'
 
   - name: score_command
     given: 'notarai score is invoked'
@@ -419,12 +428,12 @@ constraints:
   - 'Binary crate visibility -- pub means cross-module only (no external consumers); test-only helpers must be gated with #[cfg(test)]'
   - 'Avoid needless allocations -- prefer borrowing (&str, &Value) over .to_string() / .cloned() when the owned value is not needed'
   - 'Avoid .unwrap() in production code -- use ?, .expect("reason"), or combinators; .unwrap() is acceptable in #[test] functions and #[cfg(test)] modules'
-  - 'Schema version enum must include all supported versions for backward compatibility (currently 0.7, 0.6, and 0.5)'
-  - 'Before bumping the schema version: copy notarai.spec.json to schemas/<old_version>/spec.schema.json first; the docs workflow reads each version from its snapshot, not from notarai.spec.json'
+  - 'Schema version enum must include all supported versions for backward compatibility (currently 0.8, 0.7, 0.6, and 0.5)'
+  - 'Before bumping the schema version: manually copy notarai.spec.json to crates/notarai/schemas/<old_version>/spec.schema.json first; the docs workflow reads each version from its snapshot, not from notarai.spec.json'
   - 'Update checks use a global cache with 24h TTL; network requests use a 5s timeout for version checks and 120s for binary downloads'
   - 'The check command must never modify any files or the cache database'
   - 'The lint command must never modify any files'
-  - 'Lint rule IDs (L001-L010) must be stable across versions (never renumber)'
+  - 'Lint rule IDs (L001-L011) must be stable across versions (never renumber)'
   - 'notarai lint must complete in under 500ms for 20 specs'
 
 invariants:
