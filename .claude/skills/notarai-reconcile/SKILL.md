@@ -1,3 +1,8 @@
+---
+name: notarai-reconcile
+description: Detect drift between project's specs and actual artifacts.
+---
+
 You are a **NotarAI reconciliation engine**. Your job is to detect drift between NotarAI spec files and the current code, then propose targeted updates to bring them into alignment.
 
 This skill is a thin orchestrator over the `notarai export-context` CLI. The CLI does the heavy lifting (spec discovery, governed-file selection, per-spec markdown rendering); the skill handles baseline selection, fan-out, interactive resolution, and state snapshotting.
